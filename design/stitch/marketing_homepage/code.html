@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Tajawal:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed": "#6ffbbe",
+              "on-secondary-fixed": "#001f26",
+              "surface-container-high": "#232a39",
+              "inverse-surface": "#dce2f6",
+              "primary": "#b4c5ff",
+              "outline": "#8d90a0",
+              "on-secondary-container": "#00424e",
+              "surface-container-highest": "#2e3544",
+              "on-background": "#dce2f6",
+              "tertiary-fixed-dim": "#4edea3",
+              "error-container": "#93000a",
+              "surface-bright": "#323949",
+              "surface-variant": "#2e3544",
+              "on-primary-fixed": "#00174b",
+              "on-surface": "#dce2f6",
+              "surface-container-lowest": "#070e1c",
+              "on-secondary-fixed-variant": "#004e5c",
+              "primary-fixed": "#dbe1ff",
+              "on-tertiary-container": "#bdffdb",
+              "on-tertiary": "#003824",
+              "surface-container": "#19202e",
+              "outline-variant": "#434655",
+              "secondary-container": "#03b5d3",
+              "secondary-fixed": "#acedff",
+              "inverse-on-surface": "#2a3040",
+              "on-tertiary-fixed": "#002113",
+              "tertiary-container": "#007d55",
+              "secondary-fixed-dim": "#4cd7f6",
+              "on-error": "#690005",
+              "on-primary-fixed-variant": "#003ea8",
+              "on-error-container": "#ffdad6",
+              "on-surface-variant": "#c3c6d7",
+              "on-primary": "#002a78",
+              "surface-tint": "#b4c5ff",
+              "tertiary": "#4edea3",
+              "primary-container": "#2563eb",
+              "primary-fixed-dim": "#b4c5ff",
+              "secondary": "#4cd7f6",
+              "on-secondary": "#003640",
+              "surface-container-low": "#151b2a",
+              "inverse-primary": "#0053db",
+              "surface-dim": "#0c1321",
+              "surface": "#0c1321",
+              "on-tertiary-fixed-variant": "#005236",
+              "background": "#0c1321",
+              "on-primary-container": "#eeefff",
+              "error": "#ffb4ab"
+            },
+            fontFamily: {
+              "headline": ["Inter", "Tajawal"],
+              "body": ["Inter", "Tajawal"],
+              "label": ["Inter", "Tajawal"]
+            },
+            borderRadius: {"DEFAULT": "0.375rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-panel {
+        background: rgba(46, 53, 68, 0.6);
+        backdrop-filter: blur(12px);
+      }
+      .ai-glow {
+        box-shadow: 0 0 15px rgba(78, 222, 163, 0.3);
+      }
+      .deep-sea-shadow {
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0c1321] dark:bg-[#0c1321]">
+<div class="flex justify-between items-center h-16 px-6 w-full max-w-[1920px] mx-auto font-['Inter','Tajawal'] text-sm font-medium leading-relaxed">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-white">SBrandOps</span>
+<div class="hidden md:flex gap-6">
+<a class="text-blue-500 border-b-2 border-blue-600 pb-1" href="#">Platform</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Solutions</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Resources</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Pricing</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-4 py-2 text-slate-400 hover:text-white transition-all scale-95 active:scale-90 duration-200">Sign In</button>
+<button class="px-5 py-2 bg-primary-container text-on-primary-container rounded-md font-semibold transition-all scale-95 active:scale-90 duration-200">Get Started</button>
+</div>
+</div>
+<div class="bg-[#151b2a] h-[1px] w-full self-end"></div>
+</nav>
+<main class="pt-16">
+<!-- Hero Section -->
+<section class="relative min-h-[921px] flex flex-col items-center justify-center overflow-hidden px-6 text-center">
+<!-- Background Elements -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10">
+<div class="absolute top-[10%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary-container opacity-10 blur-[120px] rounded-full"></div>
+</div>
+<div class="max-w-4xl mx-auto space-y-8 mt-20">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-high border border-outline-variant/20 text-[0.6875rem] uppercase tracking-wider font-semibold text-primary">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+                    Now with Intelligence Layer 2.0
+                </div>
+<h1 class="text-5xl md:text-7xl font-headline font-bold tracking-tight text-white leading-[1.1]">
+                    The operating system behind <br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">modern brand growth.</span>
+</h1>
+<p class="text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
+                    Unify your content, ads, social, and SEO operations with an AI-native workspace designed for high-performance marketing teams.
+                </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+<button class="w-full sm:w-auto px-8 py-4 bg-primary-container text-on-primary-container font-bold rounded-md hover:bg-secondary transition-all active:scale-[0.98]">
+                        Start Free
+                    </button>
+<button class="w-full sm:w-auto px-8 py-4 glass-panel border border-outline-variant/10 text-white font-bold rounded-md hover:bg-surface-bright/30 transition-all active:scale-[0.98]">
+                        Book Demo
+                    </button>
+</div>
+</div>
+<!-- Dashboard Preview -->
+<div class="mt-20 w-full max-w-6xl mx-auto relative px-4">
+<div class="rounded-lg overflow-hidden border border-outline-variant/20 deep-sea-shadow bg-surface-container-lowest">
+<img class="w-full h-auto grayscale opacity-80 hover:grayscale-0 transition-all duration-700" data-alt="Modern dark mode software dashboard with glowing blue data visualizations, sleek charts, and minimalist navigation elements for a marketing operating system" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADZRU_8rYw-YZJqP6vZjJEZ5haD3eocwdyyLy7aWb9GBj3BEGjIeK9Ma4q35UU2r6ivDyZcY980lk5pwH7fsozcNUi7Tqzcm4KBR7hoz-rNm8_veTqAFANESZx86am2-QTtoIRwNJCwa1GhCczcPxUZkjOeLyoaD6UC7Y6gFGCnIWvNUtk_Xn-uwck86DE6hCJ7DvQ7SWRTxls6dp4YYd0ufR_D8o2ueQ1STh1gWkoDc5BGHguwxq6WPj5X48dh1Ttpns5bMfS"/>
+</div>
+<!-- Floating Insight Element -->
+<div class="absolute -right-4 top-1/4 hidden lg:block glass-panel p-4 rounded-md border border-tertiary/20 ai-glow w-64 text-left">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<span class="text-xs font-bold text-tertiary uppercase tracking-widest">AI Insight</span>
+</div>
+<p class="text-sm text-white font-medium">Campaign performance is 22% above benchmark. Recommend scaling SEO budget.</p>
+</div>
+</div>
+</section>
+<!-- Credibility Strip -->
+<section class="py-16 bg-surface-container-low/30">
+<div class="max-w-7xl mx-auto px-6">
+<p class="text-center text-[0.6875rem] uppercase tracking-[0.2em] text-on-surface-variant mb-12 font-bold">Empowering global leaders</p>
+<div class="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-40 grayscale">
+<div class="h-8 flex items-center font-bold text-2xl text-white">QUANTUM</div>
+<div class="h-8 flex items-center font-bold text-2xl text-white">NEXUS</div>
+<div class="h-8 flex items-center font-bold text-2xl text-white">VELOCITY</div>
+<div class="h-8 flex items-center font-bold text-2xl text-white">ELEVATE</div>
+<div class="h-8 flex items-center font-bold text-2xl text-white">CORE</div>
+</div>
+</div>
+</section>
+<!-- Modules Bento Grid -->
+<section class="py-32 px-6 max-w-7xl mx-auto">
+<div class="mb-16">
+<h2 class="text-3xl font-headline font-semibold text-white mb-4">Core Ecosystem</h2>
+<p class="text-on-surface-variant max-w-xl">Everything you need to orchestrate a global brand presence in one unified interface.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Large Hub Card -->
+<div class="md:col-span-8 bg-surface-container-low rounded-md p-8 flex flex-col justify-between group cursor-pointer hover:bg-surface-container transition-colors">
+<div>
+<div class="w-12 h-12 rounded bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">hub</span>
+</div>
+<h3 class="text-2xl font-bold text-white mb-2">Brand Hub</h3>
+<p class="text-on-surface-variant max-w-md">Centralize your brand identity, style guides, and master assets in a single, machine-readable repository.</p>
+</div>
+<div class="mt-12 flex items-center gap-4 overflow-hidden">
+<div class="h-20 w-32 bg-surface-container-high rounded flex-shrink-0"></div>
+<div class="h-20 w-32 bg-surface-container-high rounded flex-shrink-0"></div>
+<div class="h-20 w-32 bg-surface-container-high rounded flex-shrink-0"></div>
+</div>
+</div>
+<!-- AI Lab -->
+<div class="md:col-span-4 bg-surface-container-highest rounded-md p-8 flex flex-col justify-between border border-primary/20 ai-glow">
+<div>
+<div class="w-12 h-12 rounded bg-tertiary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-tertiary text-3xl">psychology</span>
+</div>
+<h3 class="text-2xl font-bold text-white mb-2">AI Lab</h3>
+<p class="text-on-surface-variant">Generative content, automated strategy synthesis, and predictive analytics at your fingertips.</p>
+</div>
+<button class="mt-8 text-tertiary font-bold text-sm flex items-center gap-2">Explore Intelligence <span class="material-symbols-outlined">arrow_forward</span></button>
+</div>
+<!-- Row 2 -->
+<div class="md:col-span-4 bg-surface-container-low rounded-md p-8 hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-secondary text-3xl mb-4">rocket_launch</span>
+<h3 class="text-xl font-bold text-white mb-2">Ads Ops</h3>
+<p class="text-sm text-on-surface-variant">Manage cross-channel spend with automated bidding and creative testing.</p>
+</div>
+<div class="md:col-span-4 bg-surface-container-low rounded-md p-8 hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-secondary text-3xl mb-4">monitoring</span>
+<h3 class="text-xl font-bold text-white mb-2">Social Ops</h3>
+<p class="text-sm text-on-surface-variant">Schedule, engage, and analyze performance across 12+ social platforms.</p>
+</div>
+<div class="md:col-span-4 bg-surface-container-low rounded-md p-8 hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined text-secondary text-3xl mb-4">search</span>
+<h3 class="text-xl font-bold text-white mb-2">SEO Ops</h3>
+<p class="text-sm text-on-surface-variant">Technical audits, keyword gap analysis, and automated backlink monitoring.</p>
+</div>
+</div>
+</section>
+<!-- Workflow Visualization -->
+<section class="py-32 bg-surface-container-lowest">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-20">
+<h2 class="text-4xl font-headline font-bold text-white mb-6">Uninterrupted Velocity</h2>
+<p class="text-on-surface-variant max-w-2xl mx-auto">Our circular operational flow removes friction from strategy to optimization.</p>
+</div>
+<div class="relative grid grid-cols-2 md:grid-cols-6 gap-4">
+<!-- Step 1 -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-16 h-16 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-white">lightbulb</span>
+</div>
+<h4 class="font-bold text-white">Plan</h4>
+<div class="hidden md:block absolute top-8 left-[15%] w-full h-[2px] bg-gradient-to-r from-primary/50 to-transparent -z-10"></div>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-16 h-16 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-white">edit_note</span>
+</div>
+<h4 class="font-bold text-white">Create</h4>
+</div>
+<!-- Step 3 -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-16 h-16 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-white">send</span>
+</div>
+<h4 class="font-bold text-white">Publish</h4>
+</div>
+<!-- Step 4 -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-16 h-16 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-white">forum</span>
+</div>
+<h4 class="font-bold text-white">Engage</h4>
+</div>
+<!-- Step 5 -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-16 h-16 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-white">bar_chart</span>
+</div>
+<h4 class="font-bold text-white">Analyze</h4>
+</div>
+<!-- Step 6 -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-16 h-16 rounded-full bg-primary flex items-center justify-center mb-4 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-on-primary">auto_fix_high</span>
+</div>
+<h4 class="font-bold text-white">Optimize</h4>
+</div>
+</div>
+</div>
+</section>
+<!-- AI Assistant Preview -->
+<section class="py-32 overflow-hidden relative">
+<div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+<div class="space-y-8">
+<div class="inline-block px-3 py-1 bg-tertiary-container/20 text-tertiary text-xs font-bold tracking-widest uppercase rounded-full border border-tertiary/10">SBrandOps Intelligence</div>
+<h2 class="text-4xl md:text-5xl font-headline font-bold text-white">The brain behind <br/>your brand operations.</h2>
+<p class="text-on-surface-variant text-lg leading-relaxed">
+                        More than just a chatbot. Our intelligence layer proactively monitors your campaigns, detects anomalies, and drafts optimizations before you even log in.
+                    </p>
+<ul class="space-y-4">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+<span class="text-on-surface">Automated budget reallocation based on real-time ROAS.</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+<span class="text-on-surface">Semantic content optimization for multi-language markets.</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+<span class="text-on-surface">Predictive forecasting with 92% accuracy on spend metrics.</span>
+</li>
+</ul>
+</div>
+<div class="relative">
+<div class="glass-panel rounded-md p-8 border border-white/5 ai-glow">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-10 h-10 rounded-full bg-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-tertiary">psychology</span>
+</div>
+<div>
+<h5 class="text-white font-bold">Assistant</h5>
+<p class="text-xs text-on-surface-variant">Thinking...</p>
+</div>
+</div>
+<div class="space-y-4">
+<div class="bg-surface-container-high rounded-md p-4 text-sm text-on-surface max-w-[80%]">
+                                "Analyze yesterday's ad performance on LinkedIn and suggest improvements."
+                            </div>
+<div class="bg-primary-container/20 rounded-md p-4 text-sm text-on-primary-container ml-auto max-w-[90%] border-l-2 border-primary">
+<p class="mb-2 font-bold">Analysis Complete:</p>
+<p>Click-through rate dropped by 12% in the 'Enterprise' segment. Creative 'V2_Blue' is fatiguing. I have prepared 3 new copy variants with high-intent keywords ready for approval.</p>
+<div class="mt-4 flex gap-2">
+<button class="px-3 py-1 bg-primary text-on-primary rounded text-xs font-bold">Apply Variants</button>
+<button class="px-3 py-1 border border-outline-variant/20 rounded text-xs font-bold">View Data</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Decorative Circles -->
+<div class="absolute -top-12 -right-12 w-64 h-64 bg-tertiary/10 rounded-full blur-3xl -z-10"></div>
+</div>
+</div>
+</section>
+<!-- Pricing Teaser -->
+<section class="py-32 bg-surface-container-low/20">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center mb-16">
+<h2 class="text-4xl font-headline font-bold text-white mb-4">Scalable Operations</h2>
+<p class="text-on-surface-variant">Choose the engine that fits your current trajectory.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Essential -->
+<div class="bg-surface-container rounded-md p-10 flex flex-col border border-outline-variant/10 hover:border-primary/20 transition-all">
+<h3 class="text-xl font-bold text-white mb-1">Growth</h3>
+<p class="text-on-surface-variant text-sm mb-8">For scaling marketing teams.</p>
+<div class="text-4xl font-bold text-white mb-8">$499<span class="text-sm font-normal text-on-surface-variant">/mo</span></div>
+<ul class="space-y-4 flex-grow mb-10">
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> 5 Core Modules</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Up to 10 Users</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Basic AI Insights</li>
+</ul>
+<button class="w-full py-3 rounded border border-outline-variant/20 text-white font-bold hover:bg-surface-bright transition-all">Get Started</button>
+</div>
+<!-- Pro (Featured) -->
+<div class="bg-surface-container-highest rounded-md p-10 flex flex-col relative deep-sea-shadow transform scale-105 border border-primary/40">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-primary text-on-primary text-[0.6rem] font-black uppercase tracking-widest rounded-full">Most Popular</div>
+<h3 class="text-xl font-bold text-white mb-1">Scale</h3>
+<p class="text-on-surface-variant text-sm mb-8">For multi-brand organizations.</p>
+<div class="text-4xl font-bold text-white mb-8">$1,299<span class="text-sm font-normal text-on-surface-variant">/mo</span></div>
+<ul class="space-y-4 flex-grow mb-10">
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Full Ecosystem Access</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Unlimited Users</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Advanced AI Lab Access</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> API &amp; Webhooks</li>
+</ul>
+<button class="w-full py-3 bg-primary-container text-on-primary-container rounded font-bold hover:bg-secondary transition-all">Go Pro</button>
+</div>
+<!-- Enterprise -->
+<div class="bg-surface-container rounded-md p-10 flex flex-col border border-outline-variant/10 hover:border-primary/20 transition-all">
+<h3 class="text-xl font-bold text-white mb-1">Enterprise</h3>
+<p class="text-on-surface-variant text-sm mb-8">Global compliance &amp; security.</p>
+<div class="text-4xl font-bold text-white mb-8">Custom</div>
+<ul class="space-y-4 flex-grow mb-10">
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Dedicated Node</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> Custom AI Models</li>
+<li class="flex items-center gap-2 text-sm"><span class="material-symbols-outlined text-primary text-lg">check</span> 24/7 Priority Support</li>
+</ul>
+<button class="w-full py-3 rounded border border-outline-variant/20 text-white font-bold hover:bg-surface-bright transition-all">Contact Sales</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0c1321] w-full py-12 border-t-0 mt-32">
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
+<div class="col-span-2 md:col-span-1">
+<span class="text-lg font-black text-white mb-6 block">SBrandOps</span>
+<p class="text-slate-500 font-['Inter','Tajawal'] text-xs leading-relaxed max-w-xs">
+                    Building the cognitive future of brand management. Unified intelligence for global teams.
+                </p>
+</div>
+<div>
+<h6 class="text-[0.6875rem] uppercase tracking-wider font-bold text-white mb-6">Platform</h6>
+<ul class="space-y-3">
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Features</a></li>
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">AI Lab</a></li>
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Integrations</a></li>
+</ul>
+</div>
+<div>
+<h6 class="text-[0.6875rem] uppercase tracking-wider font-bold text-white mb-6">Company</h6>
+<ul class="space-y-3">
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">About Us</a></li>
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Careers</a></li>
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Contact</a></li>
+</ul>
+</div>
+<div>
+<h6 class="text-[0.6875rem] uppercase tracking-wider font-bold text-white mb-6">Support</h6>
+<ul class="space-y-3">
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Help Center</a></li>
+<li><a class="text-slate-500 hover:text-blue-400 transition-colors font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Status</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center pt-8 border-t border-[#151b2a]">
+<p class="text-slate-500 font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider mb-4 md:mb-0">
+                © 2024 SBrandOps Intelligence. All rights reserved.
+            </p>
+<div class="flex gap-6">
+<a class="text-slate-500 hover:text-white font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Privacy Policy</a>
+<a class="text-slate-500 hover:text-white font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Terms of Service</a>
+<a class="text-slate-500 hover:text-white font-['Inter','Tajawal'] text-[0.6875rem] uppercase tracking-wider" href="#">Security</a>
+</div>
+</div>
+</footer>
+</body></html>

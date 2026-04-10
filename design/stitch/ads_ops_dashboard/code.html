@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SBrandOps | Ads Ops Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Tajawal:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#151b2a",
+              "secondary-fixed-dim": "#4cd7f6",
+              "on-error-container": "#ffdad6",
+              "error": "#ffb4ab",
+              "secondary": "#4cd7f6",
+              "on-background": "#dce2f6",
+              "tertiary": "#4edea3",
+              "surface-container-lowest": "#070e1c",
+              "on-primary-fixed-variant": "#003ea8",
+              "on-error": "#690005",
+              "on-secondary-fixed": "#001f26",
+              "tertiary-container": "#007d55",
+              "inverse-surface": "#dce2f6",
+              "tertiary-fixed-dim": "#4edea3",
+              "on-primary": "#002a78",
+              "surface": "#0c1321",
+              "inverse-on-surface": "#2a3040",
+              "primary": "#b4c5ff",
+              "on-tertiary-container": "#bdffdb",
+              "on-tertiary-fixed-variant": "#005236",
+              "secondary-fixed": "#acedff",
+              "inverse-primary": "#0053db",
+              "secondary-container": "#03b5d3",
+              "surface-dim": "#0c1321",
+              "surface-variant": "#2e3544",
+              "outline-variant": "#434655",
+              "surface-tint": "#b4c5ff",
+              "on-surface": "#dce2f6",
+              "on-surface-variant": "#c3c6d7",
+              "surface-container-high": "#232a39",
+              "primary-container": "#2563eb",
+              "on-tertiary-fixed": "#002113",
+              "tertiary-fixed": "#6ffbbe",
+              "on-secondary-fixed-variant": "#004e5c",
+              "on-secondary-container": "#00424e",
+              "primary-fixed": "#dbe1ff",
+              "on-primary-fixed": "#00174b",
+              "background": "#0c1321",
+              "primary-fixed-dim": "#b4c5ff",
+              "on-primary-container": "#eeefff",
+              "surface-container-highest": "#2e3544",
+              "surface-container": "#19202e",
+              "error-container": "#93000a",
+              "on-tertiary": "#003824",
+              "surface-bright": "#323949",
+              "outline": "#8d90a0",
+              "on-secondary": "#003640"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(46, 53, 68, 0.6);
+            backdrop-filter: blur(12px);
+        }
+        .ai-glow {
+            box-shadow: 0 0 15px rgba(78, 222, 163, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30">
+<!-- TopNavBar -->
+<nav class="bg-[#0c1321] dark:bg-[#0c1321] fixed top-0 w-full z-50">
+<div class="flex justify-between items-center h-16 px-6 w-full max-w-[1920px] mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-white">SBrandOps</span>
+<div class="hidden md:flex gap-6">
+<a class="font-['Inter','Tajawal'] text-sm font-medium leading-relaxed text-slate-400 hover:text-white transition-colors" href="#">Platform</a>
+<a class="font-['Inter','Tajawal'] text-sm font-medium leading-relaxed text-slate-400 hover:text-white transition-colors" href="#">Solutions</a>
+<a class="font-['Inter','Tajawal'] text-sm font-medium leading-relaxed text-slate-400 hover:text-white transition-colors" href="#">Resources</a>
+<a class="font-['Inter','Tajawal'] text-sm font-medium leading-relaxed text-slate-400 hover:text-white transition-colors" href="#">Pricing</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<button class="p-2 text-slate-400 hover:bg-[#151b2a] rounded-md transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-[#151b2a] rounded-md transition-all">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-md font-medium text-sm transition-transform active:scale-95">Get Started</button>
+</div>
+</div>
+<div class="bg-[#151b2a] h-[1px] w-full self-end"></div>
+</nav>
+<!-- SideNavBar -->
+<aside class="bg-[#070e1c] dark:bg-[#070e1c] h-screen w-64 fixed left-0 top-0 border-r-0 pt-16 z-40 hidden md:flex flex-col py-6 px-4">
+<div class="mb-8 flex items-center gap-3 px-2">
+<div class="w-8 h-8 rounded-md bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">rocket_launch</span>
+</div>
+<div>
+<p class="text-lg font-semibold text-white leading-none">Acme Corp</p>
+<p class="text-xs text-slate-500">Marketing Dept</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 bg-blue-600/10 text-blue-500 border-r-2 border-blue-600 font-['Inter','Tajawal'] text-[0.875rem] font-regular transition-all duration-150" href="#">
+<span class="material-symbols-outlined">dashboard</span> Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-200 hover:bg-[#151b2a] font-['Inter','Tajawal'] text-[0.875rem] font-regular transition-all duration-150" href="#">
+<span class="material-symbols-outlined">tactic</span> Strategy
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-200 hover:bg-[#151b2a] font-['Inter','Tajawal'] text-[0.875rem] font-regular transition-all duration-150" href="#">
+<span class="material-symbols-outlined">rocket_launch</span> Campaigns
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-200 hover:bg-[#151b2a] font-['Inter','Tajawal'] text-[0.875rem] font-regular transition-all duration-150" href="#">
+<span class="material-symbols-outlined">monitoring</span> Analytics
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-200 hover:bg-[#151b2a] font-['Inter','Tajawal'] text-[0.875rem] font-regular transition-all duration-150" href="#">
+<span class="material-symbols-outlined">inventory_2</span> Assets
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-slate-500 hover:text-slate-200 hover:bg-[#151b2a] font-['Inter','Tajawal'] text-[0.875rem] font-regular transition-all duration-150" href="#">
+<span class="material-symbols-outlined">psychology</span> AI Lab
+            </a>
+</nav>
+<div class="mt-auto border-t border-[#151b2a] pt-4 space-y-1">
+<button class="w-full flex items-center justify-center gap-2 bg-primary-container text-white py-2 rounded-md text-sm font-medium mb-4 active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-sm">add</span> New Campaign
+            </button>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-200 font-['Inter','Tajawal'] text-[0.875rem] font-regular" href="#">
+<span class="material-symbols-outlined text-sm">help</span> Help Center
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-200 font-['Inter','Tajawal'] text-[0.875rem] font-regular" href="#">
+<span class="material-symbols-outlined text-sm">chat_bubble</span> Feedback
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-20 p-6 min-h-screen">
+<!-- Header Section -->
+<header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="text-[1.75rem] font-medium text-white font-headline tracking-tight">Ads Ops Command</h1>
+<p class="text-on-surface-variant text-sm">Real-time performance across 4 platforms</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="bg-surface-container-low px-4 py-2 rounded-md flex items-center gap-3">
+<span class="text-xs font-label uppercase tracking-wider text-outline">Pacing</span>
+<div class="w-32 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[82%]"></div>
+</div>
+<span class="text-xs font-bold text-secondary">82%</span>
+</div>
+<button class="bg-surface-container-high px-4 py-2 rounded-md text-sm flex items-center gap-2 border border-outline-variant/10">
+<span class="material-symbols-outlined text-sm">calendar_today</span> Last 7 Days
+                </button>
+</div>
+</header>
+<!-- KPI Grid: Tonal depth & No lines -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="bg-surface-container-lowest p-6 rounded-md group hover:bg-surface-container-low transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-label uppercase tracking-wider text-on-surface-variant">ROAS</span>
+<span class="text-tertiary text-xs flex items-center gap-1 font-bold">
+<span class="material-symbols-outlined text-sm">trending_up</span> +12.4%
+                    </span>
+</div>
+<div class="text-[1.75rem] font-medium text-white mb-1">4.2x</div>
+<div class="h-12 w-full flex items-end gap-1">
+<div class="bg-primary/20 w-full h-[40%]"></div>
+<div class="bg-primary/20 w-full h-[60%]"></div>
+<div class="bg-primary/20 w-full h-[45%]"></div>
+<div class="bg-primary/20 w-full h-[70%]"></div>
+<div class="bg-primary/20 w-full h-[85%]"></div>
+<div class="bg-primary w-full h-[95%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-md group hover:bg-surface-container-low transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-label uppercase tracking-wider text-on-surface-variant">Avg. CPA</span>
+<span class="text-error text-xs flex items-center gap-1 font-bold">
+<span class="material-symbols-outlined text-sm">trending_up</span> +4.1%
+                    </span>
+</div>
+<div class="text-[1.75rem] font-medium text-white mb-1">$24.12</div>
+<div class="h-12 w-full flex items-end gap-1">
+<div class="bg-secondary/20 w-full h-[80%]"></div>
+<div class="bg-secondary/20 w-full h-[70%]"></div>
+<div class="bg-secondary/20 w-full h-[75%]"></div>
+<div class="bg-secondary/20 w-full h-[60%]"></div>
+<div class="bg-secondary/20 w-full h-[55%]"></div>
+<div class="bg-secondary w-full h-[50%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-md group hover:bg-surface-container-low transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-label uppercase tracking-wider text-on-surface-variant">Total Spend</span>
+<span class="text-tertiary text-xs flex items-center gap-1 font-bold">
+<span class="material-symbols-outlined text-sm">check_circle</span> On Track
+                    </span>
+</div>
+<div class="text-[1.75rem] font-medium text-white mb-1">$142.8k</div>
+<div class="h-12 w-full flex items-end gap-1">
+<div class="bg-primary/20 w-full h-[30%]"></div>
+<div class="bg-primary/20 w-full h-[40%]"></div>
+<div class="bg-primary/20 w-full h-[50%]"></div>
+<div class="bg-primary/20 w-full h-[60%]"></div>
+<div class="bg-primary/20 w-full h-[75%]"></div>
+<div class="bg-primary w-full h-[80%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-md group hover:bg-surface-container-low transition-colors">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-label uppercase tracking-wider text-on-surface-variant">Revenue</span>
+<span class="text-tertiary text-xs flex items-center gap-1 font-bold">
+<span class="material-symbols-outlined text-sm">trending_up</span> +22%
+                    </span>
+</div>
+<div class="text-[1.75rem] font-medium text-white mb-1">$598.2k</div>
+<div class="h-12 w-full flex items-end gap-1">
+<div class="bg-tertiary/20 w-full h-[20%]"></div>
+<div class="bg-tertiary/20 w-full h-[35%]"></div>
+<div class="bg-tertiary/20 w-full h-[50%]"></div>
+<div class="bg-tertiary/20 w-full h-[65%]"></div>
+<div class="bg-tertiary/20 w-full h-[80%]"></div>
+<div class="bg-tertiary w-full h-[98%]"></div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Main Content -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Campaign Health Table -->
+<div class="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-md overflow-hidden">
+<div class="p-6 flex justify-between items-center">
+<h2 class="text-lg font-semibold text-white">Campaign Performance</h2>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-surface-container-high rounded-full text-[10px] uppercase font-bold text-outline">Live (12)</span>
+<span class="px-3 py-1 bg-surface-container-high rounded-full text-[10px] uppercase font-bold text-outline">Paused (4)</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low text-[10px] uppercase tracking-widest text-on-surface-variant">
+<tr>
+<th class="px-6 py-4 font-bold">Campaign Name</th>
+<th class="px-6 py-4 font-bold text-center">Platform</th>
+<th class="px-6 py-4 font-bold text-right">ROAS</th>
+<th class="px-6 py-4 font-bold text-right">Spend</th>
+<th class="px-6 py-4 font-bold text-center">Status</th>
+<th class="px-6 py-4 font-bold"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#151b2a]">
+<tr class="hover:bg-[#151b2a] transition-colors group">
+<td class="px-6 py-5">
+<p class="text-sm font-medium text-white">Spring_Collection_v2</p>
+<p class="text-xs text-slate-500">ID: CAM-99201</p>
+</td>
+<td class="px-6 py-5">
+<div class="flex justify-center">
+<span class="px-2 py-1 bg-blue-600/10 text-blue-400 rounded-sm text-[10px] font-bold">META</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right font-medium text-tertiary">5.2x</td>
+<td class="px-6 py-5 text-right text-sm">$42,100</td>
+<td class="px-6 py-5">
+<div class="flex justify-center items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-tertiary"></div>
+<span class="text-xs text-on-surface">Active</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-slate-500 group-hover:text-white transition-colors">more_vert</button>
+</td>
+</tr>
+<tr class="hover:bg-[#151b2a] transition-colors group">
+<td class="px-6 py-5">
+<p class="text-sm font-medium text-white">Retargeting_HighValue</p>
+<p class="text-xs text-slate-500">ID: CAM-81273</p>
+</td>
+<td class="px-6 py-5">
+<div class="flex justify-center">
+<span class="px-2 py-1 bg-secondary/10 text-secondary rounded-sm text-[10px] font-bold">GOOGLE</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right font-medium text-white">3.1x</td>
+<td class="px-6 py-5 text-right text-sm">$12,400</td>
+<td class="px-6 py-5">
+<div class="flex justify-center items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-tertiary"></div>
+<span class="text-xs text-on-surface">Active</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-slate-500 group-hover:text-white transition-colors">more_vert</button>
+</td>
+</tr>
+<tr class="hover:bg-[#151b2a] transition-colors group">
+<td class="px-6 py-5">
+<p class="text-sm font-medium text-white">Lifestyle_Trends_Tok</p>
+<p class="text-xs text-slate-500">ID: CAM-72811</p>
+</td>
+<td class="px-6 py-5">
+<div class="flex justify-center">
+<span class="px-2 py-1 bg-primary/10 text-primary rounded-sm text-[10px] font-bold">TIKTOK</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right font-medium text-error">1.8x</td>
+<td class="px-6 py-5 text-right text-sm">$8,920</td>
+<td class="px-6 py-5">
+<div class="flex justify-center items-center gap-1.5">
+<div class="w-1.5 h-1.5 rounded-full bg-error"></div>
+<span class="text-xs text-on-surface">Alert</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="material-symbols-outlined text-slate-500 group-hover:text-white transition-colors">more_vert</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- AI Insight Panel -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<!-- AI Alert Card -->
+<div class="glass-panel p-6 rounded-md ai-glow border border-tertiary-container/20">
+<div class="flex items-center gap-3 mb-4">
+<div class="p-2 bg-tertiary-container rounded-md">
+<span class="material-symbols-outlined text-white text-sm" style="font-variation-settings: 'FILL' 1;">psychology</span>
+</div>
+<h3 class="font-bold text-white">AI Optimization</h3>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed mb-6">
+                        ROAS drop detected on <span class="text-white font-bold">TikTok</span>. Creative fatigue estimated at 84% in "Lifestyle_Trends" group.
+                    </p>
+<div class="space-y-3 mb-6">
+<div class="flex items-center gap-3 text-xs text-tertiary">
+<span class="material-symbols-outlined text-sm">auto_fix_high</span>
+<span>Shift $1,200/day to Google Retargeting</span>
+</div>
+<div class="flex items-center gap-3 text-xs text-tertiary">
+<span class="material-symbols-outlined text-sm">auto_fix_high</span>
+<span>Refresh ad creative for Campaign ID 72811</span>
+</div>
+</div>
+<button class="w-full py-2 bg-tertiary-container text-white text-xs font-bold rounded-md active:scale-95 transition-all">Apply All Changes</button>
+</div>
+<!-- Funnel Drop-off -->
+<div class="bg-surface-container-lowest p-6 rounded-md flex-1">
+<h3 class="text-xs font-label uppercase tracking-widest text-on-surface-variant mb-6">Funnel conversion</h3>
+<div class="space-y-6">
+<div>
+<div class="flex justify-between text-xs mb-2">
+<span class="text-slate-400">Impressions</span>
+<span class="text-white">1.2M</span>
+</div>
+<div class="w-full h-8 bg-surface-container-low">
+<div class="h-full bg-primary/40 w-full"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-2">
+<span class="text-slate-400">Click-throughs</span>
+<span class="text-white">42k</span>
+</div>
+<div class="w-full h-8 bg-surface-container-low flex justify-center">
+<div class="h-full bg-primary/60 w-[60%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-2">
+<span class="text-slate-400">Checkouts</span>
+<span class="text-white">1.8k</span>
+</div>
+<div class="w-full h-8 bg-surface-container-low flex justify-center">
+<div class="h-full bg-primary/80 w-[25%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between text-xs mb-2">
+<span class="text-slate-400">Conversions</span>
+<span class="text-white">412</span>
+</div>
+<div class="w-full h-8 bg-surface-container-low flex justify-center">
+<div class="h-full bg-primary w-[8%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Platform Leaderboard -->
+<div class="col-span-12 md:col-span-6 lg:col-span-4 bg-surface-container-lowest p-6 rounded-md">
+<h3 class="text-sm font-semibold text-white mb-6">Platform Share</h3>
+<div class="flex items-center justify-center h-48 relative">
+<!-- Donut Chart representation -->
+<div class="w-40 h-40 rounded-full border-[12px] border-surface-container-high border-t-primary border-r-secondary border-b-tertiary"></div>
+<div class="absolute flex flex-col items-center">
+<span class="text-2xl font-bold text-white">$142k</span>
+<span class="text-[10px] text-slate-500 uppercase tracking-tighter">Total</span>
+</div>
+</div>
+<div class="mt-6 grid grid-cols-2 gap-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<span class="text-xs text-slate-400">Meta (45%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<span class="text-xs text-slate-400">Google (30%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<span class="text-xs text-slate-400">TikTok (15%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-surface-container-high"></div>
+<span class="text-xs text-slate-400">Other (10%)</span>
+</div>
+</div>
+</div>
+<!-- Creative Performance -->
+<div class="col-span-12 md:col-span-6 lg:col-span-8 bg-surface-container-lowest p-6 rounded-md">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-semibold text-white">Creative Performance</h3>
+<button class="text-xs text-primary font-bold">View Assets Library</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-surface-container-high p-4 rounded-md">
+<div class="aspect-square bg-surface mb-3 relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" data-alt="high-quality commercial photography of a red running shoe against a dark studio background with dramatic red lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdsw_pWNyT3wk_Dz1CWWZHeLbJUGao0GdtWy6CfAGgP4ymXjba9tMmPqDc8jOLNu2zOasIgKjZwEb1BkDLftf0RUJKXr7ekw8kjZQUZEz9RlCUhQWRgosTnkcvfOiWA1NBTec0qoI53rDr_4v0vBMnEZu3zXi14k7eO1GaTvaI1RCheELo749ASqjlcBP-tIInvq-nJlNaC6cCLWbnJmLnOYIeS8Wj4rJE-1yPvKaEkx_S6Di0_UtzheZjf1HqrMD4TMrBAjd5"/>
+<div class="absolute top-2 left-2 px-2 py-0.5 bg-tertiary-container text-[8px] font-bold text-white rounded-full">TOP PERFORMER</div>
+</div>
+<p class="text-xs font-medium text-white mb-1">Red_Sneaker_UGC</p>
+<div class="flex justify-between text-[10px]">
+<span class="text-slate-500">ROAS</span>
+<span class="text-tertiary font-bold">6.1x</span>
+</div>
+</div>
+<div class="bg-surface-container-high p-4 rounded-md">
+<div class="aspect-square bg-surface mb-3 relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" data-alt="minimalist white wristwatch on a grey textured surface with clean morning shadows and crisp focus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYUyIJnF_VkofBHz4k8_MMFNlJT0sVvroiuzuOwkonfJdn2Ytz-NpLadayvFMaulehUFbnJg1nE8J22Jr-qjP5rpyX38JxJFXESMhT8xSba169vj3eGtvXIGrZjFCHLNwZ8BZ7Cp6vcWmYVmAYmmSLkPeLjINP7Oi98xbUvVPMX-qOx0NTnXYKBZ_ECEGKdvakkRyJ-QyWt9MtbblOzzzppgur01KPhA3aTkTnEl0wPcLSDI3IdH2mfeajQBIYm920EyIdMuW0"/>
+</div>
+<p class="text-xs font-medium text-white mb-1">Classic_Watch_V1</p>
+<div class="flex justify-between text-[10px]">
+<span class="text-slate-500">ROAS</span>
+<span class="text-white font-bold">3.8x</span>
+</div>
+</div>
+<div class="bg-surface-container-high p-4 rounded-md">
+<div class="aspect-square bg-surface mb-3 relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" data-alt="modern black wireless headphones resting on a sleek dark metallic desk under cool blue light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTAWR-shqFZltZsJudoLcu3wI2YV8R_j7Ty0fgjgAOxRHJlm7k4K1eWB6DIgwOBvtGHSGuyeNf72Y2ZKgSygyXIr0iZq7rkhw2ETW7Wy6fYSpcWvqokoAT_xRV3S16fJ23lNohhwi174bvUMuKNQs1Venw76sLR5CcvE4ADEGkc_M_21Iz5uK3uzevz2Dj158T4gSXTAwymsZZzGhQmWLYuCszTUWOV5efQWZE72hgR67Gl6qTw6UbEiow9SzZxXKtSeIraYPG"/>
+</div>
+<p class="text-xs font-medium text-white mb-1">Audio_Immersive_ST</p>
+<div class="flex justify-between text-[10px]">
+<span class="text-slate-500">ROAS</span>
+<span class="text-error font-bold">1.4x</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Navigation Drawer (AI Insights triggered) -->
+<div class="hidden lg:flex fixed right-0 top-0 h-full w-80 z-[60] bg-[#070e1c]/80 backdrop-blur-xl flex flex-col p-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<div class="flex justify-between items-center mb-8">
+<h2 class="text-md font-bold text-white">AI Insights</h2>
+<span class="material-symbols-outlined text-slate-400 cursor-pointer">close</span>
+</div>
+<div class="space-y-6">
+<div class="p-4 bg-white/5 rounded-md border-l-2 border-primary">
+<span class="text-[10px] font-bold text-primary uppercase block mb-1">Trend analysis</span>
+<p class="text-xs text-on-surface leading-relaxed">
+                    Customer acquisition cost is trending down for <span class="text-white font-bold">Gen-Z</span> demographic over the last 48 hours.
+                </p>
+</div>
+<div class="p-4 bg-white/5 rounded-md border-l-2 border-secondary">
+<span class="text-[10px] font-bold text-secondary uppercase block mb-1">Channel Forecast</span>
+<p class="text-xs text-on-surface leading-relaxed">
+                    Predicting 15% increase in conversion rates for <span class="text-white font-bold">Google Search</span> campaigns next weekend.
+                </p>
+</div>
+<div class="p-4 bg-white/5 rounded-md border-l-2 border-error">
+<span class="text-[10px] font-bold text-error uppercase block mb-1">Budget Alert</span>
+<p class="text-xs text-on-surface leading-relaxed">
+                    Daily budget for Meta Retargeting will be depleted by 4PM PST at current velocity.
+                </p>
+</div>
+</div>
+<div class="mt-auto">
+<div class="p-4 bg-surface-container-highest rounded-md mb-4">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-sm text-tertiary">bolt</span>
+<span class="text-xs font-bold text-white">Smart Automations</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[10px] text-slate-400">3 Rules Active</span>
+<button class="text-[10px] text-primary underline">Manage</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-[#0c1321] w-full py-12 border-t-0 mt-12">
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+<div class="col-span-2">
+<span class="text-lg font-black text-white">SBrandOps</span>
+<p class="mt-4 text-xs text-slate-500 max-w-xs leading-relaxed">Advanced Brand Operating System for data-driven creative scaling. Powered by collective intelligence.</p>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-[0.6875rem] uppercase tracking-wider text-on-surface-variant font-bold">Navigation</h4>
+<a class="text-slate-500 text-[0.6875rem] hover:text-blue-400 transition-colors uppercase" href="#">Status</a>
+<a class="text-slate-500 text-[0.6875rem] hover:text-blue-400 transition-colors uppercase" href="#">Security</a>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-[0.6875rem] uppercase tracking-wider text-on-surface-variant font-bold">Legal</h4>
+<a class="text-slate-500 text-[0.6875rem] hover:text-blue-400 transition-colors uppercase" href="#">Privacy Policy</a>
+<a class="text-slate-500 text-[0.6875rem] hover:text-blue-400 transition-colors uppercase" href="#">Terms of Service</a>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-8 mt-12 pt-8 border-t border-[#151b2a]">
+<p class="text-[0.6875rem] uppercase tracking-wider text-slate-500">© 2024 SBrandOps Intelligence. All rights reserved.</p>
+</div>
+</footer>
+</body></html>

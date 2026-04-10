@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SBrandOps Executive Command Center | AI-Native OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface": "#080b13",
+              "surface-low": "#0d121f",
+              "surface-medium": "#161c2d",
+              "surface-high": "#232a3d",
+              "primary": "#3b82f6",
+              "secondary": "#06b6d4",
+              "tertiary": "#10b981",
+              "accent": "#6366f1",
+              "on-surface": "#e2e8f0",
+              "on-surface-variant": "#94a3b8",
+              "outline-variant": "rgba(148, 163, 184, 0.12)",
+              "glass": "rgba(22, 28, 45, 0.7)"
+            },
+            fontFamily: {
+              "sans": ["Inter", "sans-serif"],
+              "mono": ["JetBrains Mono", "monospace"]
+            },
+            borderRadius: {
+              "sm": "0.125rem",
+              "DEFAULT": "0.25rem",
+              "md": "0.375rem",
+              "lg": "0.5rem"
+            },
+          },
+        },
+      }
+    </script>
+<style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #080b13;
+        color: #e2e8f0;
+        letter-spacing: -0.01em;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+        font-size: 20px;
+      }
+      .glass-card {
+        background: rgba(22, 28, 45, 0.4);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+      }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .data-grid-cols {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      }
+      .metric-value {
+        font-family: 'JetBrains Mono', monospace;
+      }
+    </style>
+</head>
+<body class="overflow-hidden h-screen flex">
+<!-- SideNavBar (Compressed) -->
+<aside class="w-16 hover:w-64 transition-all duration-300 group h-full bg-surface-low border-r border-outline-variant z-50 flex flex-col py-4 shrink-0">
+<div class="px-4 mb-8 flex items-center overflow-hidden">
+<div class="h-8 w-8 bg-primary rounded flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white font-bold" data-icon="token">token</span>
+</div>
+<span class="ml-4 font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">SBrandOps</span>
+</div>
+<nav class="flex-1 space-y-1 px-2">
+<a class="flex items-center gap-4 px-3 py-2 bg-primary/10 text-primary border-l-2 border-primary" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Command Center</span>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-on-surface-variant hover:text-white hover:bg-surface-medium transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span class="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Strategy AI</span>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-on-surface-variant hover:text-white hover:bg-surface-medium transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="ads_click">ads_click</span>
+<span class="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Campaigns</span>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-on-surface-variant hover:text-white hover:bg-surface-medium transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats">query_stats</span>
+<span class="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Analytics</span>
+</a>
+<a class="flex items-center gap-4 px-3 py-2 text-on-surface-variant hover:text-white hover:bg-surface-medium transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="folder_managed">folder_managed</span>
+<span class="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Assets</span>
+</a>
+</nav>
+<div class="px-2 mt-auto space-y-1 pt-4 border-t border-outline-variant">
+<a class="flex items-center gap-4 px-3 py-2 text-on-surface-variant hover:text-white" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-sm opacity-0 group-hover:opacity-100 transition-opacity">Settings</span>
+</a>
+<div class="p-1">
+<div class="h-8 w-8 rounded-full bg-surface-high border border-outline-variant overflow-hidden">
+<img alt="User" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_GX2USLQh0NpGfYi2QzVfI0zE1T_shFaoqgqzncD1FxxcnbIePqQ3oPpN8PKwGlyoX3dbQmdbgxeAF9M1y-kSvGygvOhSia009NInYohIHQEGMgXgJ2s8GwkZF72KAyLaVRRCsOty-DVFE1BYhsbvEkhazf_i2Neiz4K9ncz019xGsuMv_i_8nMp26Zj40gOxFyZCSlxGmlQEdslrJCAbYlq-O0xvjpwGSlfCPvY0Twa0nIyyZrUQROMO3s_YWbEtN2qceqFo"/>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Container -->
+<div class="flex-1 flex flex-col min-w-0">
+<!-- TopBar (Refined) -->
+<header class="h-12 bg-surface border-b border-outline-variant flex items-center justify-between px-6 shrink-0">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 px-2 py-1 bg-surface-low rounded border border-outline-variant cursor-pointer hover:bg-surface-medium transition-colors">
+<div class="h-4 w-4 bg-primary rounded-sm"></div>
+<span class="text-xs font-semibold text-white">Acme Global</span>
+<span class="material-symbols-outlined text-[14px] text-on-surface-variant" data-icon="expand_more">expand_more</span>
+</div>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center gap-1.5 text-xs text-on-surface-variant">
+<span class="font-medium text-white">Workspace</span>
+<span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+<span>Q4 Growth Phase</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]" data-icon="search">search</span>
+<input class="bg-surface-low border border-outline-variant text-[11px] rounded px-8 py-1 w-48 focus:ring-1 focus:ring-primary focus:border-primary focus:w-64 transition-all" placeholder="Search Commands (⌘K)"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-white transition-colors" data-icon="notifications">notifications</span>
+<span class="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full ring-2 ring-surface"></span>
+</button>
+<button class="bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded hover:bg-blue-600 transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]" data-icon="add">add</span>
+                    NEW CAMPAIGN
+                </button>
+</div>
+</div>
+</header>
+<!-- Content Workspace -->
+<main class="flex-1 flex overflow-hidden">
+<!-- Dashboard Canvas -->
+<div class="flex-1 overflow-y-auto no-scrollbar bg-surface px-6 py-6">
+<div class="max-w-[1600px] mx-auto space-y-6">
+<!-- Page Header -->
+<div class="flex items-end justify-between">
+<div>
+<h1 class="text-xl font-bold text-white tracking-tight">Executive Intelligence</h1>
+<p class="text-xs text-on-surface-variant mt-0.5">Aggregated performance data across 12 active channels</p>
+</div>
+<div class="flex gap-2 bg-surface-low p-1 rounded border border-outline-variant">
+<button class="px-3 py-1 text-[10px] font-bold text-on-surface-variant hover:text-white transition-colors">1D</button>
+<button class="px-3 py-1 text-[10px] font-bold bg-surface-high text-white rounded border border-outline-variant shadow-sm">7D</button>
+<button class="px-3 py-1 text-[10px] font-bold text-on-surface-variant hover:text-white transition-colors">30D</button>
+</div>
+</div>
+<!-- High-Density Metrics Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<!-- ROAS -->
+<div class="glass-card p-4 rounded-md relative overflow-hidden group">
+<div class="flex justify-between items-start relative z-10">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">ROAS (Combined)</span>
+<span class="text-[10px] font-bold text-tertiary flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]" data-icon="trending_up">trending_up</span> 14.2%
+                            </span>
+</div>
+<div class="metric-value text-2xl font-bold text-white mt-2 mb-4">4.82<span class="text-xs text-on-surface-variant ml-1 font-sans">x</span></div>
+<div class="h-8 flex items-end gap-0.5">
+<div class="flex-1 bg-tertiary/10 rounded-t-[1px] h-[40%] group-hover:bg-tertiary/30 transition-all"></div>
+<div class="flex-1 bg-tertiary/10 rounded-t-[1px] h-[55%] group-hover:bg-tertiary/30 transition-all"></div>
+<div class="flex-1 bg-tertiary/10 rounded-t-[1px] h-[45%] group-hover:bg-tertiary/30 transition-all"></div>
+<div class="flex-1 bg-tertiary/10 rounded-t-[1px] h-[70%] group-hover:bg-tertiary/30 transition-all"></div>
+<div class="flex-1 bg-tertiary/10 rounded-t-[1px] h-[85%] group-hover:bg-tertiary/30 transition-all"></div>
+<div class="flex-1 bg-tertiary/10 rounded-t-[1px] h-[75%] group-hover:bg-tertiary/30 transition-all"></div>
+<div class="flex-1 bg-tertiary/20 rounded-t-[1px] h-[95%]"></div>
+</div>
+</div>
+<!-- CTR -->
+<div class="glass-card p-4 rounded-md relative overflow-hidden group">
+<div class="flex justify-between items-start relative z-10">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Global CTR</span>
+<span class="text-[10px] font-bold text-red-400 flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]" data-icon="trending_down">trending_down</span> 2.1%
+                            </span>
+</div>
+<div class="metric-value text-2xl font-bold text-white mt-2 mb-4">3.15<span class="text-xs text-on-surface-variant ml-1 font-sans">%</span></div>
+<div class="h-8 flex items-end gap-0.5">
+<div class="flex-1 bg-red-400/10 rounded-t-[1px] h-[80%]"></div>
+<div class="flex-1 bg-red-400/10 rounded-t-[1px] h-[75%]"></div>
+<div class="flex-1 bg-red-400/10 rounded-t-[1px] h-[60%]"></div>
+<div class="flex-1 bg-red-400/10 rounded-t-[1px] h-[55%]"></div>
+<div class="flex-1 bg-red-400/10 rounded-t-[1px] h-[45%]"></div>
+<div class="flex-1 bg-red-400/10 rounded-t-[1px] h-[40%]"></div>
+<div class="flex-1 bg-red-400/20 rounded-t-[1px] h-[35%]"></div>
+</div>
+</div>
+<!-- CPA -->
+<div class="glass-card p-4 rounded-md relative overflow-hidden group">
+<div class="flex justify-between items-start relative z-10">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Avg. CPA</span>
+<span class="text-[10px] font-bold text-tertiary flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]" data-icon="arrow_downward">arrow_downward</span> $2.40
+                            </span>
+</div>
+<div class="metric-value text-2xl font-bold text-white mt-2 mb-4"><span class="text-xs text-on-surface-variant mr-1 font-sans">$</span>18.40</div>
+<div class="h-8 flex items-end gap-0.5">
+<div class="flex-1 bg-primary/10 rounded-t-[1px] h-[60%]"></div>
+<div class="flex-1 bg-primary/10 rounded-t-[1px] h-[50%]"></div>
+<div class="flex-1 bg-primary/10 rounded-t-[1px] h-[65%]"></div>
+<div class="flex-1 bg-primary/10 rounded-t-[1px] h-[55%]"></div>
+<div class="flex-1 bg-primary/10 rounded-t-[1px] h-[45%]"></div>
+<div class="flex-1 bg-primary/10 rounded-t-[1px] h-[50%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t-[1px] h-[40%]"></div>
+</div>
+</div>
+<!-- MER -->
+<div class="glass-card p-4 rounded-md relative overflow-hidden group">
+<div class="flex justify-between items-start relative z-10">
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">MER</span>
+<span class="text-[10px] font-bold text-on-surface-variant">STABLE</span>
+</div>
+<div class="metric-value text-2xl font-bold text-white mt-2 mb-4">6.2<span class="text-xs text-on-surface-variant ml-1 font-sans">x</span></div>
+<div class="h-8 flex items-end gap-0.5">
+<div class="flex-1 bg-secondary/10 rounded-t-[1px] h-[50%]"></div>
+<div class="flex-1 bg-secondary/10 rounded-t-[1px] h-[52%]"></div>
+<div class="flex-1 bg-secondary/10 rounded-t-[1px] h-[50%]"></div>
+<div class="flex-1 bg-secondary/10 rounded-t-[1px] h-[51%]"></div>
+<div class="flex-1 bg-secondary/10 rounded-t-[1px] h-[50%]"></div>
+<div class="flex-1 bg-secondary/10 rounded-t-[1px] h-[49%]"></div>
+<div class="flex-1 bg-secondary/20 rounded-t-[1px] h-[50%]"></div>
+</div>
+</div>
+</div>
+<!-- Operational Intelligence Layer -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Real-time Alerts & Pacing (Col 4) -->
+<div class="lg:col-span-4 space-y-4">
+<section class="glass-card rounded-md">
+<div class="px-4 py-3 border-b border-outline-variant flex justify-between items-center">
+<h3 class="text-[11px] font-bold text-white uppercase tracking-widest">Operational Health</h3>
+<span class="h-2 w-2 rounded-full bg-tertiary animate-pulse"></span>
+</div>
+<div class="p-4 space-y-4">
+<!-- Budget Pacing -->
+<div>
+<div class="flex justify-between items-center mb-1.5">
+<span class="text-[11px] text-on-surface-variant">Budget Pacing (Oct)</span>
+<span class="text-[11px] font-mono text-white">72.4%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-high rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 72.4%"></div>
+</div>
+<div class="flex justify-between mt-1 text-[9px] text-on-surface-variant uppercase font-bold">
+<span>$181,000 Spent</span>
+<span>$250,000 Target</span>
+</div>
+</div>
+<!-- Alert Feed -->
+<div class="space-y-2">
+<div class="flex gap-3 items-start p-2 rounded bg-red-400/5 border border-red-400/20">
+<span class="material-symbols-outlined text-red-400 text-[18px]" data-icon="warning">warning</span>
+<div>
+<p class="text-[11px] font-bold text-red-100">CPA Spike: TikTok US</p>
+<p class="text-[10px] text-red-200/70">Campaign #102 trending 45% over target CPA ($24.50 vs $16.00).</p>
+</div>
+</div>
+<div class="flex gap-3 items-start p-2 rounded bg-tertiary/5 border border-tertiary/20">
+<span class="material-symbols-outlined text-tertiary text-[18px]" data-icon="auto_awesome">auto_awesome</span>
+<div>
+<p class="text-[11px] font-bold text-tertiary">Optimization Ready</p>
+<p class="text-[10px] text-tertiary-fixed-dim/70">Intelligence suggests shifting $4,200 to LinkedIn Retargeting.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="glass-card rounded-md">
+<div class="px-4 py-3 border-b border-outline-variant">
+<h3 class="text-[11px] font-bold text-white uppercase tracking-widest">Channel Attribution</h3>
+</div>
+<div class="p-4 space-y-3">
+<div class="flex items-center gap-3">
+<div class="w-16 text-[10px] text-on-surface-variant font-bold">META</div>
+<div class="flex-1 h-3 bg-surface-high rounded-sm overflow-hidden flex">
+<div class="h-full bg-blue-500" style="width: 45%"></div>
+<div class="h-full bg-blue-300" style="width: 15%"></div>
+</div>
+<div class="w-8 text-right text-[10px] font-mono text-white">45%</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-16 text-[10px] text-on-surface-variant font-bold">GOOGLE</div>
+<div class="flex-1 h-3 bg-surface-high rounded-sm overflow-hidden flex">
+<div class="h-full bg-secondary" style="width: 32%"></div>
+<div class="h-full bg-secondary/50" style="width: 8%"></div>
+</div>
+<div class="w-8 text-right text-[10px] font-mono text-white">32%</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-16 text-[10px] text-on-surface-variant font-bold">TIKTOK</div>
+<div class="flex-1 h-3 bg-surface-high rounded-sm overflow-hidden flex">
+<div class="h-full bg-accent" style="width: 18%"></div>
+</div>
+<div class="w-8 text-right text-[10px] font-mono text-white">18%</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Main Chart & Campaign Table (Col 8) -->
+<div class="lg:col-span-8 space-y-6">
+<section class="glass-card rounded-md p-6">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h2 class="text-sm font-bold text-white">Multi-Touch Attribution Activity</h2>
+<p class="text-[11px] text-on-surface-variant">Impressions vs Conversion Events</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="h-2 w-2 rounded-full bg-primary"></div>
+<span class="text-[10px] font-bold uppercase text-on-surface-variant">Impressions</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="h-2 w-2 rounded-full bg-secondary"></div>
+<span class="text-[10px] font-bold uppercase text-on-surface-variant">Conversion</span>
+</div>
+</div>
+</div>
+<div class="h-48 flex items-end justify-between gap-6 px-2">
+<!-- Chart Bars -->
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[60%]">
+<div class="flex-1 bg-primary/20 group-hover:bg-primary/40 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/20 group-hover:bg-secondary/40 h-[40%] transition-all"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant">M</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[75%]">
+<div class="flex-1 bg-primary/20 group-hover:bg-primary/40 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/20 group-hover:bg-secondary/40 h-[55%] transition-all"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant">T</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[90%]">
+<div class="flex-1 bg-primary/30 group-hover:bg-primary/50 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/30 group-hover:bg-secondary/50 h-[70%] transition-all"></div>
+</div>
+<span class="text-[10px] font-bold text-white">W</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[65%]">
+<div class="flex-1 bg-primary/20 group-hover:bg-primary/40 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/20 group-hover:bg-secondary/40 h-[45%] transition-all"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant">T</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[100%]">
+<div class="flex-1 bg-primary/20 group-hover:bg-primary/40 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/20 group-hover:bg-secondary/40 h-[65%] transition-all"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant">F</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[40%]">
+<div class="flex-1 bg-primary/20 group-hover:bg-primary/40 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/20 group-hover:bg-secondary/40 h-[30%] transition-all"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant">S</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group cursor-pointer">
+<div class="w-full flex gap-1 items-end h-[30%]">
+<div class="flex-1 bg-primary/20 group-hover:bg-primary/40 h-[100%] transition-all"></div>
+<div class="flex-1 bg-secondary/20 group-hover:bg-secondary/40 h-[15%] transition-all"></div>
+</div>
+<span class="text-[10px] text-on-surface-variant">S</span>
+</div>
+</div>
+</section>
+<section class="glass-card rounded-md overflow-hidden">
+<div class="px-6 py-3 border-b border-outline-variant flex items-center justify-between">
+<h2 class="text-[11px] font-bold text-white uppercase tracking-widest">Campaign Performance Index</h2>
+<button class="text-[10px] font-bold text-primary hover:underline">EXPORT CSV</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="text-[9px] uppercase font-bold text-on-surface-variant bg-surface-low border-b border-outline-variant">
+<th class="px-6 py-2.5">Campaign Details</th>
+<th class="px-6 py-2.5">Health</th>
+<th class="px-6 py-2.5">Spent / Budget</th>
+<th class="px-6 py-2.5">ROAS</th>
+<th class="px-6 py-2.5"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-medium transition-colors">
+<td class="px-6 py-3">
+<div class="text-[11px] font-bold text-white">Global Awareness 2024</div>
+<div class="text-[9px] text-on-surface-variant uppercase">Multi-Channel • Awareness</div>
+</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-tertiary/10 text-tertiary border border-tertiary/20 uppercase tracking-tighter">Optimized</span>
+</td>
+<td class="px-6 py-3 text-[11px] font-mono text-on-surface-variant">
+<span class="text-white">$124.2k</span> / $250k
+                                            </td>
+<td class="px-6 py-3">
+<div class="text-[11px] font-bold text-white font-mono">5.2x</div>
+<div class="w-12 h-0.5 bg-surface-high mt-1 rounded-full overflow-hidden">
+<div class="h-full bg-tertiary" style="width: 85%"></div>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="material-symbols-outlined text-on-surface-variant text-[16px] hover:text-white" data-icon="more_horiz">more_horiz</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-medium transition-colors border-l-2 border-red-400">
+<td class="px-6 py-3">
+<div class="text-[11px] font-bold text-white">New Product Launch</div>
+<div class="text-[9px] text-on-surface-variant uppercase">TikTok • Direct Response</div>
+</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-400/10 text-red-400 border border-red-400/20 uppercase tracking-tighter">Needs Attention</span>
+</td>
+<td class="px-6 py-3 text-[11px] font-mono text-on-surface-variant">
+<span class="text-white">$1.1M</span> / $1.2M
+                                            </td>
+<td class="px-6 py-3">
+<div class="text-[11px] font-bold text-red-400 font-mono">1.8x</div>
+<div class="w-12 h-0.5 bg-surface-high mt-1 rounded-full overflow-hidden">
+<div class="h-full bg-red-400" style="width: 30%"></div>
+</div>
+</td>
+<td class="px-6 py-3 text-right">
+<button class="material-symbols-outlined text-on-surface-variant text-[16px] hover:text-white" data-icon="more_horiz">more_horiz</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Insights Sidebar (High Density) -->
+<aside class="w-80 border-l border-outline-variant bg-surface-low overflow-y-auto no-scrollbar flex flex-col">
+<div class="p-6 border-b border-outline-variant">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-[11px] font-bold text-white uppercase tracking-[0.2em]">AI Intelligence</h3>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] font-bold text-tertiary uppercase">Active</span>
+<div class="h-1.5 w-1.5 rounded-full bg-tertiary"></div>
+</div>
+</div>
+<div class="space-y-4">
+<div class="p-4 rounded border border-outline-variant bg-surface-medium relative group hover:border-primary/50 transition-all cursor-pointer">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="lightbulb">lightbulb</span>
+<span class="text-[10px] font-bold text-primary uppercase">Strategy Shift</span>
+</div>
+<p class="text-[11px] text-on-surface leading-relaxed">
+                            LinkedIn CTR for "Executive" personas is 3x higher than Meta. Recommendation: Reallocate $12,500 budget immediately for 18% projected lift.
+                        </p>
+<button class="w-full mt-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold rounded transition-colors uppercase">Execute Recommendation</button>
+</div>
+<div class="p-4 rounded border border-outline-variant bg-surface-medium hover:border-secondary/50 transition-all cursor-pointer">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-[18px]" data-icon="brush">brush</span>
+<span class="text-[10px] font-bold text-secondary uppercase">Creative Spike</span>
+</div>
+<p class="text-[11px] text-on-surface leading-relaxed">
+                            Asset group <span class="text-white font-medium">"Minimalist_Q4"</span> shows high engagement in EMEA. Scale frequency cap from 2x to 4x.
+                        </p>
+</div>
+</div>
+</div>
+<div class="p-6 flex-1 flex flex-col">
+<h4 class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">Prompt Intelligence</h4>
+<div class="flex-1 space-y-2 mb-6">
+<button class="w-full text-left p-3 rounded bg-surface border border-outline-variant hover:border-white/20 transition-all text-[11px] text-on-surface-variant">"Breakdown ROAS by region"</button>
+<button class="w-full text-left p-3 rounded bg-surface border border-outline-variant hover:border-white/20 transition-all text-[11px] text-on-surface-variant">"What's causing the CTR drop in UK?"</button>
+<button class="w-full text-left p-3 rounded bg-surface border border-outline-variant hover:border-white/20 transition-all text-[11px] text-on-surface-variant">"Generate Q4 summary report"</button>
+</div>
+<div class="mt-auto relative">
+<input class="w-full bg-surface border border-outline-variant rounded-md px-4 py-2.5 text-[11px] text-white focus:ring-1 focus:ring-primary focus:border-primary pl-10 shadow-lg" placeholder="Ask intelligence..."/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary text-[18px]" data-icon="auto_awesome">auto_awesome</span>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

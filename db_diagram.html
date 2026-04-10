@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBrandOps — خريطة قاعدة البيانات v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f1a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid #2d3748;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
+  .header h1 span { color: #ec4899; }
+  .header p { color: #94a3b8; font-size: 0.85rem; margin-top: 4px; }
+  .stats-row { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .stat { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 8px 16px; text-align: center; }
+  .stat-num { font-size: 1.4rem; font-weight: 700; color: #ec4899; }
+  .stat-lbl { font-size: 0.7rem; color: #94a3b8; }
+
+  /* ── Super Admin Card ── */
+  .admin-card {
+    margin: 24px 40px;
+    background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(99,102,241,0.15));
+    border: 1px solid rgba(236,72,153,0.4);
+    border-radius: 12px; padding: 20px 28px;
+    display: flex; gap: 32px; flex-wrap: wrap; align-items: center;
+  }
+  .admin-card h3 { color: #ec4899; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+  .cred-row { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+  .cred-label { color: #94a3b8; font-size: 0.78rem; width: 70px; }
+  .cred-val { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px; padding: 4px 12px; font-family: monospace; font-size: 0.85rem;
+    color: #f0abfc; letter-spacing: 0.5px; cursor: pointer; transition: background 0.2s; }
+  .cred-val:hover { background: rgba(236,72,153,0.2); }
+  .admin-sql { font-family: monospace; font-size: 0.75rem; color: #86efac;
+    background: rgba(0,0,0,0.5); border: 1px solid rgba(134,239,172,0.3);
+    border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 260px; white-space: pre-wrap; }
+
+  /* ── Filter Bar ── */
+  .filter-bar { display: flex; gap: 8px; padding: 16px 40px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 6px 14px; border-radius: 20px; border: 1px solid;
+    font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    background: transparent;
+  }
+  .filter-btn.active, .filter-btn:hover { color: #fff !important; }
+
+  /* ── Main Grid ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px; padding: 8px 40px 40px; }
+
+  /* ── Module Card ── */
+  .module-card {
+    border-radius: 12px; border: 1px solid; overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .module-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .module-header {
+    padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+  }
+  .module-icon { font-size: 1.2rem; }
+  .module-title { font-size: 0.95rem; font-weight: 700; }
+  .module-subtitle { font-size: 0.72rem; opacity: 0.75; margin-top: 1px; }
+  .module-badge {
+    margin-right: auto; background: rgba(0,0,0,0.3);
+    border-radius: 10px; padding: 2px 8px; font-size: 0.68rem; font-weight: 600;
+  }
+
+  /* ── Table List ── */
+  .table-list { background: rgba(0,0,0,0.25); }
+  .table-item {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 10px 18px; cursor: pointer; transition: background 0.15s;
+  }
+  .table-item:hover { background: rgba(255,255,255,0.05); }
+  .table-item.expanded { background: rgba(255,255,255,0.03); }
+  .table-name-row { display: flex; align-items: center; gap: 8px; }
+  .table-icon { font-size: 0.75rem; opacity: 0.6; }
+  .table-name { font-family: monospace; font-size: 0.82rem; font-weight: 600; color: #e2e8f0; }
+  .table-count { margin-right: auto; font-size: 0.68rem; color: #64748b; }
+  .expand-btn { font-size: 0.6rem; color: #64748b; transition: transform 0.2s; }
+  .expand-btn.open { transform: rotate(180deg); }
+
+  /* ── Columns Detail ── */
+  .columns-detail { display: none; padding: 8px 0 4px 24px; }
+  .columns-detail.show { display: block; }
+  .col-row { display: flex; gap: 6px; align-items: baseline; padding: 2px 0; }
+  .col-name { font-family: monospace; font-size: 0.73rem; color: #93c5fd; min-width: 130px; }
+  .col-type { font-size: 0.66rem; color: #64748b; }
+  .col-pk   { font-size: 0.6rem; background: #f59e0b; color: #000; border-radius: 3px; padding: 0 4px; }
+  .col-fk   { font-size: 0.6rem; background: #6366f1; color: #fff; border-radius: 3px; padding: 0 4px; }
+  .col-idx  { font-size: 0.6rem; background: #10b981; color: #fff; border-radius: 3px; padding: 0 4px; }
+
+  /* ── Relationships Section ── */
+  .relations-section { padding: 8px 18px 12px; }
+  .rel-title { font-size: 0.7rem; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+  .rel-item { font-size: 0.72rem; color: #94a3b8; padding: 2px 0; display: flex; align-items: center; gap: 4px; }
+  .rel-arrow { color: #ec4899; }
+
+  /* ── Future Expansion Section ── */
+  .future-section { padding: 8px 40px 40px; }
+  .future-title { font-size: 1rem; font-weight: 700; color: #a78bfa; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .future-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .future-card {
+    background: rgba(167,139,250,0.08); border: 1px dashed rgba(167,139,250,0.35);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .future-card h4 { color: #a78bfa; font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; display: flex; gap: 6px; }
+  .future-card p  { color: #64748b; font-size: 0.72rem; line-height: 1.5; }
+
+  /* ── Legend ── */
+  .legend { display: flex; gap: 16px; padding: 0 40px 20px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #94a3b8; }
+  .legend-badge { padding: 1px 6px; border-radius: 3px; font-size: 0.6rem; font-weight: 600; }
+
+  /* ── RLS Badge ── */
+  .rls-badge {
+    font-size: 0.62rem; background: rgba(16,185,129,0.2); color: #34d399;
+    border: 1px solid rgba(16,185,129,0.3); border-radius: 4px; padding: 1px 6px;
+  }
+
+  /* ── Toast ── */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1e293b; border: 1px solid #ec4899; color: #fff; padding: 10px 20px;
+    border-radius: 8px; font-size: 0.8rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 600px) {
+    .header, .filter-bar, .grid, .future-section, .legend { padding-left: 16px; padding-right: 16px; }
+    .admin-card { margin: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🗄️ SBrandOps — <span>خريطة قاعدة البيانات</span> v2</h1>
+  <p>schema_v2.sql — ملف واحد نظيف | Supabase PostgreSQL | RLS محكم على كل جدول</p>
+  <div class="stats-row">
+    <div class="stat"><div class="stat-num">57</div><div class="stat-lbl">جدول</div></div>
+    <div class="stat"><div class="stat-num">10</div><div class="stat-lbl">وحدة</div></div>
+    <div class="stat"><div class="stat-num">3</div><div class="stat-lbl">دوال مساعدة</div></div>
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-lbl">RLS مفعّل</div></div>
+    <div class="stat"><div class="stat-num">0</div><div class="stat-lbl">using(true) ❌</div></div>
+  </div>
+</div>
+
+<!-- Super Admin Card -->
+<div class="admin-card">
+  <div>
+    <h3>🔐 بيانات الـ Super Admin</h3>
+    <div class="cred-row">
+      <span class="cred-label">Email</span>
+      <span class="cred-val" onclick="copyText('admin@sbrandops.com')">admin@sbrandops.com</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">Password</span>
+      <span class="cred-val" onclick="copyText('SBrandOps@Admin2026!')">SBrandOps@Admin2026!</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">Role</span>
+      <span class="cred-val" onclick="copyText('super_admin')">super_admin</span>
+    </div>
+  </div>
+  <div class="admin-sql">-- بعد إنشاء اليوزر في Auth Dashboard
+-- شغّل هذا لمنح صلاحية super_admin:
+
+UPDATE auth.users
+SET raw_user_meta_data =
+  raw_user_meta_data ||
+  '{"role":"super_admin"}'::jsonb
+WHERE email = 'admin@sbrandops.com';</div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><span class="legend-badge" style="background:#f59e0b;color:#000">PK</span> Primary Key</div>
+  <div class="legend-item"><span class="legend-badge" style="background:#6366f1;color:#fff">FK</span> Foreign Key</div>
+  <div class="legend-item"><span class="legend-badge" style="background:#10b981;color:#fff">IDX</span> Indexed</div>
+  <div class="legend-item"><span class="rls-badge">RLS ✓</span> Row Level Security فعّال</div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+  <button class="filter-btn active" style="color:#ec4899;border-color:#ec4899" onclick="filterModule('all', this)">الكل</button>
+  <button class="filter-btn" style="color:#3b82f6;border-color:#3b82f6" onclick="filterModule('saas', this)">SaaS</button>
+  <button class="filter-btn" style="color:#8b5cf6;border-color:#8b5cf6" onclick="filterModule('brand', this)">Brand Core</button>
+  <button class="filter-btn" style="color:#10b981;border-color:#10b981" onclick="filterModule('content', this)">Content</button>
+  <button class="filter-btn" style="color:#f59e0b;border-color:#f59e0b" onclick="filterModule('marketing', this)">Marketing</button>
+  <button class="filter-btn" style="color:#06b6d4;border-color:#06b6d4" onclick="filterModule('seo', this)">SEO</button>
+  <button class="filter-btn" style="color:#ec4899;border-color:#ec4899" onclick="filterModule('inbox', this)">Inbox</button>
+  <button class="filter-btn" style="color:#a78bfa;border-color:#a78bfa" onclick="filterModule('workflow', this)">Workflow</button>
+  <button class="filter-btn" style="color:#f97316;border-color:#f97316" onclick="filterModule('gbp', this)">GBP</button>
+  <button class="filter-btn" style="color:#22d3ee;border-color:#22d3ee" onclick="filterModule('crm', this)">CRM</button>
+  <button class="filter-btn" style="color:#84cc16;border-color:#84cc16" onclick="filterModule('tools', this)">Tools</button>
+</div>
+
+<!-- Main Grid -->
+<div class="grid" id="mainGrid">
+
+<!-- MODULE 1: SaaS Infrastructure -->
+<div class="module-card" data-module="saas" style="border-color:#3b82f640;background:linear-gradient(180deg,rgba(59,130,246,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(59,130,246,0.15)">
+    <span class="module-icon">🏗️</span>
+    <div>
+      <div class="module-title" style="color:#60a5fa">SaaS Infrastructure</div>
+      <div class="module-subtitle">Plans → Tenants → Payments</div>
+    </div>
+    <span class="module-badge" style="color:#60a5fa">3 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">subscription_plans</span>
+        <span class="table-count">3 خطط</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">id</span><span class="col-type">text</span><span class="col-pk">PK</span></div>
+        <div class="col-row"><span class="col-name">name / name_ar</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">price_monthly/yearly</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">max_brands / max_users</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">ai_tokens_monthly</span><span class="col-type">bigint</span></div>
+        <div class="col-row"><span class="col-name">features</span><span class="col-type">jsonb[]</span></div>
+        <div class="col-row"><span class="col-name">is_active</span><span class="col-type">boolean</span></div>
+      </div>
+      <div class="relations-section">
+        <div class="rel-title">RLS: عام للقراءة | super_admin للتعديل <span class="rls-badge">✓</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">tenants</span>
+        <span class="table-count">organizations</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">id</span><span class="col-type">uuid</span><span class="col-pk">PK</span></div>
+        <div class="col-row"><span class="col-name">owner_id</span><span class="col-type">uuid</span><span class="col-fk">FK→users</span></div>
+        <div class="col-row"><span class="col-name">plan_id</span><span class="col-type">text</span><span class="col-fk">FK→plans</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">trial|active|suspended</span></div>
+        <div class="col-row"><span class="col-name">ai_tokens_used</span><span class="col-type">bigint</span></div>
+        <div class="col-row"><span class="col-name">brands_count / users_count</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">trial_ends_at</span><span class="col-type">timestamptz</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">payment_records</span>
+        <span class="table-count">billing</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">id</span><span class="col-type">uuid</span><span class="col-pk">PK</span></div>
+        <div class="col-row"><span class="col-name">tenant_id</span><span class="col-type">uuid</span><span class="col-fk">FK→tenants</span></div>
+        <div class="col-row"><span class="col-name">brand_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brands</span></div>
+        <div class="col-row"><span class="col-name">amount / currency</span><span class="col-type">numeric / text</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">paid|failed|refunded</span></div>
+        <div class="col-row"><span class="col-name">invoice_url / paid_at</span><span class="col-type">text / ts</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 2: Brand Core -->
+<div class="module-card" data-module="brand" style="border-color:#8b5cf640;background:linear-gradient(180deg,rgba(139,92,246,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(139,92,246,0.15)">
+    <span class="module-icon">🏢</span>
+    <div>
+      <div class="module-title" style="color:#a78bfa">Brand Core</div>
+      <div class="module-subtitle">Brands → Profiles → Accounts → Team → API Keys</div>
+    </div>
+    <span class="module-badge" style="color:#a78bfa">6 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">brands ⭐</span>
+        <span class="table-count">الجدول المحوري</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">id</span><span class="col-type">uuid</span><span class="col-pk">PK</span><span class="col-idx">IDX</span></div>
+        <div class="col-row"><span class="col-name">user_id</span><span class="col-type">uuid</span><span class="col-fk">FK→users</span><span class="col-idx">IDX</span></div>
+        <div class="col-row"><span class="col-name">tenant_id</span><span class="col-type">uuid</span><span class="col-fk">FK→tenants</span></div>
+        <div class="col-row"><span class="col-name">name / industry</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">logo_url / website_url</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">country / timezone</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">is_active</span><span class="col-type">boolean</span></div>
+      </div>
+      <div class="relations-section">
+        <div class="rel-title">كل الجداول الأخرى ترجع هنا ↓</div>
+        <div class="rel-item"><span class="rel-arrow">→</span> brand_profiles (1:1)</div>
+        <div class="rel-item"><span class="rel-arrow">→</span> social_accounts (1:N)</div>
+        <div class="rel-item"><span class="rel-arrow">→</span> team_members (1:N)</div>
+        <div class="rel-item"><span class="rel-arrow">→</span> + 50 جدول آخر بـ brand_id</div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">brand_profiles</span>
+        <span class="table-count">AI Voice & Audience</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">brand_id</span><span class="col-type">uuid</span><span class="col-pk">UNIQUE FK</span></div>
+        <div class="col-row"><span class="col-name">tone_description[]</span><span class="col-type">text[]</span></div>
+        <div class="col-row"><span class="col-name">voice_keywords[]</span><span class="col-type">text[]</span></div>
+        <div class="col-row"><span class="col-name">tone_strength</span><span class="col-type">jsonb {key:score}</span></div>
+        <div class="col-row"><span class="col-name">brand_audiences</span><span class="col-type">jsonb[]</span></div>
+        <div class="col-row"><span class="col-name">voice_guidelines</span><span class="col-type">jsonb {dos,donts}</span></div>
+        <div class="col-row"><span class="col-name">sentiment_score</span><span class="col-type">integer 0-100</span></div>
+        <div class="col-row"><span class="col-name">values[] / key_selling_points[]</span><span class="col-type">text[]</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">social_accounts</span>
+        <span class="table-count">connected platforms</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">brand_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brands</span><span class="col-idx">IDX</span></div>
+        <div class="col-row"><span class="col-name">platform</span><span class="col-type">fb|ig|x|li|tiktok|yt</span></div>
+        <div class="col-row"><span class="col-name">platform_user_id / username</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">followers/following/posts</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">access_token / refresh_token</span><span class="col-type">text (encrypted)</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">connected|expired|needs_reauth</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">team_members</span>
+        <span class="table-count">multi-user</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">brand_id / user_id</span><span class="col-type">uuid</span><span class="col-fk">FK</span></div>
+        <div class="col-row"><span class="col-name">role</span><span class="col-type">owner|admin|editor|viewer</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">active|pending|suspended</span></div>
+        <div class="col-row"><span class="col-name">invited_email</span><span class="col-type">text UNIQUE(brand,email)</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">api_keys</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">key_prefix / key_hash</span><span class="col-type">text (sha256)</span></div>
+        <div class="col-row"><span class="col-name">scopes[]</span><span class="col-type">read|write|publish|analytics</span></div>
+        <div class="col-row"><span class="col-name">expires_at</span><span class="col-type">timestamptz</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row">
+        <span class="table-name">payment_records</span>
+        <span class="expand-btn">▼</span>
+      </div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">tenant_id / brand_id</span><span class="col-type">uuid</span><span class="col-fk">FK</span></div>
+        <div class="col-row"><span class="col-name">amount / currency / status</span><span class="col-type">numeric/text</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 3: Content & Publishing -->
+<div class="module-card" data-module="content" style="border-color:#10b98140;background:linear-gradient(180deg,rgba(16,185,129,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(16,185,129,0.15)">
+    <span class="module-icon">✍️</span>
+    <div>
+      <div class="module-title" style="color:#34d399">Content & Publishing</div>
+      <div class="module-subtitle">Content → Posts → Analytics → Ideas</div>
+    </div>
+    <span class="module-badge" style="color:#34d399">7 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">content_pieces</span><span class="table-count">kanban</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">title / type</span><span class="col-type">Post|Reel|Story|Article</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">ideas→drafting→review→approved→published</span></div>
+        <div class="col-row"><span class="col-name">platforms[]</span><span class="col-type">SocialPlatform[]</span></div>
+        <div class="col-row"><span class="col-name">assignee_id / due_date</span><span class="col-type">uuid / ts</span></div>
+        <div class="col-row"><span class="col-name">generated_content</span><span class="col-type">text (AI)</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">scheduled_posts</span><span class="table-count">publisher</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">content / media_urls[]</span><span class="col-type">text / text[]</span></div>
+        <div class="col-row"><span class="col-name">platforms[]</span><span class="col-type">text[]</span></div>
+        <div class="col-row"><span class="col-name">scheduled_at / published_at</span><span class="col-type">timestamptz</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">draft|scheduled|published|failed</span></div>
+        <div class="col-row"><span class="col-name">platform_statuses</span><span class="col-type">jsonb per-platform</span></div>
+        <div class="col-row"><span class="col-name">instagram_first_comment</span><span class="col-type">text</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">post_analytics</span><span class="table-count">metrics</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">post_id</span><span class="col-type">uuid</span><span class="col-fk">FK→posts</span></div>
+        <div class="col-row"><span class="col-name">impressions/reach/engagement</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">likes/comments/shares/saves</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">video_views / clicks</span><span class="col-type">integer</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">follower_history</span><span class="table-count">daily snapshots</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">platform</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">followers_count / following_count</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">engagement_rate</span><span class="col-type">numeric %</span></div>
+        <div class="col-row"><span class="col-name">recorded_at</span><span class="col-type">date UNIQUE/brand/platform/date</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">analytics_snapshots</span><span class="table-count">aggregated</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">period_start / period_end</span><span class="col-type">date</span></div>
+        <div class="col-row"><span class="col-name">total_reach / impressions</span><span class="col-type">bigint</span></div>
+        <div class="col-row"><span class="col-name">avg_engagement_rate</span><span class="col-type">numeric %</span></div>
+        <div class="col-row"><span class="col-name">followers_gained</span><span class="col-type">integer</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">brainstormed_ideas</span><span class="table-count">IdeaOps</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">title / description</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">platform / format / angle</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">is_saved / sent_to_content_ops</span><span class="col-type">boolean</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 4: Marketing & Ads -->
+<div class="module-card" data-module="marketing" style="border-color:#f59e0b40;background:linear-gradient(180deg,rgba(245,158,11,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(245,158,11,0.15)">
+    <span class="module-icon">📣</span>
+    <div>
+      <div class="module-title" style="color:#fbbf24">Marketing & Ads</div>
+      <div class="module-subtitle">Marketing Plans → Ad Campaigns</div>
+    </div>
+    <span class="module-badge" style="color:#fbbf24">3 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">marketing_plans</span><span class="table-count">AI plans</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">name / objective</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">start_date / end_date</span><span class="col-type">date</span></div>
+        <div class="col-row"><span class="col-name">budget / status</span><span class="col-type">numeric / text</span></div>
+        <div class="col-row"><span class="col-name">kpis / channels</span><span class="col-type">jsonb[]</span></div>
+        <div class="col-row"><span class="col-name">ai_plan / ai_priorities</span><span class="col-type">jsonb (Gemini)</span></div>
+        <div class="col-row"><span class="col-name">monthly_plan</span><span class="col-type">jsonb</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">marketing_plan_details</span><span class="table-count">breakdown</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">plan_id</span><span class="col-type">uuid</span><span class="col-fk">FK→plans</span></div>
+        <div class="col-row"><span class="col-name">week_number / platform</span><span class="col-type">integer / text</span></div>
+        <div class="col-row"><span class="col-name">content</span><span class="col-type">jsonb</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">ad_campaigns</span><span class="table-count">ROAS/CPA/CTR</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">platform</span><span class="col-type">fb|ig|google|tiktok|snap</span></div>
+        <div class="col-row"><span class="col-name">objective</span><span class="col-type">awareness|traffic|leads|conversions</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">draft|active|paused|ended</span></div>
+        <div class="col-row"><span class="col-name">budget / spent / revenue</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">ctr / cpa / roas</span><span class="col-type">numeric ← KPIs</span></div>
+        <div class="col-row"><span class="col-name">impressions / clicks / conversions</span><span class="col-type">bigint / integer</span></div>
+        <div class="col-row"><span class="col-name">external_id</span><span class="col-type">platform campaign ID</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 5: SEO -->
+<div class="module-card" data-module="seo" style="border-color:#06b6d440;background:linear-gradient(180deg,rgba(6,182,212,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(6,182,212,0.15)">
+    <span class="module-icon">🔍</span>
+    <div>
+      <div class="module-title" style="color:#22d3ee">SEO Ops</div>
+      <div class="module-subtitle">Keywords → Articles → WordPress Export</div>
+    </div>
+    <span class="module-badge" style="color:#22d3ee">2 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">seo_keywords</span><span class="table-count">keyword research</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">keyword</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">search_intent</span><span class="col-type">informational|navigational|commercial|transactional</span></div>
+        <div class="col-row"><span class="col-name">difficulty</span><span class="col-type">low|medium|high</span></div>
+        <div class="col-row"><span class="col-name">priority_score</span><span class="col-type">integer 1-100</span></div>
+        <div class="col-row"><span class="col-name">monthly_volume</span><span class="col-type">text</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">seo_articles</span><span class="table-count">AI-written articles</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">keyword_id</span><span class="col-type">uuid</span><span class="col-fk">FK→keywords</span></div>
+        <div class="col-row"><span class="col-name">h1 / h2s / intro / body / faq</span><span class="col-type">text / jsonb</span></div>
+        <div class="col-row"><span class="col-name">meta_title / meta_description</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">seo_score / readability_score</span><span class="col-type">integer 0-100</span></div>
+        <div class="col-row"><span class="col-name">keyword_density / word_count</span><span class="col-type">numeric / integer</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">draft|optimizing|ready|published</span></div>
+        <div class="col-row"><span class="col-name">wp_post_id</span><span class="col-type">integer (WordPress ID)</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 6: Inbox -->
+<div class="module-card" data-module="inbox" style="border-color:#ec489940;background:linear-gradient(180deg,rgba(236,72,153,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(236,72,153,0.15)">
+    <span class="module-icon">💬</span>
+    <div>
+      <div class="module-title" style="color:#f9a8d4">Inbox & Messaging</div>
+      <div class="module-subtitle">Conversations → Messages → Saved Replies</div>
+    </div>
+    <span class="module-badge" style="color:#f9a8d4">3 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">inbox_conversations</span><span class="table-count">DMs/Comments/Mentions</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">platform</span><span class="col-type">SocialPlatform</span></div>
+        <div class="col-row"><span class="col-name">type</span><span class="col-type">message|comment|mention</span></div>
+        <div class="col-row"><span class="col-name">user_name / user_handle</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">intent</span><span class="col-type">purchase|complaint|support|general</span></div>
+        <div class="col-row"><span class="col-name">sentiment</span><span class="col-type">positive|neutral|negative</span></div>
+        <div class="col-row"><span class="col-name">priority</span><span class="col-type">urgent|high|normal|low</span></div>
+        <div class="col-row"><span class="col-name">is_read / assignee</span><span class="col-type">bool / text</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">inbox_messages</span><span class="table-count">individual messages</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">conversation_id</span><span class="col-type">uuid</span><span class="col-fk">FK→conversations</span></div>
+        <div class="col-row"><span class="col-name">sender</span><span class="col-type">user|agent|bot</span></div>
+        <div class="col-row"><span class="col-name">text / media_urls[]</span><span class="col-type">text / text[]</span></div>
+        <div class="col-row"><span class="col-name">is_internal</span><span class="col-type">boolean (internal note)</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">saved_replies</span><span class="table-count">templates</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">title / content / category</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">tags[] / variables[]</span><span class="col-type">text[]</span></div>
+        <div class="col-row"><span class="col-name">usage_count</span><span class="col-type">integer</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 7: Workflows -->
+<div class="module-card" data-module="workflow" style="border-color:#a78bfa40;background:linear-gradient(180deg,rgba(167,139,250,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(167,139,250,0.15)">
+    <span class="module-icon">⚙️</span>
+    <div>
+      <div class="module-title" style="color:#c4b5fd">Workflows & Notifications</div>
+      <div class="module-subtitle">Workflows → Logs → Notifications → Rules</div>
+    </div>
+    <span class="module-badge" style="color:#c4b5fd">4 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">workflows</span><span class="table-count">automation</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">trigger_type</span><span class="col-type">post_scheduled|published|approved|manual</span></div>
+        <div class="col-row"><span class="col-name">steps</span><span class="col-type">jsonb[]</span></div>
+        <div class="col-row"><span class="col-name">is_active</span><span class="col-type">boolean</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">workflow_logs</span><span class="table-count">execution history</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">workflow_id</span><span class="col-type">uuid</span><span class="col-fk">FK→workflows</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">pending|running|completed|failed</span></div>
+        <div class="col-row"><span class="col-name">log_entries / trigger_ref</span><span class="col-type">jsonb / text</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">notifications</span><span class="table-count">in-app alerts</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">type / title / message</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">priority</span><span class="col-type">low|medium|high|urgent</span></div>
+        <div class="col-row"><span class="col-name">is_read / is_archived</span><span class="col-type">boolean</span></div>
+        <div class="col-row"><span class="col-name">link / icon / metadata</span><span class="col-type">text / jsonb</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">notification_rules</span><span class="table-count">smart triggers</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">trigger / conditions / actions</span><span class="col-type">text / jsonb[]</span></div>
+        <div class="col-row"><span class="col-name">is_active</span><span class="col-type">boolean</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 8: GBP -->
+<div class="module-card" data-module="gbp" style="border-color:#f9731640;background:linear-gradient(180deg,rgba(249,115,22,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(249,115,22,0.15)">
+    <span class="module-icon">📍</span>
+    <div>
+      <div class="module-title" style="color:#fb923c">Google Business Profile</div>
+      <div class="module-subtitle">Info → Posts → Reviews → Q&amp;A</div>
+    </div>
+    <span class="module-badge" style="color:#fb923c">4 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">gbp_info</span><span class="table-count">business profile</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">business_name / address / phone</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">rating / review_count</span><span class="col-type">numeric / integer</span></div>
+        <div class="col-row"><span class="col-name">hours / photos / description</span><span class="col-type">jsonb</span></div>
+        <div class="col-row"><span class="col-name">is_verified</span><span class="col-type">boolean</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">gbp_posts</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">type</span><span class="col-type">update|offer|event|product</span></div>
+        <div class="col-row"><span class="col-name">text / image_url / cta_type</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">draft|published|scheduled</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">gbp_reviews</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">rating</span><span class="col-type">integer 1-5</span></div>
+        <div class="col-row"><span class="col-name">reviewer_name / text / reply</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">sentiment / is_replied</span><span class="col-type">text / boolean</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">gbp_questions</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">question / answer</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">is_answered / upvotes</span><span class="col-type">boolean / integer</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 9: CRM -->
+<div class="module-card" data-module="crm" style="border-color:#22d3ee40;background:linear-gradient(180deg,rgba(34,211,238,0.06),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(34,211,238,0.12)">
+    <span class="module-icon">👥</span>
+    <div>
+      <div class="module-title" style="color:#67e8f9">CRM — Customer Hub</div>
+      <div class="module-subtitle">Customers → Orders → Segments → RFM → Automations</div>
+    </div>
+    <span class="module-badge" style="color:#67e8f9">20 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">crm_customers ⭐</span><span class="table-count">core entity</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">first_name / last_name / email / phone</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">lifecycle_stage</span><span class="col-type">lead→prospect→active→vip→churned</span></div>
+        <div class="col-row"><span class="col-name">ltv / total_orders / total_spent</span><span class="col-type">numeric/integer</span></div>
+        <div class="col-row"><span class="col-name">acquisition_source / channel</span><span class="col-type">organic|paid|referral|social</span></div>
+        <div class="col-row"><span class="col-name">marketing_consent / sms_consent</span><span class="col-type">boolean (GDPR)</span></div>
+        <div class="col-row"><span class="col-name">Full-text search index</span><span class="col-type">gin(tsvector)</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">crm_orders</span><span class="table-count">Woo/Shopify/manual</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">store_source</span><span class="col-type">woocommerce|shopify|manual</span></div>
+        <div class="col-row"><span class="col-name">total / subtotal / discount / shipping</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">status / payment_status / shipping_status</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">coupon_codes[] / tracking_number</span><span class="col-type">text[]</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">crm_rfm_scores</span><span class="table-count">segments scoring</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">r_score / f_score / m_score</span><span class="col-type">smallint 1-5</span></div>
+        <div class="col-row"><span class="col-name">rfm_segment</span><span class="col-type">champions|loyal|at_risk|lost|...</span></div>
+        <div class="col-row"><span class="col-name">recency_days / frequency / monetary</span><span class="col-type">int/numeric</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">crm_automations</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">trigger_event</span><span class="col-type">stage_change|order|inactivity|rfm_change</span></div>
+        <div class="col-row"><span class="col-name">conditions / actions</span><span class="col-type">jsonb[]</span></div>
+        <div class="col-row"><span class="col-name">run_count / last_run_at</span><span class="col-type">integer / ts</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">crm_store_connections</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">provider / store_url</span><span class="col-type">woocommerce|shopify</span></div>
+        <div class="col-row"><span class="col-name">api_key / api_secret / access_token</span><span class="col-type">text (encrypted)</span></div>
+        <div class="col-row"><span class="col-name">status / sync_frequency / total_synced</span><span class="col-type">text/int</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">+ 15 جدول CRM آخر</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">crm_customer_identities</span><span class="col-type">provider dedup</span></div>
+        <div class="col-row"><span class="col-name">crm_addresses</span><span class="col-type">billing/shipping</span></div>
+        <div class="col-row"><span class="col-name">crm_order_items</span><span class="col-type">line items</span></div>
+        <div class="col-row"><span class="col-name">crm_customer_tags + assignments</span><span class="col-type">tagging</span></div>
+        <div class="col-row"><span class="col-name">crm_notes + activities</span><span class="col-type">timeline</span></div>
+        <div class="col-row"><span class="col-name">crm_tasks</span><span class="col-type">follow-ups</span></div>
+        <div class="col-row"><span class="col-name">crm_segments + rules</span><span class="col-type">dynamic segments</span></div>
+        <div class="col-row"><span class="col-name">crm_retention_cohorts</span><span class="col-type">cohort analysis</span></div>
+        <div class="col-row"><span class="col-name">crm_roles + user_roles</span><span class="col-type">permissions</span></div>
+        <div class="col-row"><span class="col-name">crm_sync_jobs + webhook_events</span><span class="col-type">sync engine</span></div>
+        <div class="col-row"><span class="col-name">crm_conversation_links</span><span class="col-type">inbox↔customer</span></div>
+        <div class="col-row"><span class="col-name">crm_lifecycle_states + assignments</span><span class="col-type">audit trail</span></div>
+        <div class="col-row"><span class="col-name">crm_feature_flags</span><span class="col-type">per-brand features</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODULE 10: Tools -->
+<div class="module-card" data-module="tools" style="border-color:#84cc1640;background:linear-gradient(180deg,rgba(132,204,22,0.08),rgba(0,0,0,0))">
+  <div class="module-header" style="background:rgba(132,204,22,0.12)">
+    <span class="module-icon">🔧</span>
+    <div>
+      <div class="module-title" style="color:#a3e635">Tools & Integrations</div>
+      <div class="module-subtitle">Short Links → Integrations → Activity Logs</div>
+    </div>
+    <span class="module-badge" style="color:#a3e635">4 جداول</span>
+  </div>
+  <div class="table-list">
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">short_links</span><span class="table-count">link shortener</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">original_url / short_code</span><span class="col-type">text UNIQUE</span></div>
+        <div class="col-row"><span class="col-name">clicks / is_active / expires_at</span><span class="col-type">int/bool/ts</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">link_clicks</span><span class="table-count">click analytics</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">ip_hash / user_agent / referer</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">country / device_type</span><span class="col-type">text</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">brand_integrations</span><span class="table-count">3rd party</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">provider</span><span class="col-type">wordpress|zapier|make|hubspot|mailchimp</span></div>
+        <div class="col-row"><span class="col-name">status / config</span><span class="col-type">connected|error / jsonb</span></div>
+      </div>
+    </div>
+    <div class="table-item" onclick="toggleTable(this)">
+      <div class="table-name-row"><span class="table-name">activity_logs</span><span class="table-count">audit trail</span><span class="expand-btn">▼</span></div>
+      <div class="columns-detail">
+        <div class="col-row"><span class="col-name">action</span><span class="col-type">post_created|published|account_connected|...</span></div>
+        <div class="col-row"><span class="col-name">entity_type / entity_id</span><span class="col-type">text / uuid</span></div>
+        <div class="col-row"><span class="col-name">ip_address</span><span class="col-type">inet</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /grid -->
+
+<!-- Future Expansion -->
+<div class="future-section">
+  <div class="future-title">🚀 التوسع المستقبلي — جداول محجوزة في الـ Schema</div>
+  <div class="future-grid">
+    <div class="future-card">
+      <h4>🤖 ai_usage_logs</h4>
+      <p>تتبع استهلاك tokens الـ AI لكل brand وكل feature. أساسي لبلنج الـ Agency plan وتحديد overages.</p>
+    </div>
+    <div class="future-card">
+      <h4>🏷️ white_label_configs</h4>
+      <p>إعدادات الـ white-label للـ Agency plan: custom domain، logo، colors، app name. قيمة ضخمة للوكالات.</p>
+    </div>
+    <div class="future-card">
+      <h4>📋 audit_trail</h4>
+      <p>سجل compliance كامل لكل تغيير في البيانات. مطلوب للعملاء Enterprise والامتثال لـ GDPR/PDPA.</p>
+    </div>
+    <div class="future-card">
+      <h4>📊 crm_retention_cohorts</h4>
+      <p>تحليل cohort شهري: كم % من عملاء يناير 2025 لا زالوا نشطين في مارس 2026؟ يرفع قيمة الـ CRM بشكل كبير.</p>
+    </div>
+    <div class="future-card">
+      <h4>🎯 crm_automations</h4>
+      <p>أتمتة كاملة: when stage = at_risk → send SMS → assign to sales rep. قريباً مع Edge Functions.</p>
+    </div>
+    <div class="future-card">
+      <h4>🔔 Smart Notifications v2</h4>
+      <p>notification_rules بـ AI: "نبّهني لو ROAS انخفض عن 2.5 لأي حملة" — rule engine بالكامل.</p>
+    </div>
+    <div class="future-card">
+      <h4>🛒 Multi-Store Sync</h4>
+      <p>crm_store_connections + crm_sync_jobs: ربط أكثر من متجر Woo/Shopify لنفس الـ brand. الـ schema جاهز.</p>
+    </div>
+    <div class="future-card">
+      <h4>📱 Mobile App Push</h4>
+      <p>notifications table جاهز لـ push notifications عبر Expo/FCM. بس محتاج user_device_tokens table.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- Schema V3 — Brand-Centric Business Logic (additive to v2)        -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div style="padding: 0 40px 8px;">
+  <div style="border-top: 2px solid rgba(37,99,235,0.4); margin-bottom: 24px;"></div>
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+    <span style="font-size:1.4rem;">⚡</span>
+    <h2 style="font-size:1.1rem; font-weight:700; color:#b4c5ff;">Schema V3 — Brand-Centric Business Logic</h2>
+    <span style="background:rgba(37,99,235,0.2); border:1px solid rgba(37,99,235,0.4); border-radius:8px; padding:2px 10px; font-size:0.72rem; color:#b4c5ff;">14 جدول جديد</span>
+  </div>
+  <p style="color:#c3c6d7; font-size:0.82rem; margin-bottom:20px;">
+    البراند يملك كل البيانات — اليوزر مجرد عضو بصلاحيات. كل fact table مرتبط بالبراند لا بالشخص.
+    لا قراءة live من APIs خارجية في الشاشات — Pull → Normalize → Facts → Read Models → UI.
+  </p>
+</div>
+
+<div class="grid" style="padding-top: 0;">
+
+  <!-- MODULE: RBAC -->
+  <div class="module-card" data-module="v3-rbac" style="background:rgba(37,99,235,0.06); border-color:rgba(37,99,235,0.3);">
+    <div class="module-header" style="background:rgba(37,99,235,0.12);">
+      <span class="module-icon">🔐</span>
+      <div>
+        <div class="module-title" style="color:#b4c5ff;">RBAC — Roles & Permissions</div>
+        <div class="module-subtitle">صلاحيات 4 مستويات — Brand → Domain → Action → Scope</div>
+      </div>
+      <span class="module-badge" style="color:#b4c5ff;">1 جدول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row">
+          <span class="table-icon">📋</span>
+          <span class="table-name">brand_roles</span>
+          <span class="table-count">system + custom roles</span>
+          <span class="expand-btn">▼</span>
+        </div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">id</span><span class="col-type">uuid</span><span class="col-pk">PK</span></div>
+          <div class="col-row"><span class="col-name">brand_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brands</span></div>
+          <div class="col-row"><span class="col-name">name</span><span class="col-type">text</span><span class="col-idx">owner|admin|content_manager|media_buyer|viewer</span></div>
+          <div class="col-row"><span class="col-name">is_system_role</span><span class="col-type">boolean</span></div>
+          <div class="col-row"><span class="col-name">permissions</span><span class="col-type">jsonb</span><span class="col-idx">{domain:{action:bool}}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="relations-section">
+      <div class="rel-title">الدالة</div>
+      <div class="rel-item"><span class="rel-arrow">⚡</span> seed_brand_system_roles(brand_id) — تنشئ الـ roles التلقائية عند إنشاء البراند</div>
+    </div>
+  </div>
+
+  <!-- MODULE: BRAND ASSETS -->
+  <div class="module-card" data-module="v3-assets" style="background:rgba(78,222,163,0.05); border-color:rgba(78,222,163,0.25);">
+    <div class="module-header" style="background:rgba(78,222,163,0.1);">
+      <span class="module-icon">🏗️</span>
+      <div>
+        <div class="module-title" style="color:#4edea3;">Brand Assets</div>
+        <div class="module-subtitle">كل property خارجية مملوكة للبراند</div>
+      </div>
+      <span class="module-badge" style="color:#4edea3;">4 جداول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🌐</span><span class="table-name">brand_websites</span><span class="table-count">domains & platforms</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">url, domain</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">platform</span><span class="col-type">text</span><span class="col-idx">wordpress|shopify|webflow</span></div>
+          <div class="col-row"><span class="col-name">is_primary</span><span class="col-type">boolean</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📢</span><span class="table-name">brand_ad_accounts</span><span class="table-count">meta|google_ads|tiktok</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">provider</span><span class="col-type">text</span><span class="col-idx">meta|google_ads|tiktok|snapchat</span></div>
+          <div class="col-row"><span class="col-name">external_account_id</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">currency, monthly_budget</span><span class="col-type">text/numeric</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📊</span><span class="table-name">brand_analytics_properties</span><span class="table-count">GA4 properties</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">property_id</span><span class="col-type">text</span><span class="col-idx">"properties/123456"</span></div>
+          <div class="col-row"><span class="col-name">measurement_id</span><span class="col-type">text</span><span class="col-idx">G-XXXXXXX</span></div>
+          <div class="col-row"><span class="col-name">is_primary</span><span class="col-type">boolean</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🔍</span><span class="table-name">brand_search_console_properties</span><span class="table-count">GSC properties</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">site_url</span><span class="col-type">text</span><span class="col-idx">"https://..." or "sc-domain:..."</span></div>
+          <div class="col-row"><span class="col-name">property_type</span><span class="col-type">text</span><span class="col-idx">url|domain</span></div>
+          <div class="col-row"><span class="col-name">is_verified, permission_level</span><span class="col-type">bool/text</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: BRAND CONNECTIONS -->
+  <div class="module-card" data-module="v3-connections" style="background:rgba(76,215,246,0.05); border-color:rgba(76,215,246,0.25);">
+    <div class="module-header" style="background:rgba(76,215,246,0.1);">
+      <span class="module-icon">🔗</span>
+      <div>
+        <div class="module-title" style="color:#4cd7f6;">Unified Brand Connections</div>
+        <div class="module-subtitle">كل provider في جدول واحد — OAuth + Health + Versioning</div>
+      </div>
+      <span class="module-badge" style="color:#4cd7f6;">1 جدول رئيسي</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">⚡</span><span class="table-name">brand_connections</span><span class="table-count">meta|ga4|search_console|woo|...</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">provider</span><span class="col-type">text</span><span class="col-idx">meta|instagram|ga4|search_console|google_ads|woo|shopify|...</span></div>
+          <div class="col-row"><span class="col-name">provider_version</span><span class="col-type">text</span><span class="col-idx">API version in use</span></div>
+          <div class="col-row"><span class="col-name">external_account_id</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">access_token, refresh_token</span><span class="col-type">text</span><span class="col-idx">encrypted</span></div>
+          <div class="col-row"><span class="col-name">scopes</span><span class="col-type">text[]</span></div>
+          <div class="col-row"><span class="col-name">status</span><span class="col-type">text</span><span class="col-idx">connected|expired|needs_reauth|error|disconnected</span></div>
+          <div class="col-row"><span class="col-name">sync_health</span><span class="col-type">text</span><span class="col-idx">healthy|degraded|failing|unknown</span></div>
+          <div class="col-row"><span class="col-name">last_sync_at, error_count</span><span class="col-type">timestamptz/int</span></div>
+          <div class="col-row"><span class="col-name">ad_account_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brand_ad_accounts</span></div>
+          <div class="col-row"><span class="col-name">analytics_property_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brand_analytics_properties</span></div>
+          <div class="col-row"><span class="col-name">search_console_property_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brand_search_console_properties</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: SYNC INFRASTRUCTURE -->
+  <div class="module-card" data-module="v3-sync" style="background:rgba(245,158,11,0.05); border-color:rgba(245,158,11,0.25);">
+    <div class="module-header" style="background:rgba(245,158,11,0.1);">
+      <span class="module-icon">⚙️</span>
+      <div>
+        <div class="module-title" style="color:#fbbf24;">Sync Infrastructure</div>
+        <div class="module-subtitle">Full Initial / Incremental / On-Demand — cursor-based pagination</div>
+      </div>
+      <span class="module-badge" style="color:#fbbf24;">3 جداول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📍</span><span class="table-name">sync_cursors</span><span class="table-count">where we left off per connection+type</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">connection_id</span><span class="col-type">uuid</span><span class="col-fk">FK→brand_connections</span></div>
+          <div class="col-row"><span class="col-name">data_type</span><span class="col-type">text</span><span class="col-idx">social_posts|seo_pages|seo_queries|analytics_pages|ad_spend</span></div>
+          <div class="col-row"><span class="col-name">last_synced_date</span><span class="col-type">date</span></div>
+          <div class="col-row"><span class="col-name">next_page_token</span><span class="col-type">text</span><span class="col-idx">pagination cursor</span></div>
+          <div class="col-row"><span class="col-name">total_records_synced</span><span class="col-type">bigint</span></div>
+          <div class="col-row"><span class="col-name">last_sync_status</span><span class="col-type">text</span><span class="col-idx">idle|running|completed|failed</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🗂️</span><span class="table-name">sync_jobs</span><span class="table-count">audit trail of every sync run</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">job_type</span><span class="col-type">text</span><span class="col-idx">full_initial|incremental|on_demand</span></div>
+          <div class="col-row"><span class="col-name">data_type, status</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">records_fetched/inserted/updated/errored</span><span class="col-type">int</span></div>
+          <div class="col-row"><span class="col-name">duration_seconds</span><span class="col-type">int GENERATED</span></div>
+          <div class="col-row"><span class="col-name">triggered_by</span><span class="col-type">uuid</span><span class="col-fk">FK→auth.users</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🪝</span><span class="table-name">webhook_events</span><span class="table-count">dedup by provider+external_id</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">provider, event_type</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">external_id</span><span class="col-type">text</span><span class="col-idx">UNIQUE dedup key</span></div>
+          <div class="col-row"><span class="col-name">payload, raw_headers</span><span class="col-type">jsonb</span></div>
+          <div class="col-row"><span class="col-name">status</span><span class="col-type">text</span><span class="col-idx">pending|processing|processed|failed|ignored</span></div>
+          <div class="col-row"><span class="col-name">retry_count</span><span class="col-type">int</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: SOCIAL POST FACTS -->
+  <div class="module-card" data-module="v3-social-facts" style="background:rgba(236,72,153,0.05); border-color:rgba(236,72,153,0.25);">
+    <div class="module-header" style="background:rgba(236,72,153,0.1);">
+      <span class="module-icon">📱</span>
+      <div>
+        <div class="module-title" style="color:#f472b6;">Social Post Facts</div>
+        <div class="module-subtitle">Historical content calendar — لا قراءة live. Built from API pull.</div>
+      </div>
+      <span class="module-badge" style="color:#f472b6;">1 جدول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📝</span><span class="table-name">social_post_facts</span><span class="table-count">Meta Pages API / IG Media / LinkedIn / X</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">platform</span><span class="col-type">text</span><span class="col-idx">facebook|instagram|x|linkedin|tiktok</span></div>
+          <div class="col-row"><span class="col-name">channel_id, external_post_id</span><span class="col-type">text</span><span class="col-idx">UNIQUE</span></div>
+          <div class="col-row"><span class="col-name">post_type</span><span class="col-type">text</span><span class="col-idx">image|video|reel|story|carousel|text</span></div>
+          <div class="col-row"><span class="col-name">caption, media_urls[], hashtags[]</span><span class="col-type">text/array</span></div>
+          <div class="col-row"><span class="col-name">published_at</span><span class="col-type">timestamptz</span></div>
+          <div class="col-row"><span class="col-name">day_of_week, hour_of_day</span><span class="col-type">smallint GENERATED</span><span class="col-idx">للتحليل</span></div>
+          <div class="col-row"><span class="col-name">likes/comments/shares/saves/reach/impressions</span><span class="col-type">int</span></div>
+          <div class="col-row"><span class="col-name">engagement_rate</span><span class="col-type">numeric</span></div>
+          <div class="col-row"><span class="col-name">content_pillar</span><span class="col-type">text</span><span class="col-idx">education|entertainment|promotion|engagement</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="relations-section">
+      <div class="rel-title">يُبنى منه</div>
+      <div class="rel-item"><span class="rel-arrow">→</span> Calendar History (v_content_calendar view)</div>
+      <div class="rel-item"><span class="rel-arrow">→</span> Best posting times analysis</div>
+      <div class="rel-item"><span class="rel-arrow">→</span> Content rhythm & seasonal patterns</div>
+    </div>
+  </div>
+
+  <!-- MODULE: SEO FACTS -->
+  <div class="module-card" data-module="v3-seo-facts" style="background:rgba(16,185,129,0.05); border-color:rgba(16,185,129,0.25);">
+    <div class="module-header" style="background:rgba(16,185,129,0.1);">
+      <span class="module-icon">🔍</span>
+      <div>
+        <div class="module-title" style="color:#34d399;">SEO Intelligence Facts</div>
+        <div class="module-subtitle">Search Console + URL Inspection — not live, fact-based</div>
+      </div>
+      <span class="module-badge" style="color:#34d399;">3 جداول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📄</span><span class="table-name">seo_page_facts</span><span class="table-count">searchAnalytics by page</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">fact_date, page_url</span><span class="col-type">date/text</span><span class="col-idx">UNIQUE per date+page+country+device</span></div>
+          <div class="col-row"><span class="col-name">clicks, impressions, ctr, position</span><span class="col-type">int/numeric</span></div>
+          <div class="col-row"><span class="col-name">opportunity_score</span><span class="col-type">numeric</span><span class="col-idx">impressions × (1−ctr)</span></div>
+          <div class="col-row"><span class="col-name">country, device, search_type</span><span class="col-type">text</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🔤</span><span class="table-name">seo_query_facts</span><span class="table-count">searchAnalytics by query</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">fact_date, query, page_url</span><span class="col-type">date/text</span><span class="col-idx">UNIQUE</span></div>
+          <div class="col-row"><span class="col-name">clicks, impressions, ctr, position</span><span class="col-type">int/numeric</span></div>
+          <div class="col-row"><span class="col-name">is_branded, query_intent, topic_cluster</span><span class="col-type">bool/text</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🕵️</span><span class="table-name">url_inspection_facts</span><span class="table-count">Google URL Inspection API</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">url, inspection_date</span><span class="col-type">text/date</span><span class="col-idx">UNIQUE snapshot per day</span></div>
+          <div class="col-row"><span class="col-name">verdict</span><span class="col-type">text</span><span class="col-idx">PASS|PARTIAL|FAIL|NEUTRAL</span></div>
+          <div class="col-row"><span class="col-name">index_status, coverage_state</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">canonical_url, last_crawl_time</span><span class="col-type">text/timestamptz</span></div>
+          <div class="col-row"><span class="col-name">mobile_usability, rich_result_types[]</span><span class="col-type">text/array</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="relations-section">
+      <div class="rel-title">View: v_seo_top_pages</div>
+      <div class="rel-item"><span class="rel-arrow">→</span> Top pages last 30 days — pre-aggregated</div>
+    </div>
+  </div>
+
+  <!-- MODULE: ANALYTICS FACTS -->
+  <div class="module-card" data-module="v3-analytics-facts" style="background:rgba(99,102,241,0.06); border-color:rgba(99,102,241,0.3);">
+    <div class="module-header" style="background:rgba(99,102,241,0.12);">
+      <span class="module-icon">📈</span>
+      <div>
+        <div class="module-title" style="color:#a5b4fc;">Analytics Facts (GA4)</div>
+        <div class="module-subtitle">Landing page behavior — sessions, revenue, conversions</div>
+      </div>
+      <span class="module-badge" style="color:#a5b4fc;">1 جدول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🛬</span><span class="table-name">analytics_page_facts</span><span class="table-count">GA4 Data API runReport</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">fact_date, landing_page</span><span class="col-type">date/text</span><span class="col-idx">UNIQUE per date+page+source+medium+country+device</span></div>
+          <div class="col-row"><span class="col-name">session_source, session_medium, session_campaign</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">sessions, engaged_sessions, new_users</span><span class="col-type">int</span></div>
+          <div class="col-row"><span class="col-name">avg_engagement_time_sec</span><span class="col-type">numeric</span></div>
+          <div class="col-row"><span class="col-name">key_events, transactions, revenue</span><span class="col-type">int/numeric</span></div>
+          <div class="col-row"><span class="col-name">engagement_rate</span><span class="col-type">numeric GENERATED</span><span class="col-idx">engaged_sessions/sessions</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULE: ADS FACTS -->
+  <div class="module-card" data-module="v3-ads-facts" style="background:rgba(239,68,68,0.05); border-color:rgba(239,68,68,0.25);">
+    <div class="module-header" style="background:rgba(239,68,68,0.1);">
+      <span class="module-icon">💰</span>
+      <div>
+        <div class="module-title" style="color:#fca5a5;">Ads Spend Facts</div>
+        <div class="module-subtitle">ROAS · CPA · CVR · MER — Meta Ads / Google Ads / TikTok</div>
+      </div>
+      <span class="module-badge" style="color:#fca5a5;">1 جدول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📊</span><span class="table-name">ad_spend_facts</span><span class="table-count">campaign/adset/ad level</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">fact_date, provider, ad_id</span><span class="col-type">date/text/text</span><span class="col-idx">UNIQUE</span></div>
+          <div class="col-row"><span class="col-name">campaign_id/name, ad_set_id/name, ad_id/name</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">spend, currency</span><span class="col-type">numeric/text</span></div>
+          <div class="col-row"><span class="col-name">impressions, reach, clicks, link_clicks, ctr</span><span class="col-type">int/numeric</span></div>
+          <div class="col-row"><span class="col-name">purchases, purchase_value</span><span class="col-type">int/numeric</span></div>
+          <div class="col-row"><span class="col-name">roas</span><span class="col-type">numeric</span><span class="col-idx">purchase_value / spend</span></div>
+          <div class="col-row"><span class="col-name">leads, cost_per_lead, cost_per_result</span><span class="col-type">int/numeric</span></div>
+          <div class="col-row"><span class="col-name">frequency, quality_ranking</span><span class="col-type">numeric/text</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="relations-section">
+      <div class="rel-title">View: v_ads_performance</div>
+      <div class="rel-item"><span class="rel-arrow">→</span> ROAS, CPA, spend by provider — last 30 days</div>
+    </div>
+  </div>
+
+  <!-- MODULE: CONTENT MANAGEMENT -->
+  <div class="module-card" data-module="v3-content" style="background:rgba(251,191,36,0.05); border-color:rgba(251,191,36,0.25);">
+    <div class="module-header" style="background:rgba(251,191,36,0.1);">
+      <span class="module-icon">✍️</span>
+      <div>
+        <div class="module-title" style="color:#fde68a;">Content Management</div>
+        <div class="module-subtitle">Versioned content + Calendar slots — brand-owned not user-owned</div>
+      </div>
+      <span class="module-badge" style="color:#fde68a;">3 جداول</span>
+    </div>
+    <div class="table-list">
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📝</span><span class="table-name">content_items</span><span class="table-count">master content record</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">content_type</span><span class="col-type">text</span><span class="col-idx">social_post|blog_post|email|ad_creative|reel</span></div>
+          <div class="col-row"><span class="col-name">platform, platforms[]</span><span class="col-type">text/array</span></div>
+          <div class="col-row"><span class="col-name">status</span><span class="col-type">text</span><span class="col-idx">draft|in_review|approved|scheduled|published|rejected</span></div>
+          <div class="col-row"><span class="col-name">current_version_id</span><span class="col-type">uuid</span><span class="col-fk">FK→content_versions</span></div>
+          <div class="col-row"><span class="col-name">target_publish_at, published_at</span><span class="col-type">timestamptz</span></div>
+          <div class="col-row"><span class="col-name">linked_post_fact_id</span><span class="col-type">uuid</span><span class="col-fk">FK→social_post_facts</span><span class="col-idx">after publish</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">🔄</span><span class="table-name">content_versions</span><span class="table-count">full history of edits + AI generations</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">version_number</span><span class="col-type">int</span></div>
+          <div class="col-row"><span class="col-name">caption, body, headline, cta_text</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">ai_generated, ai_model, ai_prompt_used</span><span class="col-type">bool/text</span></div>
+          <div class="col-row"><span class="col-name">review_status</span><span class="col-type">text</span><span class="col-idx">pending|approved|rejected</span></div>
+          <div class="col-row"><span class="col-name">reviewed_by, review_notes</span><span class="col-type">uuid/text</span></div>
+        </div>
+      </div>
+      <div class="table-item" onclick="toggleTable(this)">
+        <div class="table-name-row"><span class="table-icon">📅</span><span class="table-name">calendar_slots</span><span class="table-count">planning grid</span><span class="expand-btn">▼</span></div>
+        <div class="columns-detail">
+          <div class="col-row"><span class="col-name">slot_date, slot_time, slot_datetime</span><span class="col-type">date/time/timestamptz</span></div>
+          <div class="col-row"><span class="col-name">platform, content_pillar, content_type</span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">content_item_id</span><span class="col-type">uuid</span><span class="col-fk">FK→content_items</span></div>
+          <div class="col-row"><span class="col-name">status</span><span class="col-type">text</span><span class="col-idx">empty|planned|approved|published|missed</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="relations-section">
+      <div class="rel-title">View: v_content_calendar</div>
+      <div class="rel-item"><span class="rel-arrow">→</span> Historical posts + planned slots في نفس القراءة</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- V3 Read Models summary -->
+<div style="padding: 8px 40px 40px;">
+  <div style="background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.2); border-radius:12px; padding:20px 24px;">
+    <h3 style="color:#b4c5ff; font-size:0.95rem; margin-bottom:14px;">📐 V3 Read Models (Views) — لا تعتمد على APIs خارجية</h3>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap:12px;">
+      <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:12px 16px;">
+        <div style="color:#4edea3; font-size:0.8rem; font-weight:600; font-family:monospace;">v_brand_connections_overview</div>
+        <div style="color:#c3c6d7; font-size:0.72rem; margin-top:4px;">حالة كل connection مع آخر sync وعدد الأخطاء</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:12px 16px;">
+        <div style="color:#4edea3; font-size:0.8rem; font-weight:600; font-family:monospace;">v_content_calendar</div>
+        <div style="color:#c3c6d7; font-size:0.72rem; margin-top:4px;">Historical posts + planned slots مدمجة في view واحد</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:12px 16px;">
+        <div style="color:#4edea3; font-size:0.8rem; font-weight:600; font-family:monospace;">v_seo_top_pages</div>
+        <div style="color:#c3c6d7; font-size:0.72rem; margin-top:4px;">Top pages آخر 30 يوم — clicks, impressions, position</div>
+      </div>
+      <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:12px 16px;">
+        <div style="color:#4edea3; font-size:0.8rem; font-weight:600; font-family:monospace;">v_ads_performance</div>
+        <div style="color:#c3c6d7; font-size:0.72rem; margin-top:4px;">ROAS, CPA, spend مجمعة لكل provider</div>
+      </div>
+    </div>
+    <div style="margin-top:14px; color:#434655; font-size:0.75rem; border-top:1px solid rgba(67,70,85,0.3); padding-top:12px;">
+      القاعدة الذهبية: الشاشة تقرأ من fact tables فقط — لا من APIs خارجية مباشرة. المزامنة تحدث في background عبر sync jobs.
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ تم النسخ!</div>
+
+<script>
+function toggleTable(el) {
+  const detail = el.querySelector('.columns-detail');
+  const btn = el.querySelector('.expand-btn');
+  if (!detail) return;
+  const isOpen = detail.classList.contains('show');
+  detail.classList.toggle('show', !isOpen);
+  btn.classList.toggle('open', !isOpen);
+  el.classList.toggle('expanded', !isOpen);
+}
+
+function filterModule(mod, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.module-card').forEach(card => {
+    if (mod === 'all' || card.dataset.module === mod) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  });
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- Schema V4 — SEO Operating System                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section style="margin-top:48px; padding:0 24px 48px;">
+  <h2 style="font-size:1.1rem; font-weight:700; color:#b4c5ff; margin-bottom:8px;">Schema V4 — SEO Operating System</h2>
+  <p style="color:#c3c6d7; font-size:0.85rem; margin-bottom:6px;">Entity Hierarchy: Brand → Website → Market → Page → Keyword Cluster → Issue → Change Log → Result</p>
+  <p style="color:#434655; font-size:0.8rem; margin-bottom:24px;">
+    Detect → Prioritize → Assign → Fix → Validate → Measure. All reads from fact tables — no live API calls in dashboard screens.
+  </p>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px;">
+
+    <!-- MODULE: MARKETS -->
+    <div class="module-card" data-module="v4-markets" style="background:rgba(37,99,235,0.06); border-color:rgba(37,99,235,0.3);">
+      <div class="module-header" style="color:#b4c5ff;">🌍 Market / Language</div>
+      <div class="table-block">
+        <div class="table-name">seo_markets</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id → brands</div>
+        <div class="field-row"><span class="field-fk">FK</span> website_id → brand_websites</div>
+        <div class="field-row"><span class="field-name">market_name</span> text</div>
+        <div class="field-row"><span class="field-name">country_code</span> char(2)</div>
+        <div class="field-row"><span class="field-name">language_code</span> varchar(10)</div>
+        <div class="field-row"><span class="field-name">primary_domain</span> text</div>
+        <div class="field-row"><span class="field-name">hreflang</span> varchar(20)</div>
+        <div class="field-row"><span class="field-name">is_primary</span> boolean</div>
+        <div class="field-row"><span class="field-name">status</span> active/paused/archived</div>
+        <div class="index-note">RLS: brand_id = ANY(crm_user_brand_ids())</div>
+      </div>
+    </div>
+
+    <!-- MODULE: PAGE INVENTORY -->
+    <div class="module-card" data-module="v4-pages" style="background:rgba(78,222,163,0.05); border-color:rgba(78,222,163,0.25);">
+      <div class="module-header" style="color:#4edea3;">📄 Page Inventory</div>
+      <div class="table-block">
+        <div class="table-name">seo_pages</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, website_id, market_id</div>
+        <div class="field-row"><span class="field-name">url</span> text UNIQUE per brand</div>
+        <div class="field-row"><span class="field-name">page_type</span> homepage/category/product/blog/landing</div>
+        <div class="field-row"><span class="field-name">title</span> text</div>
+        <div class="field-row"><span class="field-name">meta_description</span> text</div>
+        <div class="field-row"><span class="field-name">h1, canonical_url</span> text</div>
+        <div class="field-row"><span class="field-name">is_indexable, has_noindex</span> boolean</div>
+        <div class="field-row"><span class="field-name">in_sitemap</span> boolean</div>
+        <div class="field-row"><span class="field-name">status_code, word_count</span> int</div>
+        <div class="field-row"><span class="field-name">internal_links_in</span> int (orphan detection)</div>
+        <div class="field-row"><span class="field-name">clicks_30d, impressions_30d, ctr_30d</span></div>
+        <div class="field-row"><span class="field-name">avg_position_30d</span> numeric</div>
+        <div class="field-row"><span class="field-name">audit_score</span> 0–100</div>
+        <div class="index-note">IDX: brand_id, is_indexable, page_type</div>
+      </div>
+    </div>
+
+    <!-- MODULE: KEYWORD CLUSTERS -->
+    <div class="module-card" data-module="v4-clusters" style="background:rgba(76,215,246,0.05); border-color:rgba(76,215,246,0.25);">
+      <div class="module-header" style="color:#4cd7f6;">🗂️ Keyword Clusters</div>
+      <div class="table-block">
+        <div class="table-name">seo_keyword_clusters</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, market_id</div>
+        <div class="field-row"><span class="field-fk">FK</span> pillar_page_id → seo_pages</div>
+        <div class="field-row"><span class="field-name">cluster_name, topic</span></div>
+        <div class="field-row"><span class="field-name">primary_keyword</span> text</div>
+        <div class="field-row"><span class="field-name">intent</span> info/nav/commercial/transactional</div>
+        <div class="field-row"><span class="field-name">status</span> active/paused/archived</div>
+      </div>
+      <div class="table-block" style="margin-top:12px;">
+        <div class="table-name">seo_keyword_map</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, cluster_id, market_id</div>
+        <div class="field-row"><span class="field-fk">FK</span> target_page_id → seo_pages</div>
+        <div class="field-row"><span class="field-name">keyword, intent, is_branded</span></div>
+        <div class="field-row"><span class="field-name">monthly_volume, difficulty</span></div>
+        <div class="field-row"><span class="field-name">current_position, impressions_30d</span></div>
+        <div class="field-row"><span class="field-name">clicks_30d, ctr_30d</span></div>
+        <div class="field-row"><span class="field-name">position_delta, clicks_delta</span> (30d vs prev)</div>
+        <div class="field-row"><span class="field-name">mapping_status</span> mapped/candidate/gap/cannibal/orphan/won/lost</div>
+        <div class="field-row"><span class="field-name">opportunity_score</span> impressions×(1−ctr)</div>
+        <div class="index-note">IDX: brand_id, opportunity_score DESC, current_position</div>
+      </div>
+    </div>
+
+    <!-- MODULE: ISSUE TRACKER -->
+    <div class="module-card" data-module="v4-issues" style="background:rgba(239,68,68,0.05); border-color:rgba(239,68,68,0.25);">
+      <div class="module-header" style="color:#f87171;">🐛 Issue Tracker</div>
+      <div class="table-block">
+        <div class="table-name">seo_issues</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, website_id, page_id</div>
+        <div class="field-row"><span class="field-name">issue_type</span> technical/on-page/content/internal-linking/schema/speed/indexation</div>
+        <div class="field-row"><span class="field-name">category</span> canonical/noindex/missing-meta/thin-content…</div>
+        <div class="field-row"><span class="field-name">title, description</span></div>
+        <div class="field-row"><span class="field-name">affected_url, affected_count</span></div>
+        <div class="field-row"><span class="field-name">severity</span> critical/high/medium/low</div>
+        <div class="field-row"><span class="field-name">business_impact</span> revenue/lead-gen/visibility/crawl-budget</div>
+        <div class="field-row"><span class="field-name">status</span> open/in-progress/resolved/ignored/wont-fix</div>
+        <div class="field-row"><span class="field-fk">FK</span> assignee_user_id → auth.users</div>
+        <div class="field-row"><span class="field-name">due_date, detected_at, resolved_at</span></div>
+        <div class="field-row"><span class="field-name">auto_detected, detection_source</span></div>
+        <div class="index-note">IDX: brand_id, status+severity, issue_type</div>
+      </div>
+    </div>
+
+    <!-- MODULE: CONTENT BRIEFS -->
+    <div class="module-card" data-module="v4-briefs" style="background:rgba(251,191,36,0.05); border-color:rgba(251,191,36,0.25);">
+      <div class="module-header" style="color:#fbbf24;">✍️ Content Briefs</div>
+      <div class="table-block">
+        <div class="table-name">seo_content_briefs</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, page_id, cluster_id</div>
+        <div class="field-row"><span class="field-name">target_keyword</span></div>
+        <div class="field-row"><span class="field-name">secondary_keywords</span> text[]</div>
+        <div class="field-row"><span class="field-name">search_intent, content_type</span></div>
+        <div class="field-row"><span class="field-name">word_count_target</span> int</div>
+        <div class="field-row"><span class="field-name">suggested_title, suggested_meta</span></div>
+        <div class="field-row"><span class="field-name">h2_suggestions</span> jsonb [{text, angle, keyword}]</div>
+        <div class="field-row"><span class="field-name">entities</span> jsonb [{entity, type, importance}]</div>
+        <div class="field-row"><span class="field-name">faq_suggestions</span> jsonb [{question, answer_hint}]</div>
+        <div class="field-row"><span class="field-name">internal_links_suggestions</span> jsonb</div>
+        <div class="field-row"><span class="field-name">schema_type, competitor_urls, serp_features</span></div>
+        <div class="field-row"><span class="field-name">status</span> draft/in-review/approved/assigned/in-progress/published</div>
+        <div class="field-row"><span class="field-name">priority</span> critical/high/medium/low</div>
+        <div class="field-row"><span class="field-name">ai_generated, ai_model</span></div>
+        <div class="index-note">IDX: brand_id, status, cluster_id</div>
+      </div>
+    </div>
+
+    <!-- MODULE: CHANGE LOG -->
+    <div class="module-card" data-module="v4-changelog" style="background:rgba(167,139,250,0.05); border-color:rgba(167,139,250,0.25);">
+      <div class="module-header" style="color:#a78bfa;">📊 Change Log + Impact</div>
+      <div class="table-block">
+        <div class="table-name">seo_change_log</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, page_id, issue_id</div>
+        <div class="field-row"><span class="field-name">change_type</span> title/meta/h1/content/canonical/speed/schema/robots-txt/sitemap</div>
+        <div class="field-row"><span class="field-name">description, changed_url</span></div>
+        <div class="field-row"><span class="field-name">baseline_clicks, baseline_impressions</span></div>
+        <div class="field-row"><span class="field-name">baseline_position</span> numeric</div>
+        <div class="field-row"><span class="field-name">post_clicks, post_impressions, post_position</span></div>
+        <div class="field-row"><span class="field-name">measured_at</span> timestamptz</div>
+        <div class="field-row"><span class="field-gen">GEN</span> clicks_impact_pct — % Δ clicks</div>
+        <div class="field-row"><span class="field-gen">GEN</span> position_impact — baseline − post</div>
+        <div class="index-note">IDX: brand_id, page_id, changed_at DESC</div>
+      </div>
+    </div>
+
+    <!-- MODULE: PUBLISH QA -->
+    <div class="module-card" data-module="v4-qa" style="background:rgba(16,185,129,0.05); border-color:rgba(16,185,129,0.25);">
+      <div class="module-header" style="color:#4edea3;">✅ Pre/Post Publish QA</div>
+      <div class="table-block">
+        <div class="table-name">seo_publish_qa</div>
+        <div class="field-row"><span class="field-pk">PK</span> id uuid</div>
+        <div class="field-row"><span class="field-fk">FK</span> brand_id, page_id</div>
+        <div class="field-row"><span class="field-name">qa_stage</span> pre-publish / post-publish</div>
+        <div class="field-row"><span class="field-name">is_indexable, canonical_correct</span> boolean</div>
+        <div class="field-row"><span class="field-name">title_present, meta_present, h1_present</span> boolean</div>
+        <div class="field-row"><span class="field-name">in_sitemap, internal_links_ok</span> boolean</div>
+        <div class="field-row"><span class="field-name">speed_ok, schema_present</span> boolean</div>
+        <div class="field-row" style="color:#4cd7f6; font-style:italic;">Post-publish only:</div>
+        <div class="field-row"><span class="field-name">discovered_by_gsc, indexed_by_gsc</span> boolean</div>
+        <div class="field-row"><span class="field-name">first_impressions, first_clicks</span> int</div>
+        <div class="field-row"><span class="field-name">qa_score</span> 0–100</div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+
+  <!-- V4 Read Models -->
+  <div style="margin-top:32px; padding:20px; border-radius:8px; background:rgba(37,99,235,0.06); border:1px solid rgba(37,99,235,0.2);">
+    <h3 style="color:#b4c5ff; font-size:0.95rem; margin-bottom:14px;">📐 V4 Read Models (Views)</h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;">
+
+      <div style="background:rgba(255,255,255,0.03); border-radius:6px; padding:12px;">
+        <div style="color:#4edea3; font-size:0.8rem; font-weight:600; margin-bottom:6px;">v_seo_opportunities</div>
+        <div style="color:#c3c6d7; font-size:0.75rem; line-height:1.6;">
+          Aggregates seo_page_facts (30d). Classifies each page as: ranking_gap (pos 5–20), low_ctr (CTR &lt; 2%, impr &gt; 100), high_rank_low_traffic, or monitor. Sorted by opportunity_score DESC = impressions × (1−CTR).
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03); border-radius:6px; padding:12px;">
+        <div style="color:#f87171; font-size:0.8rem; font-weight:600; margin-bottom:6px;">v_seo_cannibalization</div>
+        <div style="color:#c3c6d7; font-size:0.75rem; line-height:1.6;">
+          Finds queries answered by 2+ pages. Filters: seo_query_facts 30d, impr &gt; 50, COUNT(DISTINCT page_url) ≥ 2. Returns query, competing pages array, best position.
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03); border-radius:6px; padding:12px;">
+        <div style="color:#f59e0b; font-size:0.8rem; font-weight:600; margin-bottom:6px;">v_seo_technical_health</div>
+        <div style="color:#c3c6d7; font-size:0.75rem; line-height:1.6;">
+          Aggregates seo_issues per brand/website. Computes health_score = 100 − (critical×20 + high×10 + medium×3 + low×1). Buckets by issue_type.
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03); border-radius:6px; padding:12px;">
+        <div style="color:#4cd7f6; font-size:0.8rem; font-weight:600; margin-bottom:6px;">v_seo_business_impact</div>
+        <div style="color:#c3c6d7; font-size:0.75rem; line-height:1.6;">
+          JOINs seo_page_facts + analytics_page_facts on brand_id + page_path. Returns revenue_30d, conversions, revenue_per_session, bounce_rate per URL. The SEO → Revenue connector.
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.03); border-radius:6px; padding:12px;">
+        <div style="color:#fbbf24; font-size:0.8rem; font-weight:600; margin-bottom:6px;">v_seo_brief_pipeline</div>
+        <div style="color:#c3c6d7; font-size:0.75rem; line-height:1.6;">
+          JOINs seo_content_briefs + seo_keyword_clusters + seo_pages. Ordered by priority (critical first), then due_date ASC. Powers the content brief Kanban/pipeline view.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Functions -->
+    <div style="margin-top:16px; padding:12px; background:rgba(255,255,255,0.02); border-radius:6px;">
+      <div style="color:#b4c5ff; font-size:0.8rem; font-weight:600; margin-bottom:8px;">🔧 V4 Auto-Detection Functions</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.75rem; color:#c3c6d7; line-height:1.5;">
+        <div><code style="color:#4edea3;">detect_low_ctr_issues(brand_id, connection_id)</code> — Auto-inserts on-page/low-ctr issues from v_seo_opportunities. Uses ON CONFLICT DO NOTHING for idempotency.</div>
+        <div><code style="color:#4edea3;">refresh_keyword_opportunity_scores(brand_id)</code> — UPDATEs seo_keyword_map with latest position/impressions/CTR/opportunity_score from seo_query_facts (30d aggregate).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- V4 Services + UI summary -->
+  <div style="margin-top:20px; padding:20px; border-radius:8px; background:rgba(78,222,163,0.04); border:1px solid rgba(78,222,163,0.2);">
+    <h3 style="color:#4edea3; font-size:0.95rem; margin-bottom:12px;">🧠 V4 Service + UI Layer</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:0.8rem; color:#c3c6d7; line-height:1.7;">
+      <div>
+        <div style="color:#dce2f6; font-weight:600; margin-bottom:4px;">seoIntelligenceService.ts</div>
+        11 modules: Markets · Pages (CRUD + audit score) · Clusters · Keyword Map (gaps detection) · Issues (CRUD + auto-detect) · Opportunities (low CTR, ranking gap, decay, orphans, cannibalization) · Briefs (CRUD + buildBriefContext) · Change Log (record + measureChangeImpact) · Publish QA (runPrePublishQA) · Overview KPIs · Business Impact
+      </div>
+      <div>
+        <div style="color:#dce2f6; font-weight:600; margin-bottom:4px;">SEOOpsPageV2.tsx</div>
+        7-tab OS UI: Overview KPIs (clicks/impr/CTR/pos + winners/losers/branded split) · Page Audit Center (table + detail panel + audit score) · Keyword Ops (map/gaps/cannibalization views) · Opportunities Engine (ranking gap/low CTR/decay/orphans) · Issue Tracker (grouped by type + auto-detect button + status actions) · Content Briefs (pipeline + detail panel) · Reporting (SEO→revenue by page)
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</body>
+</html>

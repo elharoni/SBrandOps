@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SBrandOps | Content Ops Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Tajawal:wght@300;400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed": "#6ffbbe",
+              "on-secondary-fixed": "#001f26",
+              "surface-container-high": "#232a39",
+              "inverse-surface": "#dce2f6",
+              "primary": "#b4c5ff",
+              "outline": "#8d90a0",
+              "on-secondary-container": "#00424e",
+              "surface-container-highest": "#2e3544",
+              "on-background": "#dce2f6",
+              "tertiary-fixed-dim": "#4edea3",
+              "error-container": "#93000a",
+              "surface-bright": "#323949",
+              "surface-variant": "#2e3544",
+              "on-primary-fixed": "#00174b",
+              "on-surface": "#dce2f6",
+              "surface-container-lowest": "#070e1c",
+              "on-secondary-fixed-variant": "#004e5c",
+              "primary-fixed": "#dbe1ff",
+              "on-tertiary-container": "#bdffdb",
+              "on-tertiary": "#003824",
+              "surface-container": "#19202e",
+              "outline-variant": "#434655",
+              "secondary-container": "#03b5d3",
+              "secondary-fixed": "#acedff",
+              "inverse-on-surface": "#2a3040",
+              "on-tertiary-fixed": "#002113",
+              "tertiary-container": "#007d55",
+              "secondary-fixed-dim": "#4cd7f6",
+              "on-error": "#690005",
+              "on-primary-fixed-variant": "#003ea8",
+              "on-error-container": "#ffdad6",
+              "on-surface-variant": "#c3c6d7",
+              "on-primary": "#002a78",
+              "surface-tint": "#b4c5ff",
+              "tertiary": "#4edea3",
+              "primary-container": "#2563eb",
+              "primary-fixed-dim": "#b4c5ff",
+              "secondary": "#4cd7f6",
+              "on-secondary": "#003640",
+              "surface-container-low": "#151b2a",
+              "inverse-primary": "#0053db",
+              "surface-dim": "#0c1321",
+              "surface": "#0c1321",
+              "on-tertiary-fixed-variant": "#005236",
+              "background": "#0c1321",
+              "on-primary-container": "#eeefff",
+              "error": "#ffb4ab"
+            },
+            fontFamily: {
+              "headline": ["Inter", "Tajawal"],
+              "body": ["Inter", "Tajawal"],
+              "label": ["Inter", "Tajawal"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #070e1c; }
+        ::-webkit-scrollbar-thumb { background: #2e3544; border-radius: 10px; }
+        .glass-panel {
+            background: rgba(46, 53, 68, 0.6);
+            backdrop-filter: blur(12px);
+        }
+        .ai-glow {
+            box-shadow: 0 0 15px rgba(78, 222, 163, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0c1321] h-16 px-6 flex justify-between items-center max-w-[1920px] mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-white">SBrandOps</span>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-slate-400 hover:text-white transition-colors font-['Inter','Tajawal'] text-sm font-medium leading-relaxed" href="#">Platform</a>
+<a class="text-slate-400 hover:text-white transition-colors font-['Inter','Tajawal'] text-sm font-medium leading-relaxed" href="#">Solutions</a>
+<a class="text-slate-400 hover:text-white transition-colors font-['Inter','Tajawal'] text-sm font-medium leading-relaxed" href="#">Resources</a>
+<a class="text-slate-400 hover:text-white transition-colors font-['Inter','Tajawal'] text-sm font-medium leading-relaxed" href="#">Pricing</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-400 hover:bg-[#151b2a] rounded-md transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-[#151b2a] rounded-md transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-8 w-[1px] bg-[#151b2a] mx-2"></div>
+<button class="px-4 py-2 bg-primary-container text-on-primary-container text-sm font-medium rounded-md active:scale-95 duration-200">Get Started</button>
+</div>
+<div class="absolute bottom-0 left-0 bg-[#151b2a] h-[1px] w-full"></div>
+</nav>
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#070e1c] flex flex-col py-6 px-4 z-40">
+<div class="mt-16 mb-8 flex items-center gap-3 px-2">
+<div class="w-10 h-10 bg-surface-container-high rounded-md flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="inventory_2">inventory_2</span>
+</div>
+<div>
+<p class="text-lg font-semibold text-white leading-none">Acme Corp</p>
+<p class="text-[0.875rem] text-slate-500 font-regular">Marketing Dept</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#151b2a] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#151b2a] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="tactic">tactic</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Strategy</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 bg-blue-600/10 text-blue-500 border-r-2 border-blue-600 transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="rocket_launch">rocket_launch</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Campaigns</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#151b2a] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#151b2a] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Assets</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-[#151b2a] transition-all duration-150 rounded-md" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">AI Lab</span>
+</a>
+</nav>
+<button class="mt-4 w-full bg-primary-container text-on-primary-container py-2 rounded-md font-medium text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+            New Campaign
+        </button>
+<div class="mt-auto space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-200 transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Help Center</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-slate-200 transition-all duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+<span class="font-['Inter','Tajawal'] text-[0.875rem]">Feedback</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-20 pb-12 px-8 min-h-screen">
+<!-- Header Section -->
+<header class="mb-10 flex justify-between items-end">
+<div>
+<h1 class="text-3xl font-bold tracking-tight text-white mb-2">Content Ops Dashboard</h1>
+<p class="text-on-surface-variant max-w-xl">Curate, orchestrate, and optimize your brand's digital narrative with AI-integrated workflows.</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-4 py-2 bg-surface-container-low rounded-md flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="auto_awesome">auto_awesome</span>
+<span class="text-xs font-medium uppercase tracking-wider text-tertiary">AI Status: Optimal</span>
+</div>
+</div>
+</header>
+<div class="grid grid-cols-12 gap-6">
+<!-- 1. Content Planner (Bento Style) -->
+<section class="col-span-12 lg:col-span-8 space-y-6">
+<div class="bg-surface-container rounded-md p-6 overflow-hidden relative group">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-semibold text-white">Content Planner</h2>
+<button class="text-primary text-sm font-medium hover:underline">View Calendar</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-surface-container-low p-4 rounded-md border-l-4 border-primary">
+<span class="text-[0.6875rem] uppercase tracking-wider text-on-surface-variant font-bold">Next Milestone</span>
+<p class="text-white font-medium mt-1">Q4 Brand Video</p>
+<p class="text-xs text-slate-500 mt-2">Due in 2 days • AI Generation</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-md border-l-4 border-tertiary">
+<span class="text-[0.6875rem] uppercase tracking-wider text-on-surface-variant font-bold">High Priority</span>
+<p class="text-white font-medium mt-1">SaaS Launch Copy</p>
+<p class="text-xs text-slate-500 mt-2">Legal Review Required</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-md border-l-4 border-secondary">
+<span class="text-[0.6875rem] uppercase tracking-wider text-on-surface-variant font-bold">Active Social</span>
+<p class="text-white font-medium mt-1">LinkedIn Series</p>
+<p class="text-xs text-slate-500 mt-2">8/10 assets scheduled</p>
+</div>
+</div>
+</div>
+<!-- 2. Content Pipeline (Kanban) -->
+<div class="bg-surface-container-low rounded-md p-6">
+<h2 class="text-xl font-semibold text-white mb-6">Content Pipeline</h2>
+<div class="flex gap-4 overflow-x-auto pb-4">
+<!-- Column: Briefing -->
+<div class="min-w-[240px] flex-1">
+<div class="flex items-center justify-between mb-4 px-2">
+<span class="text-[0.6875rem] uppercase tracking-wider font-bold text-slate-400">Briefing</span>
+<span class="bg-surface-container-highest px-2 py-0.5 rounded text-[10px] text-white">4</span>
+</div>
+<div class="space-y-3">
+<div class="bg-surface-container-high p-4 rounded-md border-b-2 border-transparent hover:border-primary transition-colors cursor-pointer">
+<p class="text-sm font-medium text-white">Winter Campaign Intro</p>
+<div class="flex mt-3 gap-2">
+<div class="w-6 h-6 rounded-full bg-primary-container/20 flex items-center justify-center text-[10px] text-primary">JD</div>
+</div>
+</div>
+<div class="bg-surface-container-high p-4 rounded-md">
+<p class="text-sm font-medium text-white">Blog: Future of BrandOps</p>
+</div>
+</div>
+</div>
+<!-- Column: AI Generation -->
+<div class="min-w-[240px] flex-1">
+<div class="flex items-center justify-between mb-4 px-2">
+<span class="text-[0.6875rem] uppercase tracking-wider font-bold text-tertiary">AI Generation</span>
+<span class="bg-tertiary-container/20 px-2 py-0.5 rounded text-[10px] text-tertiary">2</span>
+</div>
+<div class="space-y-3">
+<div class="glass-panel ai-glow p-4 rounded-md border-l-2 border-tertiary">
+<p class="text-sm font-medium text-white">Product FAQ Bot Script</p>
+<div class="flex items-center gap-2 mt-2">
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-3/4"></div>
+</div>
+<span class="text-[10px] text-tertiary">75%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Column: Design -->
+<div class="min-w-[240px] flex-1">
+<div class="flex items-center justify-between mb-4 px-2">
+<span class="text-[0.6875rem] uppercase tracking-wider font-bold text-slate-400">Design</span>
+<span class="bg-surface-container-highest px-2 py-0.5 rounded text-[10px] text-white">1</span>
+</div>
+<div class="space-y-3">
+<div class="bg-surface-container-high p-4 rounded-md">
+<p class="text-sm font-medium text-white">Instagram Reels Cover</p>
+</div>
+</div>
+</div>
+<!-- Column: Legal -->
+<div class="min-w-[240px] flex-1">
+<div class="flex items-center justify-between mb-4 px-2">
+<span class="text-[0.6875rem] uppercase tracking-wider font-bold text-error">Legal</span>
+<span class="bg-error-container/20 px-2 py-0.5 rounded text-[10px] text-error">1</span>
+</div>
+<div class="space-y-3">
+<div class="bg-surface-container-high p-4 rounded-md border-l-2 border-error">
+<p class="text-sm font-medium text-white">Legal Disclaimer Addendum</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. Recent Approvals (Sidebar) -->
+<section class="col-span-12 lg:col-span-4 space-y-6">
+<div class="bg-surface-container rounded-md p-6">
+<h2 class="text-xl font-semibold text-white mb-6">Recent Approvals</h2>
+<div class="space-y-4">
+<div class="flex items-start gap-4 p-3 hover:bg-surface-container-high rounded-md transition-colors">
+<img class="w-12 h-12 rounded-md object-cover bg-surface-container-highest" data-alt="Abstract architectural lines in monochrome tones, clean minimalist aesthetic for a brand asset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4J8kQZRbUc9MwrF_xKUfHg-cA6vvzUtEoMUXOjEghrtruo4lWiYqOO61GL7P35smF_PDvFCqbQdSgCQGw6PqUoyXP9SqDOnG-BMDZlRV3vrNGJnQuiBd0aXW1eN2fukdxIcOvIVMjWq2L3N1Zfa_0NODsQA0DkjSM5-tmOkdtrKy5K7ycOw5po3K0xabSxIKH5jdSUu1oiptvqVCrupKrzdhpnXRaxChLM-EGVUn3InrLRgtrMQbX-yYOPEkqMuJVFi4TC63H"/>
+<div class="flex-1">
+<p class="text-sm font-medium text-white leading-tight">Brand Identity Guidelines v2</p>
+<p class="text-xs text-on-surface-variant mt-1">Requested by Sarah M.</p>
+</div>
+<button class="material-symbols-outlined text-primary" data-icon="check_circle">check_circle</button>
+</div>
+<div class="flex items-start gap-4 p-3 hover:bg-surface-container-high rounded-md transition-colors">
+<img class="w-12 h-12 rounded-md object-cover bg-surface-container-highest" data-alt="Vibrant orange and blue geometric gradient pattern, professional digital graphics background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAog2lTQwUcvXoxMn7xDzIUoN6uwTLTk2kyA-OkpiRQPCHkJ8Ef-cmQuJ9xxTf8eQgSPGjHfZ_BndwtBxUTsqM1iTUs4rBZkVXLYGwOSrNWNF8p65gPfIjqsbqXELdm55X8dZ5CmA3Ixr1LI4WdXWCsI433OjePeA34nu935RfK2yjUfDnfRzvUPKayp64w-h6mcObNXB1gaGQAGWlUirE7sDiyTB0RS5r1z8FeGVaxx0XnhWN_cPMS2CXChceGfhQy1G5A7md"/>
+<div class="flex-1">
+<p class="text-sm font-medium text-white leading-tight">Q3 Social Asset Pack</p>
+<p class="text-xs text-on-surface-variant mt-1">Requested by David K.</p>
+</div>
+<button class="material-symbols-outlined text-primary" data-icon="check_circle">check_circle</button>
+</div>
+<div class="flex items-start gap-4 p-3 hover:bg-surface-container-high rounded-md transition-colors">
+<img class="w-12 h-12 rounded-md object-cover bg-surface-container-highest" data-alt="Close-up of a high-end workstation with minimalist design, clean workspace for creative professionals" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfxxxpsTI9OMRK6v4IPlktK_91g4JB2BN1NOutWXU1N9mdCD4MhAlN1BvOk8zN5if8B_fBSUBcnJEraLYZ0oEEIrbG2eO31QR8jOFSqXa8RWwiuNWbVTtTtYLPsHXtf8vfInR0cifiUbdf8JaoF7xNL0MaEod8MoPwnXbfONJ58f10R_S1oARg3EVrsk4cnViOh6jLXjmocjQEYjDZ_trOqHn8jwp5gKmt-GF2LyKTEbQzISwVG2DY9-p0oOVPPRWhu3D5tafM"/>
+<div class="flex-1">
+<p class="text-sm font-medium text-white leading-tight">Internal Culture Newsletter</p>
+<p class="text-xs text-on-surface-variant mt-1">Requested by Mike R.</p>
+</div>
+<button class="material-symbols-outlined text-primary" data-icon="check_circle">check_circle</button>
+</div>
+</div>
+<button class="w-full mt-6 py-2 border border-outline-variant text-slate-400 text-xs font-medium uppercase tracking-widest hover:text-white hover:border-white transition-all">Review All Pipeline</button>
+</div>
+<div class="bg-surface-container-highest/30 rounded-md p-6 border border-tertiary-container/10">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="lightbulb">lightbulb</span>
+<h3 class="text-sm font-bold uppercase tracking-widest text-tertiary">AI Insight</h3>
+</div>
+<p class="text-sm text-on-surface italic">"The average approval time for video assets has increased by 14% this week. Consider batching reviews for the Legal team."</p>
+</div>
+</section>
+<!-- 3. AI Brief Builder -->
+<section class="col-span-12 lg:col-span-6">
+<div class="bg-surface-container rounded-md p-6 h-full flex flex-col">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h2 class="text-xl font-semibold text-white">AI Brief Builder</h2>
+<p class="text-xs text-on-surface-variant">Convert campaign goals into actionable creative briefs.</p>
+</div>
+<span class="material-symbols-outlined text-slate-500" data-icon="history">history</span>
+</div>
+<form class="space-y-6 flex-1">
+<div>
+<label class="block text-[0.6875rem] uppercase tracking-wider text-slate-400 font-bold mb-2">Campaign Name</label>
+<input class="w-full bg-surface-container-highest border-0 rounded-md py-3 px-4 text-white focus:ring-1 focus:ring-primary/50 text-sm" placeholder="e.g. Summer 2024 Product Launch" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block text-[0.6875rem] uppercase tracking-wider text-slate-400 font-bold mb-2">Target Audience</label>
+<select class="w-full bg-surface-container-highest border-0 rounded-md py-3 px-4 text-white focus:ring-1 focus:ring-primary/50 text-sm appearance-none">
+<option>B2B Decision Makers</option>
+<option>Gen Z Consumers</option>
+<option>Tech Enthusiasts</option>
+</select>
+</div>
+<div>
+<label class="block text-[0.6875rem] uppercase tracking-wider text-slate-400 font-bold mb-2">Tone of Voice</label>
+<select class="w-full bg-surface-container-highest border-0 rounded-md py-3 px-4 text-white focus:ring-1 focus:ring-primary/50 text-sm appearance-none">
+<option>Professional &amp; Trustworthy</option>
+<option>Playful &amp; Energetic</option>
+<option>Minimalist &amp; Premium</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-[0.6875rem] uppercase tracking-wider text-slate-400 font-bold mb-2">Primary Objective</label>
+<textarea class="w-full bg-surface-container-highest border-0 rounded-md py-3 px-4 text-white focus:ring-1 focus:ring-primary/50 text-sm resize-none" placeholder="What are we trying to achieve?" rows="4"></textarea>
+</div>
+<button class="w-full bg-tertiary-container text-white py-3 rounded-md font-bold flex items-center justify-center gap-2 hover:bg-tertiary transition-colors ai-glow" type="button">
+<span class="material-symbols-outlined" data-icon="magic_button">magic_button</span>
+                            Generate AI Brief
+                        </button>
+</form>
+</div>
+</section>
+<!-- 4. Copywriting Workspace -->
+<section class="col-span-12 lg:col-span-6">
+<div class="bg-surface-container-lowest rounded-md border border-outline-variant/10 p-6 h-full flex flex-col relative">
+<div class="flex items-center justify-between mb-8 border-b border-outline-variant/10 pb-4">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-slate-500" data-icon="format_bold">format_bold</button>
+<button class="material-symbols-outlined text-slate-500" data-icon="format_italic">format_italic</button>
+<button class="material-symbols-outlined text-slate-500" data-icon="format_list_bulleted">format_list_bulleted</button>
+<div class="w-[1px] h-4 bg-outline-variant/30"></div>
+<button class="material-symbols-outlined text-tertiary" data-icon="psychology">psychology</button>
+</div>
+<span class="text-[0.6875rem] text-slate-500 font-medium">Reading Time: 2m 45s</span>
+</div>
+<div class="flex-1 space-y-4">
+<h3 class="text-2xl font-bold text-white">The Future of Brand Intelligence</h3>
+<p class="text-on-surface-variant leading-relaxed">In a world where attention is the ultimate currency, brands must move beyond mere presence. They must become curators of meaningful interactions. Our new SBrandOps platform allows teams to scale without losing the human soul that defines a brand's unique vibration.</p>
+<!-- Inline AI Suggestion -->
+<div class="bg-tertiary-container/10 border-l-4 border-tertiary p-4 rounded-r-md my-6">
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] uppercase font-black text-tertiary tracking-widest flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="bolt">bolt</span>
+                                    AI Suggestion
+                                </span>
+<div class="flex gap-2">
+<button class="text-[10px] text-tertiary hover:underline">Apply</button>
+<button class="text-[10px] text-slate-500 hover:underline">Dismiss</button>
+</div>
+</div>
+<p class="text-sm text-tertiary-fixed font-medium italic">"Try making the conclusion more punchy. 'The machine curates, but you inspire.' aligns better with your 'Minimalist &amp; Premium' tone settings."</p>
+</div>
+<p class="text-on-surface-variant leading-relaxed">Consistency across every touchpoint isn't just about logos and colors. It's about the cognitive resonance of every sentence.</p>
+</div>
+<div class="mt-8 flex justify-end gap-3">
+<button class="px-4 py-2 text-slate-400 text-sm hover:text-white transition-colors">Draft Saved</button>
+<button class="px-6 py-2 bg-primary-container text-on-primary-container text-sm font-bold rounded-md">Submit for Review</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0c1321] w-full py-12 border-t-0 mt-20">
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+<div class="col-span-2 md:col-span-1">
+<span class="text-lg font-black text-white">SBrandOps</span>
+<p class="text-slate-500 text-[0.6875rem] mt-4 uppercase tracking-wider">Intelligence Layer for Global Brands</p>
+</div>
+<div>
+<h4 class="text-white text-xs font-bold uppercase tracking-widest mb-4">Legal</h4>
+<div class="flex flex-col gap-2">
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Terms of Service</a>
+</div>
+</div>
+<div>
+<h4 class="text-white text-xs font-bold uppercase tracking-widest mb-4">Resources</h4>
+<div class="flex flex-col gap-2">
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Security</a>
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Status</a>
+</div>
+</div>
+<div class="col-span-2 md:col-span-1 flex flex-col items-end">
+<p class="text-slate-500 text-[0.6875rem] uppercase tracking-wider text-right">© 2024 SBrandOps Intelligence. All rights reserved.</p>
+</div>
+</div>
+</footer>
+<!-- AI Navigation Drawer (Floating Insight Panel) -->
+<div class="fixed right-0 top-0 h-full w-80 z-[60] bg-[#070e1c]/80 backdrop-blur-xl flex flex-col p-6 shadow-[0_20px_40px_rgba(0,0,0,0.4)] border-l border-outline-variant/10 translate-x-[90%] hover:translate-x-0 transition-transform duration-500 ease-in-out">
+<div class="flex items-center justify-between mb-8">
+<h3 class="text-md font-bold text-white">AI Insights</h3>
+<span class="material-symbols-outlined text-blue-500" data-icon="bolt">bolt</span>
+</div>
+<div class="space-y-6">
+<div class="p-4 bg-white/5 rounded-md">
+<p class="text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-2">Campaign Health</p>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full border-2 border-tertiary flex items-center justify-center text-tertiary font-bold text-xs">92%</div>
+<p class="text-xs text-on-surface">Summer Launch assets are performing 12% better than forecasted benchmarks.</p>
+</div>
+</div>
+<div class="p-4 bg-white/5 rounded-md">
+<p class="text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-2">Optimization Suggestion</p>
+<p class="text-xs text-on-surface">"The word 'Dynamic' appears 14 times in your blog. Consider 'Kinetic' or 'Fluid' for more brand alignment."</p>
+</div>
+</div>
+<div class="mt-auto pt-6 border-t border-outline-variant/10">
+<button class="w-full py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-500 transition-colors">Open AI Lab</button>
+</div>
+</div>
+</body></html>

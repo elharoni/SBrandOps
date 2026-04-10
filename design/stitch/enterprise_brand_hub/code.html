@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=Tajawal:wght@300;400;500;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-fixed": "#6ffbbe",
+              "on-secondary-fixed": "#001f26",
+              "surface-container-high": "#232a39",
+              "inverse-surface": "#dce2f6",
+              "primary": "#b4c5ff",
+              "outline": "#8d90a0",
+              "on-secondary-container": "#00424e",
+              "surface-container-highest": "#2e3544",
+              "on-background": "#dce2f6",
+              "tertiary-fixed-dim": "#4edea3",
+              "error-container": "#93000a",
+              "surface-bright": "#323949",
+              "surface-variant": "#2e3544",
+              "on-primary-fixed": "#00174b",
+              "on-surface": "#dce2f6",
+              "surface-container-lowest": "#070e1c",
+              "on-secondary-fixed-variant": "#004e5c",
+              "primary-fixed": "#dbe1ff",
+              "on-tertiary-container": "#bdffdb",
+              "on-tertiary": "#003824",
+              "surface-container": "#19202e",
+              "outline-variant": "#434655",
+              "secondary-container": "#03b5d3",
+              "secondary-fixed": "#acedff",
+              "inverse-on-surface": "#2a3040",
+              "on-tertiary-fixed": "#002113",
+              "tertiary-container": "#007d55",
+              "secondary-fixed-dim": "#4cd7f6",
+              "on-error": "#690005",
+              "on-primary-fixed-variant": "#003ea8",
+              "on-error-container": "#ffdad6",
+              "on-surface-variant": "#c3c6d7",
+              "on-primary": "#002a78",
+              "surface-tint": "#b4c5ff",
+              "tertiary": "#4edea3",
+              "primary-container": "#2563eb",
+              "primary-fixed-dim": "#b4c5ff",
+              "secondary": "#4cd7f6",
+              "on-secondary": "#003640",
+              "surface-container-low": "#151b2a",
+              "inverse-primary": "#0053db",
+              "surface-dim": "#0c1321",
+              "surface": "#0c1321",
+              "on-tertiary-fixed-variant": "#005236",
+              "background": "#0c1321",
+              "on-primary-container": "#eeefff",
+              "error": "#ffb4ab"
+            },
+            fontFamily: {
+              "headline": ["Inter", "Tajawal"],
+              "body": ["Inter", "Tajawal"],
+              "label": ["Inter", "Tajawal"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.375rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #0c1321;
+            color: #dce2f6;
+            font-family: 'Inter', 'Tajawal', sans-serif;
+            letter-spacing: -0.011em;
+        }
+        .glass-panel {
+            background: rgba(25, 32, 46, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(141, 144, 160, 0.1);
+        }
+        .ai-insight-glow {
+            box-shadow: 0 0 15px rgba(78, 222, 163, 0.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #151b2a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #434655;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="bg-[#0c1321] fixed top-0 w-full z-50 border-b border-outline-variant/30">
+<div class="flex justify-between items-center h-14 px-6 w-full max-w-[1920px] mx-auto">
+<div class="flex items-center gap-8">
+<span class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">hexagon</span>
+                SBrandOps
+            </span>
+<nav class="hidden md:flex gap-5">
+<a class="text-on-surface-variant hover:text-white transition-colors text-xs font-medium" href="#">Platform</a>
+<a class="text-on-surface-variant hover:text-white transition-colors text-xs font-medium" href="#">Solutions</a>
+<a class="text-on-surface-variant hover:text-white transition-colors text-xs font-medium" href="#">Resources</a>
+<a class="text-on-surface-variant hover:text-white transition-colors text-xs font-medium" href="#">Pricing</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 mr-2">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-white p-1.5 rounded transition-all cursor-pointer text-xl">search</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-white p-1.5 rounded transition-all cursor-pointer text-xl">notifications</span>
+</div>
+<div class="h-8 w-8 rounded-full bg-surface-container-highest flex items-center justify-center border border-outline-variant/50">
+<span class="text-[10px] font-bold">JD</span>
+</div>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="bg-surface-container-lowest h-screen w-56 fixed left-0 top-0 border-r border-outline-variant/20 flex flex-col pt-14">
+<div class="p-4 mb-4">
+<div class="flex items-center gap-3 p-2 rounded-lg bg-surface-container-low border border-outline-variant/20">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white text-base" style="font-variation-settings: 'FILL' 1;">corporate_fare</span>
+</div>
+<div class="overflow-hidden">
+<h3 class="text-sm font-bold text-white truncate">Acme Corp</h3>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold truncate">Enterprise Plan</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-0.5">
+<div class="px-3 mb-2">
+<p class="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-[0.15em]">Management</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-primary bg-primary/10 border-l-2 border-primary transition-all" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="text-xs font-semibold">Brand Hub</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:text-white hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-lg">schema</span>
+<span class="text-xs font-medium">Architecture</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:text-white hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-lg">ads_click</span>
+<span class="text-xs font-medium">Campaigns</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:text-white hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-lg">analytics</span>
+<span class="text-xs font-medium">Performance</span>
+</a>
+<div class="px-3 mt-6 mb-2">
+<p class="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-[0.15em]">Intelligence</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:text-white hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-lg">auto_awesome</span>
+<span class="text-xs font-medium">AI Insights</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant hover:text-white hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-lg">monitoring</span>
+<span class="text-xs font-medium">Market Benchmarks</span>
+</a>
+</nav>
+<div class="p-4 mt-auto border-t border-outline-variant/20">
+<button class="w-full bg-primary-container hover:bg-blue-600 text-white rounded py-2 text-xs font-bold flex items-center justify-center gap-2 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+            New Project
+        </button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-56 pt-20 pb-12 px-8 min-h-screen">
+<!-- Header Section -->
+<header class="mb-8 flex justify-between items-end">
+<div>
+<div class="flex items-center gap-2 mb-2">
+<span class="bg-tertiary-container/30 text-tertiary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ai-insight-glow border border-tertiary/20">System Live</span>
+<span class="text-on-surface-variant text-[11px] font-medium">Global Brand Sync: <span class="text-white">Active</span></span>
+</div>
+<h1 class="text-4xl font-black text-white tracking-tight font-headline">Brand Intelligence Hub</h1>
+<p class="text-on-surface-variant mt-1 text-sm max-w-xl">Central governance for visual identity, narrative compliance, and real-time market resonance across all territories.</p>
+</div>
+<div class="flex gap-2">
+<button class="bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">ios_share</span> Export Report
+            </button>
+<button class="bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span> Version History
+            </button>
+</div>
+</header>
+<!-- Bento Grid -->
+<div class="grid grid-cols-12 gap-5 mb-8">
+<!-- 1. Identity Overview (Increased Density) -->
+<section class="col-span-12 lg:col-span-8 bg-surface-container/40 border border-outline-variant/20 rounded-lg p-6">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h2 class="text-sm font-bold text-white uppercase tracking-wider">Living Brand Identity</h2>
+<p class="text-[11px] text-on-surface-variant">v4.2.0 • Last synchronized 14h ago</p>
+</div>
+<button class="text-primary text-[11px] font-bold hover:underline">Manage Standards</button>
+</div>
+<div class="grid grid-cols-4 gap-4 mb-6">
+<div class="bg-surface-container-low/50 border border-outline-variant/10 p-3 rounded">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-base">forum</span>
+<h4 class="text-[11px] font-bold text-white uppercase tracking-tighter">Narrative</h4>
+</div>
+<p class="text-[11px] text-on-surface-variant leading-tight">Authoritative, empathetic, and data-driven tone of voice.</p>
+</div>
+<div class="bg-surface-container-low/50 border border-outline-variant/10 p-3 rounded">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-base">palette</span>
+<h4 class="text-[11px] font-bold text-white uppercase tracking-tighter">Visuals</h4>
+</div>
+<div class="flex gap-1">
+<div class="w-3 h-3 rounded-sm bg-[#0c1321] border border-white/10"></div>
+<div class="w-3 h-3 rounded-sm bg-[#2563eb] border border-white/10"></div>
+<div class="w-3 h-3 rounded-sm bg-[#4cd7f6] border border-white/10"></div>
+<div class="w-3 h-3 rounded-sm bg-[#dce2f6] border border-white/10"></div>
+</div>
+<p class="text-[9px] mt-1 text-on-surface-variant uppercase">Core Palette Active</p>
+</div>
+<div class="bg-surface-container-low/50 border border-outline-variant/10 p-3 rounded">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-tertiary text-base">verified</span>
+<h4 class="text-[11px] font-bold text-white uppercase tracking-tighter">Status</h4>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold text-green-500 uppercase">Compliant</span>
+</div>
+<p class="text-[9px] mt-1 text-on-surface-variant">94% consistency score</p>
+</div>
+<div class="bg-surface-container-low/50 border border-outline-variant/10 p-3 rounded">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-on-surface-variant text-base">history_edu</span>
+<h4 class="text-[11px] font-bold text-white uppercase tracking-tighter">Log</h4>
+</div>
+<p class="text-[9px] text-on-surface-variant">Primary blue HEX updated by <span class="text-white">A. Chen</span></p>
+</div>
+</div>
+<!-- Documents Table View -->
+<div class="space-y-2">
+<div class="flex items-center justify-between px-3 py-2 bg-surface-container-highest/20 rounded border border-outline-variant/10 hover:bg-surface-container-highest/40 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-xl">description</span>
+<div>
+<h4 class="text-[12px] font-bold text-white">Full Brand Guidelines 2024</h4>
+<p class="text-[10px] text-on-surface-variant uppercase">Main Master • 14.2 MB • v4.2.0</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="text-right">
+<span class="text-[9px] font-bold text-on-surface-variant block uppercase">Last Updated</span>
+<span class="text-[10px] text-white font-medium">2 days ago</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-white">download</span>
+</div>
+</div>
+<div class="flex items-center justify-between px-3 py-2 bg-surface-container-highest/20 rounded border border-outline-variant/10 hover:bg-surface-container-highest/40 transition-colors cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-xl">slideshow</span>
+<div>
+<h4 class="text-[12px] font-bold text-white">Investor Pitch Template</h4>
+<p class="text-[10px] text-on-surface-variant uppercase">Marketing • 38.5 MB • v2.1.0</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="text-right">
+<span class="text-[9px] font-bold text-on-surface-variant block uppercase">Last Updated</span>
+<span class="text-[10px] text-white font-medium">5 days ago</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-white">download</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. Performance Snapshot -->
+<section class="col-span-12 lg:col-span-4 bg-surface-container-lowest border border-outline-variant/20 rounded-lg p-6 flex flex-col justify-between">
+<div>
+<h2 class="text-sm font-bold text-white uppercase tracking-wider mb-6">Market Resonance</h2>
+<div class="space-y-5">
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Brand Sentiment</span>
+<span class="text-lg font-black text-tertiary">88.4%</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full w-[88%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<span class="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Visual Recall</span>
+<span class="text-lg font-black text-secondary">72.1%</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[72%]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 p-3 bg-surface-container/50 border-l-2 border-primary rounded">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">insights</span>
+<span class="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Strategic Insight</span>
+</div>
+<p class="text-[10px] text-on-surface-variant italic leading-relaxed">"Visual recall is lagging in EMEA. Recommendation: Increase saturations on mobile display assets by +15% for better contrast."</p>
+</div>
+</section>
+</div>
+<!-- 3. Target Personas (High Density Cards) -->
+<section class="mb-12">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-xl font-bold text-white tracking-tight">Core Audience Profiles</h2>
+<button class="bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 px-3 py-1.5 rounded text-[11px] font-bold transition-all">
+                Directory View
+            </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 gap-4">
+<!-- Persona 1 -->
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg overflow-hidden group hover:border-primary/50 transition-all cursor-pointer">
+<div class="h-28 relative overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover grayscale opacity-50 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHErjJ_ZrctCHaNKdtZcZ6KE0NhofmFr1mNK93ye5_9JdO-MounUW6H0qagTih3zEXaqvltYi7RmvK_4KdZaGbIkO1VrhjYiu_gmNkFB3lQwY1zyYQvhpAoKNVecIp3EyR4skRf5lDu4LoqOROp-u-sJlVV0UhVAlpWoqXV0ayyUZmfAgBI3SM4QE9T3FWquf5MUaK55ksg5M2KR_oGZpMApkU9zUY_83ZLciQjbD5v94rpQfzSniMcve9neDZ6P6QwPb2t9S-"/>
+<div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-surface/80 backdrop-blur text-[9px] font-bold uppercase text-white border border-white/10">CMO</div>
+</div>
+<div class="p-4">
+<h4 class="text-sm font-bold text-white mb-0.5">Tech Titan Tina</h4>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-3">Enterprise • Global</p>
+<p class="text-[11px] text-on-surface-variant line-clamp-2 leading-tight">Focuses on high-level ROI and long-term brand equity over short-term wins.</p>
+<div class="mt-4 pt-3 border-t border-outline-variant/10 flex items-center justify-between">
+<span class="text-[9px] font-bold text-tertiary uppercase">Primary Focus</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">more_horiz</span>
+</div>
+</div>
+</div>
+<!-- Persona 2 -->
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg overflow-hidden group hover:border-primary/50 transition-all cursor-pointer">
+<div class="h-28 relative overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover grayscale opacity-50 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAa7XBlvbos63wWxPCCbxvVIeo__DS4e41e_50ikLHxw3tFoY3ypwHkQtFv8PbeBZSWL4JOOI0zwvLWsa9EeKaWh_vVaJNvayTE-vFxP3AFrszb3quiJ87kwSWJna1hG7zB8fOLAMwEgn85jM0tYBniJewypLXhmxv4OxM0KBr0ydKA3DSk7mB-dkuias_RbapSZr5zv9gfpV3X-MJLWn8lMsUbOOIQcRgZOseTRHXnYlwQg6b8Dyyc8BpRfWqmGFXulNHtou8W"/>
+<div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-surface/80 backdrop-blur text-[9px] font-bold uppercase text-white border border-white/10">Creative</div>
+</div>
+<div class="p-4">
+<h4 class="text-sm font-bold text-white mb-0.5">Visual Vic</h4>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-3">Design Lead • UX</p>
+<p class="text-[11px] text-on-surface-variant line-clamp-2 leading-tight">Prioritizes asset consistency and rapid prototyping across global design systems.</p>
+<div class="mt-4 pt-3 border-t border-outline-variant/10 flex items-center justify-between">
+<span class="text-[9px] font-bold text-primary uppercase">Asset Power User</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">more_horiz</span>
+</div>
+</div>
+</div>
+<!-- Persona 3 -->
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg overflow-hidden group hover:border-primary/50 transition-all cursor-pointer">
+<div class="h-28 relative overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover grayscale opacity-50 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9nSBOX_tSYnljJtuJw3gBeSukIepCq2Zv8piI5ZX40MJ3bCqTnK79UI5gnAKTSXxZEswemOm6VwNf-coRiT4qxiRkB9IceyyxWj8sDJNryt0X08UvnphV1Ycdhb4-2LFd0UaeFfYO1JKgQf8ReIRE-PZkOchjParwwGQdkxEDAewGGHUloEKdhn0JaYF1LlX4jPVSad1hqQAf_505HVLqR8dRRvSVTVf9d74ZLDtoq2loXKxv7aCDHEKTOoVohlLRn_VWZaqq"/>
+<div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-surface/80 backdrop-blur text-[9px] font-bold uppercase text-white border border-white/10">Growth</div>
+</div>
+<div class="p-4">
+<h4 class="text-sm font-bold text-white mb-0.5">Startup Sam</h4>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-3">SME • Growth</p>
+<p class="text-[11px] text-on-surface-variant line-clamp-2 leading-tight">Needs intuitive toolkits that don't require dedicated branding resources.</p>
+<div class="mt-4 pt-3 border-t border-outline-variant/10 flex items-center justify-between">
+<span class="text-[9px] font-bold text-on-surface-variant uppercase">Scale Prospect</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">more_horiz</span>
+</div>
+</div>
+</div>
+<!-- Persona 4 -->
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg overflow-hidden group hover:border-primary/50 transition-all cursor-pointer">
+<div class="h-28 relative overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover grayscale opacity-50 group-hover:scale-105 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1IJEhUW_LXfsAVWibAlvfTGuPTRtzZuivN5_ZG4DCiX6XNlKD-n096YadAb1l6-V4p0yR0pJJzy2P2Uv5pmIrsiZ3T5xNHpdDlAesQ4D8vkHnWr8-mHXlgPA4hJx1ZGXI51BpXW1SAVcEmXqJ0lXABZMqKQrlKUYOO0FdxP6BhGZjg6cCw6OTcjeJ8xqYmVIuqH7hbOhtrGwE55-ZCFDMtPuBTMy8gFNS1k4LwHuWb5za2-uPKOLk4xGFBr-5iOfOePteEyhm"/>
+<div class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-surface/80 backdrop-blur text-[9px] font-bold uppercase text-white border border-white/10">Ad Ops</div>
+</div>
+<div class="p-4">
+<h4 class="text-sm font-bold text-white mb-0.5">Media Mary</h4>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold mb-3">Analytics • Paid</p>
+<p class="text-[11px] text-on-surface-variant line-clamp-2 leading-tight">Metrics first. Loves automated reporting and pre-validated ad assets.</p>
+<div class="mt-4 pt-3 border-t border-outline-variant/10 flex items-center justify-between">
+<span class="text-[9px] font-bold text-secondary uppercase">Metrics Specialist</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant">more_horiz</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. Approved Assets (Refined List/Grid) -->
+<section class="mb-12">
+<div class="flex justify-between items-end mb-4">
+<div>
+<h2 class="text-xl font-bold text-white tracking-tight">Approved Asset Repository</h2>
+<p class="text-[11px] text-on-surface-variant uppercase tracking-widest font-bold mt-1">Managed Digital Assets (DAM)</p>
+</div>
+<div class="flex gap-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">search</span>
+<input class="bg-surface-container border border-outline-variant/30 rounded pl-9 pr-3 py-1.5 text-xs text-white placeholder-on-surface-variant/50 focus:ring-1 focus:ring-primary w-56 transition-all" placeholder="Search global assets..." type="text"/>
+</div>
+<div class="flex bg-surface-container border border-outline-variant/30 rounded overflow-hidden">
+<button class="p-1.5 bg-primary/20 text-primary border-r border-outline-variant/30"><span class="material-symbols-outlined text-base">grid_view</span></button>
+<button class="p-1.5 hover:bg-surface-container-high text-on-surface-variant transition-all"><span class="material-symbols-outlined text-base">view_list</span></button>
+</div>
+<button class="bg-primary hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">cloud_upload</span> Bulk Upload
+                </button>
+</div>
+</div>
+<div class="grid grid-cols-6 gap-3">
+<!-- Asset 1 -->
+<div class="group relative aspect-square bg-surface-container rounded-lg border border-outline-variant/20 overflow-hidden cursor-pointer">
+<img alt="Asset" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNbTiB2GyG4K03kmRBHhNmnJ_sBu2tqdQh2TwlUJD7EDjfCjYo4KSxHPtRBrRbliYDRx9UUWAFyjNLKm5lekoQ0v88fOn9g5mE4sdEYQJYR_vfyw63yVFRU5SyUdxsS-3CG-JQpQvJPvChIIwbNK3EtE60a7j5Cvr7JbDPF4ltqcT6IZvLXNTkO_0T40mEyQj-XXTHp0X9ktPXxdOP2vpGPXiAx51Q3fc8EhRSR_HVpUBAAtKKIQGPa_bInOK6Enq-CyhS-ng7"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all p-3 flex flex-col justify-end">
+<p class="text-[9px] font-bold text-white truncate">DATA_VIS_HERO_01.PNG</p>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[8px] text-on-surface-variant uppercase font-bold">4K • 3.2MB</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xs text-white hover:text-primary">visibility</span>
+<span class="material-symbols-outlined text-xs text-white hover:text-primary">download</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Asset 2 -->
+<div class="group relative aspect-square bg-surface-container rounded-lg border border-outline-variant/20 overflow-hidden cursor-pointer">
+<img alt="Asset" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxfO9ya-p3vQrA7KFy4Lj8Fe2D0p0obtjHMu-H3Qw1D4pIlvul0wtBlk3G6IFSCKFN7Z7B_ENF-E4DtFGnJztJhTGbt0nhbUO3sAVhqbzOkHl8sDHOegdncwqIyq-rcbK7xbTVBZq97lnw3EZdKho73q3JuOCg7PyOgY5HGtF0INtiwCswuh9unw_ILpTIQaBK86R-oe4fI2XKp6h2jh9uKru5xIJgnpKQG6ffJAvlqLmfqcn79tfMjFwgcV3oOM5DYyrKFllo"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all p-3 flex flex-col justify-end">
+<p class="text-[9px] font-bold text-white truncate">DEV_WORKSPACE_STOCK.JPG</p>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[8px] text-on-surface-variant uppercase font-bold">RAW • 12MB</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xs text-white">visibility</span>
+<span class="material-symbols-outlined text-xs text-white">download</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Asset 3 -->
+<div class="group relative aspect-square bg-surface-container rounded-lg border border-outline-variant/20 overflow-hidden cursor-pointer">
+<img alt="Asset" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvFM4aLQYJJp-KWCLSfaZfnSVjBCyeOtgTZTE8k7CZgupFaTSeLjpcrcupVIayoFpJPb_AJ571_r0SA6lI-cGL-q9WjId0KASljNss0RQZZLsqKmVmrT2fcPG4IlCEpTU0wT4DwxXE3dA25qs2O5n-ojJ0z83WivC0kt-9qG600gBiNC9UcmfU3U3Kyh1MSpiIXV3DXMwOg5_DEwHHC8kow7CKUo83s0dxwVK-wxgZqX1zdB6cfuohWmD0Ofc8jzCTF1P7FnrU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all p-3 flex flex-col justify-end">
+<p class="text-[9px] font-bold text-white truncate">TABLET_DASHBOARD_UX.PNG</p>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[8px] text-on-surface-variant uppercase font-bold">PSD • 45MB</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xs text-white">visibility</span>
+<span class="material-symbols-outlined text-xs text-white">download</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Asset 4 -->
+<div class="group relative aspect-square bg-surface-container rounded-lg border border-outline-variant/20 overflow-hidden cursor-pointer">
+<img alt="Asset" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEYsCqcawjce_fkFSYxTWR961-EKjy7SaCQKU21uEwSr-mYfHOIe3RHclV56F-urW9xk_SXmiNkQfgdH9vGMtdhlepZSwAuHG1Qq8I-ldm6P8vTIQkImsNitMrFuNjt8dOCleKjTae-wosS61MWE8GQvv45AbBWD6IcgTPswY4sBuq9HAFeNOm88XUu8YeIXCWNqzRPVmRWDHgL0znx2zkj7Ao2EYMzZ_YaeOLxzBeu_MNsteMZcxHIZrXjHW-C8Ed2A0MpSDI"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all p-3 flex flex-col justify-end">
+<p class="text-[9px] font-bold text-white truncate">EARTH_GLOBE_NIGHT.WEBP</p>
+<div class="flex items-center justify-between mt-1">
+<span class="text-[8px] text-on-surface-variant uppercase font-bold">8K • 2.1MB</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xs text-white">visibility</span>
+<span class="material-symbols-outlined text-xs text-white">download</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Asset 5: Zip -->
+<div class="aspect-square bg-surface-container-low border-2 border-dashed border-outline-variant/30 rounded-lg flex flex-col items-center justify-center p-4 hover:border-primary/50 group transition-all cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center mb-2 border border-outline-variant/20 group-hover:scale-110 transition-all">
+<span class="material-symbols-outlined text-xl text-on-surface-variant group-hover:text-primary">folder_zip</span>
+</div>
+<p class="text-[10px] font-bold text-white uppercase text-center leading-tight">Master_Logo_Kit.zip</p>
+<p class="text-[8px] text-on-surface-variant mt-1 uppercase font-bold">12 Assets • 85MB</p>
+</div>
+<!-- Asset 6: Add -->
+<div class="aspect-square bg-surface-container/20 border-2 border-dashed border-outline-variant/20 rounded-lg flex flex-col items-center justify-center p-4 hover:bg-surface-container/40 transition-all cursor-pointer">
+<span class="material-symbols-outlined text-2xl text-on-surface-variant">add</span>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mt-1">Add Asset</p>
+</div>
+</div>
+</section>
+<!-- 5. Enterprise Views (Tracker & Catalog) -->
+<div class="grid grid-cols-12 gap-8">
+<!-- Competitor Intelligence Table -->
+<section class="col-span-12 lg:col-span-5">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-sm font-bold text-white uppercase tracking-wider">Competitor Intelligence</h2>
+<button class="text-primary text-[11px] font-bold">Feed Analysis</button>
+</div>
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-high/50 border-b border-outline-variant/20">
+<tr>
+<th class="px-4 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Company</th>
+<th class="px-4 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Activity</th>
+<th class="px-4 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider text-right">Trend</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<tr class="hover:bg-white/5 transition-colors cursor-pointer group">
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="w-7 h-7 rounded bg-white flex items-center justify-center text-[10px] font-black text-black">X</div>
+<div>
+<p class="text-xs font-bold text-white">Xenon Brand</p>
+<p class="text-[9px] text-on-surface-variant">Updated Core ID</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-3">
+<span class="bg-error-container/20 text-error text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-error/20">High Spike</span>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="material-symbols-outlined text-error text-lg">trending_up</span>
+</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors cursor-pointer group">
+<td class="px-4 py-3">
+<div class="flex items-center gap-3">
+<div class="w-7 h-7 rounded bg-secondary flex items-center justify-center text-[10px] font-black text-on-secondary">A</div>
+<div>
+<p class="text-xs font-bold text-white">Apex Insight</p>
+<p class="text-[9px] text-on-surface-variant">New AI Model Launch</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-3">
+<span class="bg-surface-container-high text-on-surface-variant text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-outline-variant/20">Stable</span>
+</td>
+<td class="px-4 py-3 text-right">
+<span class="material-symbols-outlined text-on-surface-variant text-lg">trending_flat</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Product Catalog (Refined Grid) -->
+<section class="col-span-12 lg:col-span-7">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-sm font-bold text-white uppercase tracking-wider">Offer Management</h2>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">filter_list</span>
+<input class="bg-surface-container border border-outline-variant/30 rounded pl-9 pr-3 py-1.5 text-xs text-white placeholder-on-surface-variant/50 focus:ring-1 focus:ring-primary w-40 transition-all" placeholder="Filter..." type="text"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg p-5 hover:border-secondary/50 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-base">assessment</span>
+<span class="text-[10px] font-black uppercase tracking-widest text-secondary">Strategic Service</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-white transition-colors">open_in_new</span>
+</div>
+<h4 class="text-sm font-bold text-white mb-1">Enterprise Audit Pro</h4>
+<p class="text-[11px] text-on-surface-variant leading-relaxed mb-4">In-depth health analysis with automated roadmap generation for scaling entities.</p>
+<div class="flex items-center justify-between pt-4 border-t border-outline-variant/10">
+<span class="text-sm font-black text-white">$4,500 <span class="text-[10px] font-medium text-on-surface-variant">/ project</span></span>
+<span class="text-[9px] font-bold text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded border border-tertiary/20">ACTIVE</span>
+</div>
+</div>
+<div class="bg-surface-container/30 border border-outline-variant/20 rounded-lg p-5 hover:border-primary/50 transition-all cursor-pointer group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-base">cloud_done</span>
+<span class="text-[10px] font-black uppercase tracking-widest text-primary">SaaS Solution</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-white transition-colors">open_in_new</span>
+</div>
+<h4 class="text-sm font-bold text-white mb-1">BrandVault AI Enterprise</h4>
+<p class="text-[11px] text-on-surface-variant leading-relaxed mb-4">Unlimited asset governance with vector search and AI compliance auto-tagging.</p>
+<div class="flex items-center justify-between pt-4 border-t border-outline-variant/10">
+<span class="text-sm font-black text-white">$299 <span class="text-[10px] font-medium text-on-surface-variant">/ month</span></span>
+<span class="text-[9px] font-bold text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded border border-outline-variant/20">TIER 2</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- AI Insights Panel (Floating) -->
+<aside class="fixed right-6 top-20 bottom-6 w-72 z-40 bg-surface-container-lowest/90 backdrop-blur-xl border border-outline-variant/20 rounded-lg shadow-2xl flex flex-col overflow-hidden">
+<div class="p-4 border-b border-outline-variant/20 flex justify-between items-center bg-surface-container-high/20">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<h3 class="text-xs font-black text-white uppercase tracking-wider">Lumina AI Agent</h3>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant text-base hover:text-white">close</button>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+<div class="space-y-2">
+<div class="flex items-center gap-1.5 px-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="text-[9px] uppercase font-black tracking-widest text-on-surface-variant">Content Analysis</span>
+</div>
+<div class="bg-surface-container-high/30 p-3 rounded border border-outline-variant/10">
+<p class="text-[11px] text-white leading-relaxed">Persona <span class="text-primary font-bold">'Visual Vic'</span> is engaging 30% more with video assets vs. static. Suggest shift to motion-first UI kits.</p>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center gap-1.5 px-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-[9px] uppercase font-black tracking-widest text-on-surface-variant">Market Alert</span>
+</div>
+<div class="bg-surface-container-high/30 p-3 rounded border border-outline-variant/10">
+<p class="text-[11px] text-white leading-relaxed">Competitor <span class="text-secondary font-bold">'Apex'</span> reduced ad spend in LinkedIn. Opportunity to capture 12% more feed-share this week.</p>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-outline-variant/20 bg-surface-container-low/40">
+<div class="bg-primary/5 border border-primary/20 p-3 rounded mb-3">
+<p class="text-[10px] text-primary font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs">auto_fix_high</span> Prompt Intelligence
+            </p>
+<p class="text-[10px] text-on-surface-variant mb-3">"Audit my Q3 assets for color compliance..."</p>
+<button class="w-full bg-primary text-white text-[10px] font-bold py-1.5 rounded hover:brightness-110 transition-all">Execute Scan</button>
+</div>
+</div>
+</aside>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest border-t border-outline-variant/10 w-full py-8 ml-56 pr-56">
+<div class="max-w-6xl mx-auto px-8 grid grid-cols-4 gap-8">
+<div class="col-span-2">
+<span class="text-base font-bold text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: 'FILL' 1;">hexagon</span>
+                SBrandOps
+            </span>
+<p class="text-[10px] text-on-surface-variant font-medium mt-3 leading-relaxed max-w-sm uppercase tracking-widest">
+                The global intelligence layer for modern brand operating systems. Empowering scale through cognitive governance.
+            </p>
+</div>
+<div>
+<h5 class="text-[10px] font-black text-white uppercase tracking-[0.2em] mb-4">Governance</h5>
+<ul class="space-y-2">
+<li><a class="text-[10px] text-on-surface-variant hover:text-primary transition-colors uppercase font-bold" href="#">Security Hub</a></li>
+<li><a class="text-[10px] text-on-surface-variant hover:text-primary transition-colors uppercase font-bold" href="#">API Access</a></li>
+<li><a class="text-[10px] text-on-surface-variant hover:text-primary transition-colors uppercase font-bold" href="#">Data Ethics</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-[10px] font-black text-white uppercase tracking-[0.2em] mb-4">Enterprise</h5>
+<ul class="space-y-2">
+<li><a class="text-[10px] text-on-surface-variant hover:text-primary transition-colors uppercase font-bold" href="#">SLA Policy</a></li>
+<li><a class="text-[10px] text-on-surface-variant hover:text-primary transition-colors uppercase font-bold" href="#">Support</a></li>
+<li><a class="text-[10px] text-on-surface-variant hover:text-primary transition-colors uppercase font-bold" href="#">Billing</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-6xl mx-auto px-8 mt-8 pt-6 border-t border-outline-variant/10 flex justify-between items-center">
+<p class="text-[9px] text-on-surface-variant/60 font-bold uppercase tracking-widest">© 2024 SBrandOps Intelligence Infrastructure. ISO 27001 Certified.</p>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-on-surface-variant/40 text-lg">public</span>
+<span class="material-symbols-outlined text-on-surface-variant/40 text-lg">shield_with_heart</span>
+</div>
+</div>
+</footer>
+</body></html>

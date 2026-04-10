@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(grep -n \"tenant_id\\\\|plan_id\\\\|max_brands\" migrations/001*.sql migrations/002*.sql migrations/003*.sql)",
+      "Bash(grep -n \"CREATE TABLE.*tenant\" migrations/*.sql)",
+      "Bash(node -e \"const tw = require\\('./tailwind.config.js'\\); console.log\\('Tailwind config loaded OK, colors count:', Object.keys\\(tw.default?.theme?.extend?.colors || {}\\).length\\)\")",
+      "Bash(grep -n \"const ai = new GoogleGenAI\\\\|const _ai:\\\\|getAI\\(\\)\" /c/Users/aboda/Downloads/sbrandops---v1.0541/services/*.ts)"
+    ]
+  }
+}

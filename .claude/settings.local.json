@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(node scripts/check-database.js:*)",
+      "Bash(npx vite build:*)",
+      "Bash(grep -E \"\\\\.\\(ts|sql|js\\)$\")",
+      "Bash(xargs ls:*)",
+      "Bash(npm install:*)",
+      "Bash(ls postcss.config*)",
+      "Bash(ls tailwind.config*)"
+    ]
+  }
+}

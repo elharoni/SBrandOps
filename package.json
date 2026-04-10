@@ -1,0 +1,53 @@
+{
+  "name": "sbrandops---v1.0541",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "supabase:functions:deploy": "supabase functions deploy publish-now && supabase functions deploy connect-accounts && supabase functions deploy manage-social-account && supabase functions deploy provider-oauth-callback && supabase functions deploy provider-webhook && supabase functions deploy paddle-webhook && supabase functions deploy paddle-webhook-retry && supabase functions deploy paddle-webhook-auto-retry && supabase functions deploy paddle-checkout && supabase functions deploy paddle-billing-manage",
+    "supabase:functions:deploy:publish-now": "supabase functions deploy publish-now",
+    "supabase:functions:deploy:connect-accounts": "supabase functions deploy connect-accounts",
+    "supabase:functions:deploy:manage-social-account": "supabase functions deploy manage-social-account",
+    "supabase:functions:deploy:provider-oauth-callback": "supabase functions deploy provider-oauth-callback",
+    "supabase:functions:deploy:provider-webhook": "supabase functions deploy provider-webhook",
+    "supabase:functions:deploy:paddle-webhook": "supabase functions deploy paddle-webhook",
+    "supabase:functions:deploy:paddle-webhook-retry": "supabase functions deploy paddle-webhook-retry",
+    "supabase:functions:deploy:paddle-webhook-auto-retry": "supabase functions deploy paddle-webhook-auto-retry",
+    "supabase:functions:deploy:paddle-checkout": "supabase functions deploy paddle-checkout",
+    "supabase:functions:deploy:paddle-billing-manage": "supabase functions deploy paddle-billing-manage"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "@sentry/react": "^10.46.0",
+    "@supabase/supabase-js": "^2.83.0",
+    "@tanstack/react-query": "^5.95.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.2",
+    "recharts": "^3.3.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-basic-ssl": "^2.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "autoprefixer": "^10.4.27",
+    "jsdom": "^29.0.1",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vitest": "^4.1.2"
+  }
+}

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SBrandOps | Social Ops Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=Tajawal:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-low": "#151b2a",
+              "secondary-fixed-dim": "#4cd7f6",
+              "on-error-container": "#ffdad6",
+              "error": "#ffb4ab",
+              "secondary": "#4cd7f6",
+              "on-background": "#dce2f6",
+              "tertiary": "#4edea3",
+              "surface-container-lowest": "#070e1c",
+              "on-primary-fixed-variant": "#003ea8",
+              "on-error": "#690005",
+              "on-secondary-fixed": "#001f26",
+              "tertiary-container": "#007d55",
+              "inverse-surface": "#dce2f6",
+              "tertiary-fixed-dim": "#4edea3",
+              "on-primary": "#002a78",
+              "surface": "#0c1321",
+              "inverse-on-surface": "#2a3040",
+              "primary": "#b4c5ff",
+              "on-tertiary-container": "#bdffdb",
+              "on-tertiary-fixed-variant": "#005236",
+              "secondary-fixed": "#acedff",
+              "inverse-primary": "#0053db",
+              "secondary-container": "#03b5d3",
+              "surface-dim": "#0c1321",
+              "surface-variant": "#2e3544",
+              "outline-variant": "#434655",
+              "surface-tint": "#b4c5ff",
+              "on-surface": "#dce2f6",
+              "on-surface-variant": "#c3c6d7",
+              "surface-container-high": "#232a39",
+              "primary-container": "#2563eb",
+              "on-tertiary-fixed": "#002113",
+              "tertiary-fixed": "#6ffbbe",
+              "on-secondary-fixed-variant": "#004e5c",
+              "on-secondary-container": "#00424e",
+              "primary-fixed": "#dbe1ff",
+              "on-primary-fixed": "#00174b",
+              "background": "#0c1321",
+              "primary-fixed-dim": "#b4c5ff",
+              "on-primary-container": "#eeefff",
+              "surface-container-highest": "#2e3544",
+              "surface-container": "#19202e",
+              "error-container": "#93000a",
+              "on-tertiary": "#003824",
+              "surface-bright": "#323949",
+              "outline": "#8d90a0",
+              "on-secondary": "#003640"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(46, 53, 68, 0.6);
+            backdrop-filter: blur(12px);
+        }
+        .ai-glow {
+            box-shadow: 0 0 15px rgba(78, 222, 163, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0c1321] h-16 flex justify-between items-center px-6">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tight text-white">SBrandOps</span>
+<div class="hidden md:flex gap-6">
+<a class="font-medium text-sm text-blue-500 border-b-2 border-blue-600 pb-1" href="#">Platform</a>
+<a class="font-medium text-sm text-slate-400 hover:text-white transition-colors" href="#">Solutions</a>
+<a class="font-medium text-sm text-slate-400 hover:text-white transition-colors" href="#">Resources</a>
+<a class="font-medium text-sm text-slate-400 hover:text-white transition-colors" href="#">Pricing</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-white">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-white">settings</span>
+<button class="bg-primary-container text-on-primary-container px-4 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95">Get Started</button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#070e1c] flex flex-col py-6 px-4 pt-20">
+<div class="flex items-center gap-3 mb-8 px-2">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary font-bold">A</div>
+<div>
+<div class="text-sm font-semibold text-white">Acme Corp</div>
+<div class="text-xs text-slate-500">Marketing Dept</div>
+</div>
+</div>
+<button class="mb-8 w-full py-2.5 bg-primary-container text-on-primary-container rounded-md flex items-center justify-center gap-2 text-sm font-medium transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">add</span>
+            New Campaign
+        </button>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium bg-blue-600/10 text-blue-500 border-r-2 border-blue-600" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-500 hover:bg-[#151b2a] hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined">tactic</span>
+                Strategy
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-500 hover:bg-[#151b2a] hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined text-blue-500" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+                Campaigns
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-500 hover:bg-[#151b2a] hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+                Analytics
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-500 hover:bg-[#151b2a] hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                Assets
+            </a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-500 hover:bg-[#151b2a] hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined">psychology</span>
+                AI Lab
+            </a>
+</nav>
+<div class="mt-auto space-y-1 pt-4 border-t border-[#151b2a]">
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-xs text-slate-500 hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">help</span>
+                Help Center
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-xs text-slate-500 hover:text-slate-200 transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">chat_bubble</span>
+                Feedback
+            </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 pt-16 min-h-screen bg-surface">
+<div class="max-w-[1600px] mx-auto p-8">
+<!-- Header Section with Asymmetric Layout -->
+<header class="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
+<div class="max-w-2xl">
+<span class="text-[0.6875rem] uppercase tracking-wider text-primary font-bold mb-2 block">Visual Operations</span>
+<h1 class="text-3xl font-semibold tracking-tight text-white mb-4">Social Media Control Center</h1>
+<p class="text-on-surface-variant text-sm leading-relaxed">Unified orchestration across Instagram, LinkedIn, and TikTok. Real-time engagement signals and automated asset optimization are active for the Summer Campaign cycle.</p>
+</div>
+<div class="flex gap-4">
+<div class="bg-surface-container-low px-4 py-2 rounded-md flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-tertiary ai-glow animate-pulse"></span>
+<span class="text-xs font-medium">AI Insights Active</span>
+</div>
+<div class="bg-surface-container-low px-4 py-2 rounded-md flex items-center gap-3">
+<span class="material-symbols-outlined text-sm">calendar_month</span>
+<span class="text-xs font-medium">August 2024</span>
+</div>
+</div>
+</header>
+<!-- Engagement Performance Snapshots (Bento Style) -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+<div class="bg-surface-container-low p-6 rounded-md md:col-span-2 flex justify-between items-center group cursor-pointer hover:bg-surface-container transition-all">
+<div>
+<span class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Total Reach</span>
+<div class="text-3xl font-bold text-white mt-1">1.2M <span class="text-tertiary text-xs font-medium">+14%</span></div>
+<div class="mt-4 flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-primary-container border-2 border-surface-container-low"></div>
+<div class="w-6 h-6 rounded-full bg-secondary-container border-2 border-surface-container-low"></div>
+<div class="w-6 h-6 rounded-full bg-tertiary-container border-2 border-surface-container-low"></div>
+</div>
+</div>
+<div class="h-16 w-32 flex items-end gap-1">
+<div class="bg-primary/20 w-full h-[40%] rounded-t-sm"></div>
+<div class="bg-primary/40 w-full h-[60%] rounded-t-sm"></div>
+<div class="bg-primary/60 w-full h-[55%] rounded-t-sm"></div>
+<div class="bg-primary/80 w-full h-[80%] rounded-t-sm"></div>
+<div class="bg-primary w-full h-[95%] rounded-t-sm"></div>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-md">
+<span class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Avg. Engagement</span>
+<div class="text-3xl font-bold text-white mt-1">4.8%</div>
+<div class="mt-4 text-xs text-on-surface-variant">Top platform: <span class="text-secondary font-semibold">LinkedIn</span></div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-md">
+<span class="text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Active Threads</span>
+<div class="text-3xl font-bold text-white mt-1">24</div>
+<div class="mt-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-error">priority_high</span>
+<span class="text-xs text-error">3 Urgent replies</span>
+</div>
+</div>
+</section>
+<!-- Split View: Table & Preview Cards -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Cross-channel Publishing Queue (Table Area) -->
+<div class="lg:col-span-2">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-lg font-semibold text-white">Upcoming Queue</h2>
+<div class="flex gap-2">
+<button class="text-xs bg-surface-container-high px-3 py-1.5 rounded text-on-surface-variant hover:text-white transition-colors">Filter</button>
+<button class="text-xs bg-surface-container-high px-3 py-1.5 rounded text-on-surface-variant hover:text-white transition-colors">Export</button>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-md overflow-hidden">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Content Asset</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Status</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Platform</th>
+<th class="px-6 py-4 text-[0.6875rem] uppercase tracking-widest text-on-surface-variant font-bold">Owner</th>
+<th class="px-6 py-4"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-low">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Modern workspace with laptop, coffee cup, and green plant on a minimalist desk with natural window light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhpCXQhFVKuzCM_y-AivD7kNrSZ5VIdt914Lc3t7lJ7rGxVMo1NtUo8RaD3ZWjFVOfADx2r9Ok4NOoazdbYRt2TdI3Ru0sNV_gbwWTjUzFpl9atAvoLNdM-aN81NFl0MD6QEPtTS4oW5myPyqVxsYecovcZ3MPT1C6fewHGjMXdEL3iR9xIJP3WEpSmUCAQaX0nxJ7VNx4dN_CL0qmtPzN4-Tgix-6OOhhdV4OkiYa0l4WYmBNOETTfWtaAr5DKn8WXKBl_j9Y"/>
+</div>
+<div>
+<div class="text-sm font-medium text-white">Q3 Product Launch Reel</div>
+<div class="text-[0.6875rem] text-on-surface-variant">Scheduled: Aug 24, 09:00 AM</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-tertiary-container text-on-tertiary-container">Approved</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">photo_camera</span>
+<span class="material-symbols-outlined text-[18px] text-primary">movie</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-[10px]">JD</div>
+<span class="text-xs text-on-surface-variant">Sarah K.</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Abstract data visualization with glowing blue and purple lines representing growth and connectivity on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsJYNC9dX6oli85VCMduV6e-IUTXPnmNIkrOL7jtKFOlOzSlw2jw9b5VoVT8ckctolVazmdOn0jdDzcV-jlV28Ah1kTDu8Kw9vl_08rf7yyiWoFz6hR9XiQjIMz0Si0TTG5l7akOjkPRQPyHjzjOebP7WqBkz13lTTxDrJIaBTIhXF0r8Oas8_nD691V9eDoWGT9Bd0bDaJPuTV68SpKM705nPMSMRnc-ZuzoN-98_eZol0aKQwY5KETbswmsyDFyvj_mAqf0k"/>
+</div>
+<div>
+<div class="text-sm font-medium text-white">Data Privacy Infographic</div>
+<div class="text-[0.6875rem] text-on-surface-variant">Drafting Stage</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-surface-container-highest text-on-surface-variant">In Progress</span>
+</td>
+<td class="px-6 py-4">
+<span class="material-symbols-outlined text-[18px] text-primary">work</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-[10px]">ML</div>
+<span class="text-xs text-on-surface-variant">Mark L.</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group border-b-0">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Close-up of a high-resolution laptop screen displaying complex colorful analytical charts and financial reports" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaDvnpuoMZXrHVoDYICO82AaQDwJAzL3G43Rfud9llLe_dtpv_iXfSIOyWAQzYbLVNu1eJtRiKYO-iAndUmwVOvApLaT711kL5oX6Ndp_ot_gOlnbFjxW-6NSxTciQxKFH0dp22oa7iExS-fvrtrwPkGii9KhE0pv6J2tk9GHh92od4SO4y5modGue52w8GxgEj_zQcqgc4o8JldjFgBhibSl9gfgsPlI6YKetyxNadb8MRSZc_FzKjNcapAImOIDbN_hqHgnN"/>
+</div>
+<div>
+<div class="text-sm font-medium text-white">Customer Spotlight: Zenith</div>
+<div class="text-[0.6875rem] text-on-surface-variant">Needs Review</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-error-container text-on-error-container">Urgent</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">photo_camera</span>
+<span class="material-symbols-outlined text-[18px] text-primary">work</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-[10px]">AM</div>
+<span class="text-xs text-on-surface-variant">Ali M.</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">more_vert</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Thumbnail-Rich Post Preview Side -->
+<div class="space-y-6">
+<h2 class="text-lg font-semibold text-white">Live Previews</h2>
+<!-- Preview Card 1 -->
+<div class="glass-card rounded-md overflow-hidden p-1 border border-white/5">
+<div class="relative aspect-square rounded-sm overflow-hidden mb-4">
+<img class="w-full h-full object-cover" data-alt="A brightly lit professional podcast studio setup with neon accent lighting and high-end microphones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvMcxjVYnGX7aMbFB0SdW7Z0QqheJ2yRUZXWAYTGX8SYi8YS2sdSZOZLfX6xIZQ2blK1qj09bPU8y6VfoI2v8lGkIBhma6ZUgwstZafUN-8P4rc94dp5qLo0vsUMCGb0uzJ52j5-EQaFOKgUKMkJP26cyG2ZJrz4KUVYavxqYFRS2baxdOkTlU2VflQzYcOk4GIlEo0A1AsA7Yim1a4xcTppua0odREeNF-CKIB9UeERfvglHpFWNY6HZtctz1NBeX9D_eVXMY"/>
+<div class="absolute top-3 left-3 flex gap-2">
+<span class="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest text-white">Instagram</span>
+<span class="bg-primary/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest text-on-primary">Hero Asset</span>
+</div>
+</div>
+<div class="p-4 pt-0">
+<div class="text-sm font-medium text-white mb-2">Podcast Highlight #12</div>
+<div class="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
+                                Join us as we dive deep into the future of brand intelligence with our lead architect. Link in bio! #SBrandOps #Innovation
+                            </div>
+<div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+<span class="text-[10px] text-on-surface-variant">Scheduled by @sarahk</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">edit_square</span>
+</div>
+</div>
+</div>
+<!-- Preview Card 2 -->
+<div class="glass-card rounded-md overflow-hidden p-1 border border-white/5">
+<div class="relative aspect-video rounded-sm overflow-hidden mb-4">
+<img class="w-full h-full object-cover" data-alt="Diverse group of young professionals collaborating around a large wooden table in a high-ceilinged industrial office space" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyFtfvZjYDZFquBOYbCBlbRe8Ul8LCi9KJ7l0tJWnCAfJdsXj76dMlKtwM17E5cgaRsGCNTz8KRJOHRVFodyYAnBZoP4uLtf6x6acC1e4MPAn4uHEuncOyGg-HYgBABx79mr-Ek5uf3NprVqamB_eMmmfi-zoEwe4omqG_ZqRFXlZ5q4vZCaFJcowfpEvZmIAq78i9FK6tptnYdaMPDjey6w-SC5WVmllxNYZYibQckEHUHZnZpzAhPjOxGvxtG4p1F_8RzqHt"/>
+<div class="absolute top-3 left-3">
+<span class="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest text-white">LinkedIn</span>
+</div>
+</div>
+<div class="p-4 pt-0">
+<div class="text-sm font-medium text-white mb-2">Team Culture Spotlight</div>
+<div class="text-xs text-on-surface-variant line-clamp-2 leading-relaxed">
+                                Building the future of marketing requires a diverse perspective. We're proud of our remote-first culture...
+                            </div>
+<div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+<span class="text-[10px] text-on-surface-variant">Scheduled by @markl</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">edit_square</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- AI Insights Drawer (Pinned to Content) -->
+<section class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="md:col-span-2 bg-surface-container-low p-8 rounded-md relative overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-primary-container/10 to-transparent pointer-events-none"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-tertiary">psychology</span>
+<h2 class="text-lg font-bold text-white tracking-tight">AI Content Optimization</h2>
+</div>
+<div class="space-y-4">
+<div class="flex items-start gap-4 p-4 bg-surface-container-high/50 rounded-md">
+<div class="w-1.5 h-1.5 rounded-full bg-tertiary mt-2"></div>
+<p class="text-sm text-on-surface">Video duration for "Summer Campaign" is 12% longer than peak-engagement average. Recommend trim to <span class="text-tertiary font-bold">15 seconds</span>.</p>
+</div>
+<div class="flex items-start gap-4 p-4 bg-surface-container-high/50 rounded-md">
+<div class="w-1.5 h-1.5 rounded-full bg-tertiary mt-2"></div>
+<p class="text-sm text-on-surface">Posting at <span class="text-secondary font-bold">4:00 PM EST</span> on LinkedIn will reach 40% more of your key B2B decision-maker audience.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Team Activity / Tasks -->
+<div class="bg-surface-container-lowest p-6 rounded-md">
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-6">Team Tasks</h3>
+<div class="space-y-6">
+<div class="flex gap-4">
+<div class="w-2 h-2 rounded-full bg-error shrink-0 mt-1.5"></div>
+<div>
+<div class="text-xs font-semibold text-white">Review Brand Assets</div>
+<div class="text-[10px] text-on-surface-variant mt-1">Assigned to: Ali M.</div>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5"></div>
+<div>
+<div class="text-xs font-semibold text-white">Update LinkedIn Header</div>
+<div class="text-[10px] text-on-surface-variant mt-1">Assigned to: Mark L.</div>
+</div>
+</div>
+<div class="flex gap-4 opacity-50">
+<div class="w-2 h-2 rounded-full bg-tertiary shrink-0 mt-1.5"></div>
+<div>
+<div class="text-xs font-semibold text-white line-through">Draft August Newsletter</div>
+<div class="text-[10px] text-on-surface-variant mt-1">Completed by: Sarah K.</div>
+</div>
+</div>
+</div>
+<button class="mt-8 w-full border border-outline-variant/30 py-2 rounded text-[10px] font-bold uppercase tracking-widest text-on-surface-variant hover:text-white transition-colors">View All Tasks</button>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer -->
+<footer class="ml-64 bg-[#0c1321] py-12 border-t border-[#151b2a]">
+<div class="max-w-7xl mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-8">
+<div class="col-span-2">
+<span class="text-lg font-black text-white">SBrandOps</span>
+<p class="text-slate-500 text-[0.6875rem] uppercase tracking-wider mt-4">Next-gen intelligence for brand operations.</p>
+<p class="text-slate-600 text-[0.6875rem] mt-12">© 2024 SBrandOps Intelligence. All rights reserved.</p>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-white text-[0.6875rem] font-bold uppercase tracking-widest">Platform</h4>
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Security</a>
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Status</a>
+</div>
+<div class="flex flex-col gap-4">
+<h4 class="text-white text-[0.6875rem] font-bold uppercase tracking-widest">Legal</h4>
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-500 text-[0.6875rem] uppercase tracking-wider hover:text-blue-400 transition-colors" href="#">Terms of Service</a>
+</div>
+</div>
+</footer>
+<!-- FAB for New Post -->
+<div class="fixed bottom-8 right-8 z-50">
+<button class="w-14 h-14 bg-primary rounded-full shadow-lg flex items-center justify-center text-on-primary hover:bg-secondary transition-all active:scale-90 group">
+<span class="material-symbols-outlined text-[28px] group-hover:rotate-90 transition-transform">add</span>
+</button>
+</div>
+<!-- AI Insights Floating Toggle (Hidden on small screens) -->
+<div class="fixed right-0 top-1/2 -translate-y-1/2 z-[60] hidden lg:block">
+<div class="bg-surface-container-lowest/80 backdrop-blur-xl p-3 rounded-l-md border-y border-l border-white/5 flex flex-col items-center gap-6">
+<span class="material-symbols-outlined text-tertiary cursor-pointer hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<div class="w-px h-8 bg-white/10"></div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-white transition-colors">bolt</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-white transition-colors">history</span>
+</div>
+</div>
+</body></html>
