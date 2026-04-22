@@ -163,7 +163,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     <div className="relative min-w-0" ref={dropdownRef}>
                         <button
                             onClick={() => setIsDropdownOpen((open) => !open)}
-                            className="surface-panel-soft flex min-w-[182px] items-center gap-3 rounded-2xl px-3 py-2 text-start transition-all hover:shadow-primary-glow"
+                            className="surface-panel-soft flex min-w-[140px] sm:min-w-[182px] items-center gap-2 sm:gap-3 rounded-2xl px-2.5 sm:px-3 py-2 text-start transition-all hover:shadow-primary-glow max-w-[200px] sm:max-w-none"
                             aria-label={ar ? 'تبديل البراند' : 'Switch brand'}
                         >
                             {activeBrand ? (
@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                             <i className={`fas fa-chevron-down text-[11px] text-light-text-secondary transition-transform dark:text-dark-text-secondary ${isDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
-                        <div className={`surface-panel absolute top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl ${ar ? 'right-0' : 'left-0'} ${isDropdownOpen ? 'visible opacity-100' : 'invisible opacity-0'} transition-all`}>
+                        <div className={`surface-panel absolute top-full z-50 mt-2 w-72 sm:w-80 overflow-hidden rounded-2xl ${ar ? 'right-0' : 'left-0'} max-w-[calc(100vw-2rem)] ${isDropdownOpen ? 'visible opacity-100' : 'invisible opacity-0'} transition-all`}>
                             <div className="border-b border-light-border/80 px-4 py-3 dark:border-dark-border/80">
                                 <p className="section-kicker">{ar ? 'التبديل بين البراندات' : 'Switch brands'}</p>
                             </div>
@@ -266,18 +266,18 @@ export const Header: React.FC<HeaderProps> = React.memo(({
 
                     <button
                         onClick={toggleTheme}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-light-text-secondary transition-colors hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text"
+                        className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl text-light-text-secondary transition-colors hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text"
                         title={theme === 'dark' ? (ar ? 'الوضع الفاتح' : 'Light mode') : (ar ? 'الوضع الداكن' : 'Dark mode')}
                         aria-label={theme === 'dark' ? (ar ? 'تفعيل الوضع الفاتح' : 'Switch to light mode') : (ar ? 'تفعيل الوضع الداكن' : 'Switch to dark mode')}
                     >
                         <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'} text-sm`} />
                     </button>
 
-                    <LanguageSwitcher />
+                    <div className="hidden sm:block"><LanguageSwitcher /></div>
 
                     <button
                         onClick={onSwitchToAdmin}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl text-light-text-secondary transition-colors hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text"
+                        className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl text-light-text-secondary transition-colors hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text"
                         title={ar ? 'لوحة الإدارة' : 'Admin panel'}
                         aria-label={ar ? 'فتح لوحة الإدارة' : 'Open admin panel'}
                     >

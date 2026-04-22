@@ -528,7 +528,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-light-bg dark:bg-dark-bg">
                         <div className="h-full rounded-full bg-gradient-to-r from-brand-primary to-brand-secondary transition-all duration-500" style={{ width: `${onboardingProgress}%` }} />
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         {onboardingSteps.map((step) => (
                             <button
                                 key={step.id}
@@ -570,7 +570,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricTile title={copy.followers} value={formatter.format(analyticsData.overallStats.totalFollowers)} icon="fa-users" trend="12%" positive comparedText={copy.comparedToLastMonth} />
                 <MetricTile title={copy.reach} value={formatter.format(analyticsData.overallStats.impressions)} icon="fa-eye" trend="5.3%" positive comparedText={copy.comparedToLastMonth} />
                 <MetricTile title={copy.engagement} value={formatter.format(analyticsData.overallStats.engagement)} icon="fa-heart" trend="2.1%" positive={false} comparedText={copy.comparedToLastMonth} />

@@ -600,6 +600,49 @@ html.dark .btn-secondary.loading::after, html.dark .btn-ghost.loading::after {
   }
 }
 
+/* ===================== Mobile Bottom Nav ===================== */
+/* Make the bottom nav safe-area aware on iOS */
+@supports (padding: max(0px)) {
+  nav[class*="fixed bottom-0"] {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ===================== Page Transition ===================== */
+@keyframes pageSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: pageSlideIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ===================== Touch Ripple ===================== */
+.btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.15);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.btn:active::after { opacity: 1; }
+
+/* ===================== Mobile-first stat tiles ===================== */
+@media (max-width: 640px) {
+  .stat-tile { padding: 0.875rem !important; }
+  .metric-emphasis { font-size: 1.75rem !important; }
+}
+
 .overflow-y-auto { -webkit-overflow-scrolling: touch; }
 
 @media (max-width: 767px) {

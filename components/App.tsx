@@ -24,6 +24,7 @@ const BrandsManagePage = lazy(() => import('./pages/BrandsManagePage').then(m =>
 import { AddBrandModal } from './AddBrandModal';
 import { BrandOnboardingWizard } from './BrandOnboardingWizard';
 import { BrandIntelligenceModal } from './BrandIntelligenceModal';
+import { MobileBottomNav } from './MobileBottomNav';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ToastStack } from './shared/ToastStack';
 
@@ -1101,7 +1102,7 @@ const AppShell: React.FC = () => {
                             userEmail={user?.email}
                             activePageId={activeBrandPage}
                         />
-                        <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6">
+                        <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6 lg:pb-6 pb-24">
                             <ErrorBoundary key={activeBrandPage}>
                                 <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل الصفحة...' : 'Loading page...'} />}>
                                     {renderBrandPage()}
@@ -1109,6 +1110,13 @@ const AppShell: React.FC = () => {
                             </ErrorBoundary>
                         </div>
                     </main>
+
+                    <MobileBottomNav
+                        activePage={activeBrandPage}
+                        onNavigate={setActiveBrandPage}
+                        onOpenSidebar={() => setMobileSidebarOpen(true)}
+                        unreadCount={notifications.filter(n => !n.read).length}
+                    />
                 </>
             ) : (
                 <>
