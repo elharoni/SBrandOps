@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { SocialPlatform, NotificationType } from '../types';
+import { NotificationType } from '../types';
 import { addBrand } from '../services/brandService';
 import { updateBrandProfile } from '../services/brandHubService';
-import { initiateSocialLogin, fetchAvailableAssets, connectSelectedAssets } from '../services/socialAuthService';
 import { useLanguage } from '../context/LanguageContext';
 
 interface BrandOnboardingWizardProps {
@@ -119,9 +118,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
     const [newValue, setNewValue] = useState('');
     const [newTone, setNewTone] = useState('');
 
-    const [connectedPlatforms, setConnectedPlatforms] = useState<Set<SocialPlatform>>(new Set());
-    const [connectingPlatform, setConnectingPlatform] = useState<SocialPlatform | null>(null);
-
     const [createdBrandId, setCreatedBrandId] = useState<string | null>(null);
 
     const ar = language === 'ar';
@@ -163,32 +159,12 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
         }
     };
 
-    const handleStep2Next  = () => saveBrandToDb(false);
-    const handleSkipVoice  = () => saveBrandToDb(true);
-
-    const handleConnectPlatform = async (platform: SocialPlatform) => {
-        if (!createdBrandId) return;
-        setConnectingPlatform(platform);
-        try {
-            const authResponse = await initiateSocialLogin(platform);
-            const assets = await fetchAvailableAssets(platform, authResponse.accessToken);
-            if (assets.length === 0) {
-                addNotification(NotificationType.Warning, ar ? 'لم يتم العثور على حسابات' : 'No accounts found');
-                return;
-            }
-            await connectSelectedAssets(createdBrandId, assets, platform, authResponse.accessToken);
-            setConnectedPlatforms(prev => new Set(prev).add(platform));
-            addNotification(NotificationType.Success, ar ? `تم ربط ${platform} بنجاح!` : `${platform} connected!`);
-        } catch (error: any) {
-            console.error(`Failed to connect ${platform}:`, error);
-            addNotification(NotificationType.Error, ar ? `فشل ربط ${platform}: ${error.message}` : `Failed to connect ${platform}`);
-        } finally {
-            setConnectingPlatform(null);
-        }
-    };
+    const handleStep2Next = () => saveBrandToDb(false);
+    const handleSkipVoice = () => saveBrandToDb(true);
 
     const handleFinish = () => {
         if (createdBrandId) onComplete(createdBrandId);
+        else onComplete('');
     };
 
     const toggleIndustry = (val: string) => setIndustry(prev => (prev === val ? '' : val));
@@ -458,91 +434,59 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                         </div>
                     )}
 
-                    {/* STEP 3: Connect Accounts */}
+                    {/* STEP 3: Connect Accounts — showcase, connect later via Integrations */}
                     {currentStep === 'connect' && (
                         <div className="space-y-5 animate-fade-in">
-                            <div className="text-center mb-2">
+                            <div className="text-center">
                                 <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center mx-auto mb-3">
-                                    <i className="fas fa-link text-brand-primary text-lg" />
+                                    <i className="fas fa-plug text-brand-primary text-lg" />
                                 </div>
                                 <h3 className="text-base font-bold text-light-text dark:text-dark-text">
-                                    {ar ? 'اربط حساباتك على وسائل التواصل' : 'Connect Your Social Accounts'}
+                                    {ar ? 'ربط حسابات التواصل الاجتماعي' : 'Connect Social Accounts'}
                                 </h3>
-                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1">
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1 max-w-xs mx-auto">
                                     {ar
-                                        ? 'اختر المنصات التي تريد النشر عليها'
-                                        : 'Choose the platforms you want to publish to'}
+                                        ? 'اربط منصاتك من صفحة Integrations بعد الإعداد — تستغرق الخطوة دقيقتين فقط'
+                                        : 'Connect your platforms from the Integrations page after setup — takes just 2 minutes'}
                                 </p>
                             </div>
 
+                            {/* Platform cards — decorative / informational only */}
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                    { platform: SocialPlatform.Facebook,  icon: 'fab fa-facebook',  color: 'from-blue-500 to-blue-700',   name: 'Facebook' },
-                                    { platform: SocialPlatform.Instagram, icon: 'fab fa-instagram', color: 'from-pink-500 to-purple-600',  name: 'Instagram' },
-                                    { platform: SocialPlatform.X,         icon: 'fab fa-x-twitter', color: 'from-slate-600 to-slate-800',  name: 'X (Twitter)' },
-                                    { platform: SocialPlatform.LinkedIn,  icon: 'fab fa-linkedin',  color: 'from-blue-600 to-blue-800',   name: 'LinkedIn' },
-                                ].map(({ platform, icon, color, name }) => {
-                                    const isConnected  = connectedPlatforms.has(platform);
-                                    const isConnecting = connectingPlatform === platform;
-
-                                    return (
-                                        <button
-                                            key={platform}
-                                            onClick={() => !isConnected && !connectingPlatform && handleConnectPlatform(platform)}
-                                            disabled={isConnected || !!connectingPlatform}
-                                            className={`relative p-4 rounded-xl border-2 transition-all text-left group ${
-                                                isConnected
-                                                    ? 'border-emerald-500/40 bg-emerald-500/5 cursor-default'
-                                                    : connectingPlatform
-                                                        ? 'border-light-border dark:border-dark-border opacity-50 cursor-not-allowed'
-                                                        : 'border-light-border dark:border-dark-border hover:border-brand-primary/50 hover:shadow-sm cursor-pointer'
-                                            }`}
-                                        >
-                                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white mb-3`}>
-                                                {isConnecting
-                                                    ? <i className="fas fa-circle-notch fa-spin text-base" />
-                                                    : <i className={`${icon} text-base`} />
-                                                }
-                                            </div>
-
-                                            <p className="font-semibold text-light-text dark:text-dark-text text-sm">{name}</p>
-                                            <p className="text-xs mt-0.5 font-medium">
-                                                {isConnected
-                                                    ? <span className="text-emerald-500">{ar ? 'متصل' : 'Connected'}</span>
-                                                    : isConnecting
-                                                        ? <span className="text-brand-primary">{ar ? 'جارٍ الربط...' : 'Connecting...'}</span>
-                                                        : <span className="text-light-text-secondary dark:text-dark-text-secondary">{ar ? 'اضغط للربط' : 'Click to connect'}</span>
-                                                }
-                                            </p>
-
-                                            {isConnected && (
-                                                <div className="absolute top-2.5 right-2.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                                                    <i className="fas fa-check text-white text-[9px]" />
-                                                </div>
-                                            )}
-                                        </button>
-                                    );
-                                })}
+                                    { icon: 'fab fa-facebook',  color: 'from-blue-500 to-blue-700',  name: 'Facebook',    desc: ar ? 'صفحات ومجموعات' : 'Pages & Groups' },
+                                    { icon: 'fab fa-instagram', color: 'from-pink-500 to-purple-600', name: 'Instagram',   desc: ar ? 'أعمال وإنستغرام' : 'Business & IG' },
+                                    { icon: 'fab fa-x-twitter', color: 'from-slate-600 to-slate-800', name: 'X (Twitter)', desc: ar ? 'تغريدات وخيوط' : 'Tweets & Threads' },
+                                    { icon: 'fab fa-linkedin',  color: 'from-blue-600 to-blue-800',   name: 'LinkedIn',    desc: ar ? 'صفحات الشركة' : 'Company Pages' },
+                                ].map(({ icon, color, name, desc }) => (
+                                    <div
+                                        key={name}
+                                        className="p-4 rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg"
+                                    >
+                                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white mb-3`}>
+                                            <i className={`${icon} text-base`} />
+                                        </div>
+                                        <p className="font-semibold text-light-text dark:text-dark-text text-sm">{name}</p>
+                                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">{desc}</p>
+                                    </div>
+                                ))}
                             </div>
 
-                            {connectedPlatforms.size > 0 && (
-                                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 text-center flex items-center justify-center gap-2">
-                                    <i className="fas fa-circle-check text-emerald-500 text-sm" />
-                                    <p className="text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                            {/* Where to connect */}
+                            <div className="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-4 flex gap-3 items-start">
+                                <div className="w-8 h-8 rounded-lg bg-brand-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                                    <i className="fas fa-circle-info text-brand-primary text-sm" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-0.5">
+                                        {ar ? 'كيف تربط حساباتك؟' : 'How to connect your accounts?'}
+                                    </p>
+                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary leading-relaxed">
                                         {ar
-                                            ? `تم ربط ${connectedPlatforms.size} منصة بنجاح`
-                                            : `${connectedPlatforms.size} platform(s) connected successfully`}
+                                            ? 'بعد الإنهاء، اذهب إلى صفحة Integrations من القائمة الجانبية واربط حساباتك بأمان عبر OAuth الرسمي لكل منصة.'
+                                            : 'After finishing, go to Integrations from the sidebar and connect your accounts securely via each platform\'s official OAuth.'}
                                     </p>
                                 </div>
-                            )}
-
-                            <div className="flex items-start gap-2.5 p-3 bg-light-bg dark:bg-dark-bg rounded-xl border border-light-border dark:border-dark-border">
-                                <i className="fas fa-lightbulb text-amber-400 text-xs mt-0.5 shrink-0" />
-                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                                    {ar
-                                        ? 'يمكنك ربط المزيد من الحسابات لاحقاً من صفحة Accounts'
-                                        : 'You can connect more accounts later from the Accounts page'}
-                                </p>
                             </div>
                         </div>
                     )}
@@ -569,10 +513,10 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                 </h4>
                                 <ul className="space-y-2.5">
                                     {[
-                                        { icon: 'fa-pen-nib',     text: ar ? 'انشر أول منشور من Publisher' : 'Create your first post from Publisher' },
-                                        { icon: 'fa-calendar',    text: ar ? 'جدول محتوى من Calendar' : 'Schedule content from Calendar' },
-                                        { icon: 'fa-chart-line',  text: ar ? 'تابع الأداء من Analytics' : 'Track performance in Analytics' },
-                                        { icon: 'fa-plug-circle-check', text: ar ? 'اربط Google Ads و GA4 من صفحة Integrations' : 'Connect Google Ads & GA4 from Integrations' },
+                                        { icon: 'fa-pen-nib',           text: ar ? 'انشر أول منشور من Publisher' : 'Create your first post from Publisher' },
+                                        { icon: 'fa-calendar',          text: ar ? 'جدول محتوى من Calendar' : 'Schedule content from Calendar' },
+                                        { icon: 'fa-plug-circle-check', text: ar ? 'اربط حسابات السوشيال من صفحة Integrations' : 'Connect social accounts from Integrations' },
+                                        { icon: 'fa-chart-line',        text: ar ? 'تابع الأداء من Analytics' : 'Track performance in Analytics' },
                                     ].map((item, i) => (
                                         <li key={i} className="flex items-center gap-2.5 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                                             <div className="w-6 h-6 rounded-md bg-brand-primary/10 flex items-center justify-center shrink-0">
@@ -581,14 +525,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                             {item.text}
                                         </li>
                                     ))}
-                                    {connectedPlatforms.size > 0 && (
-                                        <li className="flex items-center gap-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-                                            <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
-                                                <i className="fas fa-check text-emerald-500 text-[10px]" />
-                                            </div>
-                                            {ar ? `تم ربط ${connectedPlatforms.size} حساب` : `${connectedPlatforms.size} account(s) connected`}
-                                        </li>
-                                    )}
                                 </ul>
                             </div>
                         </div>
@@ -645,8 +581,7 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                         {currentStep === 'connect' && (
                             <button
                                 onClick={() => setCurrentStep('done')}
-                                disabled={!!connectingPlatform}
-                                className="px-5 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 disabled:opacity-40 transition-all flex items-center gap-2"
+                                className="px-5 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 transition-all flex items-center gap-2"
                             >
                                 {ar ? 'إنهاء' : 'Finish'}
                                 <i className="fas fa-check text-xs" />
