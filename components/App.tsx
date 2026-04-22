@@ -693,7 +693,7 @@ const AppShell: React.FC = () => {
             case 'social-ops/social-search':
                 return <SocialSearchPage brandId={activeBrand.id} addNotification={addNotification} onSendToPublisher={handleSocialIdeaToPublisher} />;
             case 'calendar':
-                return <CalendarPage posts={scheduledPosts} contentPipeline={contentPipeline} onEditPost={handleEditPost} onUpdatePost={handleUpdatePost} onDeletePost={async (id) => { await deleteScheduledPost(id); fetchDataForBrand(activeBrand); }} />;
+                return <CalendarPage posts={scheduledPosts} contentPipeline={contentPipeline} onEditPost={handleEditPost} onUpdatePost={handleUpdatePost} onDeletePost={async (id) => { await deleteScheduledPost(id); fetchDataForBrand(activeBrand); }} brandProfile={resolvedBrandProfile} onSendToPublisher={handleLoadPublisherBrief} />;
             case 'content-ops':
                 return (
                     <ContentOpsPage

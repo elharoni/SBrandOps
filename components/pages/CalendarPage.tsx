@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { ScheduledPost, PostStatus, PLATFORM_ASSETS, ContentPiece } from '../../types';
+import { ScheduledPost, PostStatus, PLATFORM_ASSETS, ContentPiece, BrandHubProfile, PublisherBrief } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { SmartOccasionsPanel } from '../SmartOccasionsPanel';
+import { getUpcomingOccasions, getDaysUntil } from '../../data/occasions';
 
 type CalendarEvent = {
     id: string;
@@ -16,6 +18,8 @@ interface CalendarPageProps {
     onEditPost: (post: ScheduledPost) => void;
     onUpdatePost: (postId: string, updates: Partial<Omit<ScheduledPost, 'id'>>) => void;
     onDeletePost?: (id: string) => void;
+    brandProfile?: BrandHubProfile;
+    onSendToPublisher?: (brief: PublisherBrief) => void;
 }
 
 const CONTENT_TYPE_COLORS: { [key: string]: { bg: string; border: string; text: string } } = {
@@ -156,7 +160,7 @@ const DayDetailModal: React.FC<{
     );
 };
 
-export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeline, onEditPost, onUpdatePost, onDeletePost }) => {
+export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeline, onEditPost, onUpdatePost, onDeletePost, brandProfile, onSendToPublisher }) => {
     const { t, language } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -267,8 +271,14 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeli
         return allEvents.filter(ev => ev.type === 'post' && ev.date >= new Date()).length;
     }, [allEvents]);
 
+    const [showOccasions, setShowOccasions] = useState(true);
+    const upcomingCount = getUpcomingOccasions(7).length;
+
     return (
-        <div className="space-y-4">
+        <div className="flex gap-4 h-[calc(100vh-8rem)]">
+
+        {/* ── Main Calendar Column ── */}
+        <div className="flex-1 min-w-0 overflow-y-auto space-y-4">
             {/* ── Header ── */}
             <div className="flex justify-between items-center flex-wrap gap-3">
                 <div>
@@ -486,6 +496,42 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeli
                     onDeletePost={onDeletePost}
                 />
             )}
+        </div>
+
+        {/* Smart Occasions Sidebar */}
+        {brandProfile && onSendToPublisher && (
+            <div className={`flex-shrink-0 transition-all duration-300 ${showOccasions ? 'w-80 xl:w-96' : 'w-12'} hidden lg:flex flex-col`}>
+                {showOccasions ? (
+                    <div className="flex-1 rounded-2xl border border-dark-border bg-dark-card overflow-hidden flex flex-col">
+                        <SmartOccasionsPanel
+                            brandProfile={brandProfile}
+                            onSendToPublisher={onSendToPublisher}
+                        />
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => setShowOccasions(true)}
+                        className="flex-1 flex flex-col items-center justify-center gap-2 rounded-2xl border border-dark-border bg-dark-card hover:border-brand-primary/50 transition-colors group"
+                        title="فتح محرك المناسبات"
+                    >
+                        <i className="fas fa-calendar-star text-dark-text-secondary group-hover:text-brand-primary transition-colors" />
+                        {upcomingCount > 0 && (
+                            <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                                {upcomingCount}
+                            </span>
+                        )}
+                    </button>
+                )}
+                <button
+                    onClick={() => setShowOccasions(s => !s)}
+                    className="mt-2 h-8 w-full flex items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary hover:text-brand-primary hover:border-brand-primary/50 transition-colors text-xs gap-1.5"
+                >
+                    <i className={`fas fa-chevron-${showOccasions ? 'right' : 'left'} text-[10px]`} />
+                    {showOccasions ? 'إخفاء' : ''}
+                </button>
+            </div>
+        )}
+
         </div>
     );
 };
