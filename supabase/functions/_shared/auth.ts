@@ -26,12 +26,18 @@ export type AuthUser = {
 
 // ── JSON helper (reusable error responses) ───────────────────────────────────
 
-function errorResponse(message: string, status: number, correlationId?: string): Response {
+function errorResponse(
+  message: string,
+  status: number,
+  correlationId?: string,
+  corsHeaders?: Record<string, string>,
+): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
     headers: {
       'Content-Type': 'application/json',
       ...(correlationId ? { 'X-Correlation-Id': correlationId } : {}),
+      ...(corsHeaders ?? {}),
     },
   });
 }
@@ -48,10 +54,11 @@ function errorResponse(message: string, status: number, correlationId?: string):
 export async function verifyJWT(
   req: Request,
   correlationId?: string,
+  corsHeaders?: Record<string, string>,
 ): Promise<AuthUser | Response> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return errorResponse('Missing or invalid Authorization header', 401, correlationId);
+    return errorResponse('Missing or invalid Authorization header', 401, correlationId, corsHeaders);
   }
 
   const jwt = authHeader.replace('Bearer ', '').trim();
@@ -67,7 +74,7 @@ export async function verifyJWT(
   const { data: { user }, error } = await adminClient.auth.getUser(jwt);
 
   if (error || !user) {
-    return errorResponse('Invalid or expired token', 401, correlationId);
+    return errorResponse('Invalid or expired token', 401, correlationId, corsHeaders);
   }
 
   return user as AuthUser;
