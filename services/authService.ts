@@ -13,6 +13,10 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const user = data.user;
+    if (!user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        throw new Error('Email not confirmed');
+    }
     return {
         id: user.id,
         email: user.email || '',

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signIn } from '../../services/authService';
-import { isSupabaseConfigured, supabaseConfigError } from '../../services/supabaseClient';
+import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
 
 interface LoginPageProps {
     onSuccess: () => void;
@@ -14,6 +14,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [needsVerification, setNeedsVerification] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [resendCooldown]);
+
+    const handleResend = async () => {
+        setResendStatus('sending');
+        await supabase.auth.resend({ type: 'signup', email });
+        setResendStatus('sent');
+        setResendCooldown(60);
+        setTimeout(() => setResendStatus('idle'), 3000);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,7 +44,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
             if (msg.includes('Invalid login credentials')) {
                 setError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
             } else if (msg.includes('Email not confirmed')) {
-                setError('يرجى تأكيد بريدك الإلكتروني أولاً');
+                setNeedsVerification(true);
             } else {
                 setError(msg);
             }
@@ -35,6 +52,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
             setIsLoading(false);
         }
     };
+
+    if (needsVerification) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
+                <div className="w-full max-w-md text-center">
+                    <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
+                        <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i className="fas fa-envelope-open-text text-amber-500 text-2xl"></i>
+                        </div>
+                        <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-2">تفعيل البريد الإلكتروني مطلوب</h2>
+                        <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6 text-sm">
+                            حسابك موجود لكن يحتاج تفعيل. تحقق من بريدك <strong>{email}</strong> وانقر على رابط التفعيل.
+                        </p>
+                        <button
+                            onClick={handleResend}
+                            disabled={resendCooldown > 0 || resendStatus === 'sending'}
+                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2 mb-3"
+                        >
+                            {resendStatus === 'sending' ? (
+                                <><i className="fas fa-circle-notch fa-spin text-xs"></i> جاري الإرسال...</>
+                            ) : resendStatus === 'sent' ? (
+                                <><i className="fas fa-check text-xs"></i> تم الإرسال!</>
+                            ) : resendCooldown > 0 ? (
+                                <>إعادة الإرسال بعد {resendCooldown}ث</>
+                            ) : (
+                                <><i className="fas fa-paper-plane text-xs"></i> إعادة إرسال رابط التفعيل</>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setNeedsVerification(false)}
+                            className="w-full py-2 px-4 text-sm text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition-colors"
+                        >
+                            العودة لتسجيل الدخول
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
