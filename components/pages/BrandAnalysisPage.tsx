@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { BrandHubProfile, NotificationType, BrandProfileAnalysis } from '../../types';
 import { analyzeBrandProfile } from '../../services/geminiService';
+import { CompetitorAnalysisWidget } from '../shared/CompetitorAnalysisWidget';
 
 interface BrandAnalysisPageProps {
     brandProfile: BrandHubProfile;
@@ -105,6 +106,11 @@ export const BrandAnalysisPage: React.FC<BrandAnalysisPageProps> = ({ brandProfi
                      <AnalysisSection title="توصيات للتحسين" items={analysis.recommendations} icon="fa-lightbulb" color="text-brand-primary" />
                 </div>
             )}
+
+            <CompetitorAnalysisWidget
+                brandName={brandProfile.brandName}
+                industry={brandProfile.industry}
+            />
         </div>
     );
 };

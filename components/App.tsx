@@ -23,6 +23,7 @@ const BrandHubPage = lazy(() => import('./pages/BrandHubPage').then(m => ({ defa
 const BrandsManagePage = lazy(() => import('./pages/BrandsManagePage').then(m => ({ default: m.BrandsManagePage })));
 import { AddBrandModal } from './AddBrandModal';
 import { BrandOnboardingWizard } from './BrandOnboardingWizard';
+import { BrandIntelligenceModal } from './BrandIntelligenceModal';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ToastStack } from './shared/ToastStack';
 
@@ -308,6 +309,7 @@ const AppShell: React.FC = () => {
     // â”€â”€ Local UI State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const [postToEdit, setPostToEdit] = useState<ScheduledPost | null>(null);
     const [publisherBrief, setPublisherBrief] = useState<PublisherBrief | null>(null);
+    const [showBrandIntelModal, setShowBrandIntelModal] = useState(false);
 
     // Combined loading indicator for brand view
     const isLoading = brandsLoading || brandDataLoading;
@@ -504,6 +506,11 @@ const AppShell: React.FC = () => {
             NotificationType.Success,
             ar ? '🎉 تم إنشاء البراند! أنشئ أول منشور الآن.' : '🎉 Brand ready! Create your first post.',
         );
+        const intelKey = `brand_intel_shown_${user?.id}`;
+        if (!localStorage.getItem(intelKey)) {
+            localStorage.setItem(intelKey, '1');
+            setTimeout(() => setShowBrandIntelModal(true), 800);
+        }
     };
 
     const handleSavePost = async (post: Omit<ScheduledPost, 'id'>) => {
@@ -983,6 +990,11 @@ const AppShell: React.FC = () => {
                 <div className="app-shell-orb bottom-[-8rem] right-[-6rem] h-80 w-80 bg-brand-secondary/20" />
             </div>
 
+            {/* Brand Intelligence "Aha Moment" Modal */}
+            {showBrandIntelModal && activeBrand && (
+                <BrandIntelligenceModal brand={activeBrand} onClose={() => setShowBrandIntelModal(false)} />
+            )}
+
             {/* Post-verification welcome modal */}
             {showWelcomeModal && user && (
                 <WelcomeModal
@@ -1066,6 +1078,12 @@ const AppShell: React.FC = () => {
                         toggleCollapse={toggleSidebar}
                         isMobileOpen={isMobileSidebarOpen}
                         closeMobile={() => setMobileSidebarOpen(false)}
+                        completionSteps={[
+                            { id: 'email', label: 'تفعيل البريد الإلكتروني', done: emailConfirmed, icon: 'fa-envelope', navigateTo: '' },
+                            { id: 'brand', label: 'إنشاء أول براند', done: brands.length > 0, icon: 'fa-layer-group', navigateTo: 'brands' },
+                            { id: 'social', label: 'ربط حساب اجتماعي', done: (socialAccounts?.length ?? 0) > 0, icon: 'fa-link', navigateTo: 'integrations' },
+                            { id: 'post', label: 'نشر أول منشور', done: scheduledPosts.some(p => (p.status as string) === 'Published'), icon: 'fa-paper-plane', navigateTo: 'social-ops/publisher' },
+                        ]}
                     />
                     <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
                         <Header

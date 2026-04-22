@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { NavItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { ProgressRing, CompletionStep } from './shared/ProgressRing';
 
 interface NavSection {
     id: string;
@@ -98,6 +99,7 @@ interface SidebarProps {
     toggleCollapse: () => void;
     isMobileOpen: boolean;
     closeMobile: () => void;
+    completionSteps?: CompletionStep[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = React.memo(({
@@ -107,6 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     toggleCollapse,
     isMobileOpen,
     closeMobile,
+    completionSteps,
 }) => {
     const { t, language } = useLanguage();
     const { user } = useAuth();
@@ -247,6 +250,11 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         </div>
                     ))}
                 </nav>
+
+                {/* Progress Ring */}
+                {completionSteps && completionSteps.length > 0 && (
+                    <ProgressRing steps={completionSteps} isCollapsed={isCollapsed} onNavigate={onNavigate} />
+                )}
 
                 <div className="mt-auto border-t border-light-border/70 px-3 py-3 dark:border-dark-border/70">
                     <button

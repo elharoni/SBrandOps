@@ -12,6 +12,7 @@ import { PRICING_PLANS } from '../../config/pricingPlans';
 import { useLanguage } from '../../context/LanguageContext';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
 import { supabase } from '../../services/supabaseClient';
+import { ReferralWidget } from '../ReferralWidget';
 
 function useMonthlyAIUsage() {
     const [used, setUsed] = useState(0);
@@ -212,6 +213,11 @@ export const UserBillingPage: React.FC<UserBillingPageProps> = ({ brandCount, us
                     </div>
                 </PageSection>
             )}
+
+            {/* Referral program */}
+            <PageSection title={ar ? 'برنامج الإحالة' : 'Referral Program'}>
+                <ReferralWidget />
+            </PageSection>
         </PageScaffold>
     );
 };

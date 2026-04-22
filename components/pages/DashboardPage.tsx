@@ -324,6 +324,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         return copy.greetingEvening;
     };
 
+    const userGoal = typeof window !== 'undefined' ? localStorage.getItem('userGoal') : null;
+    const goalConfig: Record<string, { icon: string; label: string; tip: string; nav: string; color: string }> = {
+        social:    { icon: 'fa-heart',      label: 'محتوى سوشيال ميديا', tip: 'ابدأ بإنشاء منشور جديد أو جدولة محتوى لهذا الأسبوع.', nav: 'social-ops/publisher', color: 'text-pink-400' },
+        seo:       { icon: 'fa-search',     label: 'تحسين محركات البحث', tip: 'تفقّد تقرير SEO لمعرفة أكبر الفرص لرفع ترتيب موقعك.', nav: 'seo-ops', color: 'text-blue-400' },
+        ads:       { icon: 'fa-bullhorn',   label: 'إدارة الإعلانات', tip: 'راجع أداء حملاتك وتأكد من ROAS قبل رفع الميزانية.', nav: 'ads-ops', color: 'text-amber-400' },
+        branding:  { icon: 'fa-star',       label: 'بناء هوية البراند', tip: 'أضف نبرة براندك وقيمه الجوهرية في صفحة Brand Hub الآن.', nav: 'brand-hub', color: 'text-violet-400' },
+        analytics: { icon: 'fa-chart-bar',  label: 'تحليل الأداء', tip: 'اربط حساباتك الاجتماعية للحصول على تحليلات حقيقية تساعدك على القرار.', nav: 'analytics', color: 'text-emerald-400' },
+        all:       { icon: 'fa-rocket',     label: 'كل الميزات', tip: 'استكشف القائمة الجانبية — كل قسم مصمم ليوفر لك ساعات عمل يومياً.', nav: 'dashboard', color: 'text-brand-primary' },
+    };
+    const gc = userGoal ? goalConfig[userGoal] : null;
+
     const processedChartData = useMemo(() => {
         const now = new Date();
         const daysToFilter = timePeriod === '7d' ? 7 : timePeriod === '90d' ? 90 : 30;
@@ -441,6 +452,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                             </div>
                         ))}
                     </div>
+
+                    {gc && (
+                        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-brand-primary/5 border border-brand-primary/15 px-4 py-3">
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-light-bg dark:bg-dark-bg ${gc.color}`}>
+                                <i className={`fas ${gc.icon} text-xs`} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs text-light-text dark:text-dark-text">
+                                    <span className={`font-bold ${gc.color}`}>{gc.label}</span>
+                                    {' — '}<span className="text-light-text-secondary dark:text-dark-text-secondary">{gc.tip}</span>
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => onNavigate(gc.nav)}
+                                className="shrink-0 text-xs font-semibold text-brand-primary hover:underline whitespace-nowrap"
+                            >
+                                {ar ? 'ابدأ' : 'Go'} <i className="fas fa-arrow-left text-[10px]" />
+                            </button>
+                        </div>
+                    )}
                 </Panel>
 
                 <Panel title={copy.quickActions} subtitle={copy.quickActionsDesc}>

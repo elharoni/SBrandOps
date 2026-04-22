@@ -110,7 +110,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                             ))}
                         </div>
                         <button
-                            onClick={() => setSuccess(true)}
+                            onClick={() => { if (surveyGoal) localStorage.setItem('userGoal', surveyGoal); setSuccess(true); }}
                             disabled={!surveyGoal}
                             className="w-full py-3 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-indigo-500/25"
                         >
