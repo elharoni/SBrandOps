@@ -219,8 +219,12 @@ export async function connectSelectedAssets(
     platform: SocialPlatform,
     userToken: string,
 ): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Not authenticated. Please sign in again.');
+
     const { error } = await supabase.functions.invoke('connect-accounts', {
         body: { brand_id: brandId, platform, assets, user_token: userToken },
+        headers: { Authorization: `Bearer ${session.access_token}` },
     });
 
     if (error) {
