@@ -1,7 +1,7 @@
 // services/designJobsService.ts
 import { supabase } from './supabaseClient';
 import { DesignJob, DesignJobStatus, DesignWorkflow, DesignAsset, BrandHubProfile, NotificationType } from '../types';
-import { generateImageFromPrompt, enhanceArabicDesignPrompt } from './geminiService';
+import { generateImageFromPrompt, enhanceArabicDesignPrompt, AIImageProvider } from './geminiService';
 import { buildFinalPrompt, incrementWorkflowUsage } from './designWorkflowsService';
 import { createDesignAsset } from './designAssetsService';
 import { uploadFile } from './storageService';
@@ -92,7 +92,8 @@ export async function runDesignJob(
     workflow: DesignWorkflow,
     brandProfile: BrandHubProfile | null,
     brandId: string,
-    onProgress?: (msg: string) => void
+    onProgress?: (msg: string) => void,
+    imageProvider: AIImageProvider = 'google',
 ): Promise<DesignJob> {
     try {
         await updateDesignJob(job.id, { status: 'generating' });
@@ -119,7 +120,7 @@ export async function runDesignJob(
         const count       = workflow.variantsCount || 3;
         const aspectRatio = job.format.aspectRatio;
         // generateImageFromPrompt now returns string[] — pass count directly
-        const dataUrls = await generateImageFromPrompt(enhancedPrompt, aspectRatio, 'google', count);
+        const dataUrls = await generateImageFromPrompt(enhancedPrompt, aspectRatio, imageProvider, count);
 
         onProgress?.('جاري رفع الصور على المكتبة...');
 

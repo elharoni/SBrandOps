@@ -8,6 +8,7 @@ import {
 import { uploadFile }          from '../../services/storageService';
 import { createDesignAsset, deleteDesignAsset } from '../../services/designAssetsService';
 import { createDesignJob, runDesignJob }         from '../../services/designJobsService';
+import { AIImageProvider }                        from '../../services/geminiService';
 import { buildFinalPrompt }    from '../../services/designWorkflowsService';
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -127,6 +128,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
     const [activePreset,   setActivePreset]   = useState<string>('ig-post');
     const [cta,            setCta]            = useState('');
     const [useBrandColors, setUseBrandColors] = useState(true);
+    const [imageProvider,  setImageProvider]  = useState<AIImageProvider>('google');
 
     // ── Generation state ─────────────────────────────────────────────────────
     const [isGenerating, setIsGenerating]     = useState(false);
@@ -195,10 +197,10 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                     prompt:       '',
                 });
                 onJobAdded(job);
-                job = await runDesignJob(job, wf, brandProfile, brandId, setProgressMsg);
+                job = await runDesignJob(job, wf, brandProfile, brandId, setProgressMsg, imageProvider);
             } else {
                 // Fallback: build a simple prompt inline without a workflow record
-                setProgressMsg('جاري التوليد بـ Imagen 4.0...');
+                setProgressMsg('جاري التوليد...');
                 const presetObj = PRESETS.find(p => p.id === activePreset);
                 const basePrompt = `${presetObj?.promptHint || ''} Brand: ${brandName}. Topic: ${topic}. Tone: ${selectedTone}. ${cta ? `CTA: ${cta}.` : ''} ${brandColors ? `Brand colors: ${brandColors}.` : ''} High quality, professional, no placeholder text.`;
 
@@ -216,7 +218,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                     inputs, format: selectedFormat, prompt: basePrompt,
                 });
                 onJobAdded(job);
-                job = await runDesignJob(job, fakeWorkflow, brandProfile, brandId, setProgressMsg);
+                job = await runDesignJob(job, fakeWorkflow, brandProfile, brandId, setProgressMsg, imageProvider);
             }
 
             onJobUpdated(job);
@@ -409,6 +411,24 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                         </label>
                     </div>
 
+                    {/* Image Provider Selector */}
+                    <div className="px-5 pb-3">
+                        <div className="flex rounded-xl overflow-hidden border border-light-border dark:border-dark-border text-xs font-bold">
+                            <button
+                                onClick={() => setImageProvider('google')}
+                                className={`flex-1 py-2 transition ${imageProvider === 'google' ? 'bg-brand-primary text-white' : 'text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-bg dark:hover:bg-dark-bg'}`}
+                            >
+                                Imagen 4.0
+                            </button>
+                            <button
+                                onClick={() => setImageProvider('gemini-native')}
+                                className={`flex-1 py-2 transition ${imageProvider === 'gemini-native' ? 'bg-brand-primary text-white' : 'text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-bg dark:hover:bg-dark-bg'}`}
+                            >
+                                Gemini ✦ عربي
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Generate Button */}
                     <div className="px-5 pb-5">
                         <button
@@ -425,6 +445,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                                 <>
                                     <i className="fas fa-wand-magic-sparkles"></i>
                                     <span>توليد 3 تصاميم</span>
+                                    <span className="opacity-70 font-normal">{imageProvider === 'gemini-native' ? 'Gemini' : 'Imagen 4.0'}</span>
                                     <span className="text-xs opacity-70">• Imagen 4.0</span>
                                 </>
                             )}

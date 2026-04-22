@@ -1,6 +1,8 @@
 
 import { supabase } from './supabaseClient';
-import { BrandHubProfile, PostPerformance, AIPostAnalysis, IdeaTestPlan, AdCreative, CampaignGoal, BrandVoiceAnalysis, HashtagSuggestion, BrandConsistencyEvaluation, SocialSearchAnalysisResult, AIContentIdea, SocialPlatform, OperationalError, AIErrorAnalysis, AnalyticsData, AIAnalyticsInsights, BrainstormedIdea, InboxConversation, ConversationIntent, ConversationSentiment, BrandProfileAnalysis, AIQualityCheckResult, ContentGoal, AdPlatform, AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan, PlanObjectiveType, SeoKeyword, SeoArticle } from '../types';
+import { BrandHubProfile, PostPerformance, AIPostAnalysis, IdeaTestPlan, AdCreative, CampaignGoal, BrandVoiceAnalysis, HashtagSuggestion, BrandConsistencyEvaluation, SocialSearchAnalysisResult, AIContentIdea, SocialPlatform, OperationalError, AIErrorAnalysis, AnalyticsData, AIAnalyticsInsights, BrainstormedIdea, InboxConversation, ConversationIntent, ConversationSentiment, BrandProfileAnalysis, AIQualityCheckResult, ContentGoal, AdPlatform, AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan, PlanObjectiveType, SeoKeyword, SeoArticle, BrandBrainContext, ConversationScenario, ConversationReply, OccasionOpportunity } from '../types';
+import { buildBrandSystemPrompt } from './brandBrainService';
+import type { Occasion } from '../data/occasions';
 
 // Local schema type constants — mirrors the values from @google/genai Type enum
 const Type = {
@@ -51,7 +53,7 @@ async function callAIImageProxy(params: {
 }
 
 // --- Image Generation ---
-export type AIImageProvider = 'google' | 'pollinations';
+export type AIImageProvider = 'google' | 'pollinations' | 'gemini-native';
 
 export async function generateImageFromPrompt(
     prompt: string,
@@ -80,6 +82,19 @@ export async function generateImageFromPrompt(
                 })
             );
             return urls;
+        }
+
+        if (provider === 'gemini-native') {
+            const { data, error } = await supabase.functions.invoke('ai-proxy', {
+                body: {
+                    mode: 'gemini-image',
+                    model: 'gemini-2.0-flash-exp',
+                    prompt,
+                    count: clampedCount,
+                },
+            });
+            if (error) throw new Error(error.message ?? 'Gemini image proxy error');
+            return (data as { images: string[] })?.images ?? [];
         }
 
         return await callAIImageProxy({
@@ -1641,4 +1656,674 @@ export async function generateDesignPromptIdeas(
     } catch {
         return [];
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BRAND BRAIN — وظائف نواة عقل البراند
+// ══════════════════════════════════════════════════════════════════════════════
+
+// --- Occasion → Marketing Opportunity ─────────────────────────────────────────
+// يحوّل المناسبة من "تاريخ في تقويم" إلى "فرصة تسويقية كاملة"
+// المخرج: 3 زوايا محتوى + فكرة Reel + فكرة عرض + نبرة الرسالة + كابشن جاهز
+
+export async function generateOccasionOpportunity(
+    occasion: Occasion,
+    brandBrain: BrandBrainContext,
+    daysUntil: number,
+): Promise<OccasionOpportunity> {
+    const systemPrompt = buildBrandSystemPrompt(brandBrain);
+    const urgency: OccasionOpportunity['urgency'] =
+        daysUntil <= 3 ? 'high' : daysUntil <= 7 ? 'medium' : 'low';
+
+    const prompt = `
+${systemPrompt}
+
+══════════════════════════════════════════
+المهمة: تحويل مناسبة إلى فرصة تسويقية
+══════════════════════════════════════════
+المناسبة: ${occasion.nameAr} (${occasion.nameEn})
+الموعد: بعد ${daysUntil} يوم
+الزاوية الأساسية للمناسبة: ${occasion.contentAngle}
+الهاشتاقات الافتراضية: ${occasion.hashtags.join(' ')}
+
+المطلوب:
+1. **contentAngles**: اقترح 3 زوايا محتوى مختلفة ومبتكرة تناسب هذا البراند تحديداً — ليست عامة
+2. **reelIdea**: فكرة Reel واحدة محددة وقابلة للتنفيذ (10-15 ثانية، ماذا يحدث في كل ثانية؟)
+3. **offerIdea**: فكرة عرض أو ترويج مرتبطة بالمناسبة تناسب طبيعة البراند ومنتجاته
+4. **messageTone**: جملة واحدة تصف النبرة المناسبة لهذا البراند في هذه المناسبة تحديداً
+5. **sampleCaption**: كابشن جاهز بالعربي (3-4 أسطر) مناسب للنشر فوراً، يعكس البراند تماماً
+6. **hashtags**: 5-8 هاشتاق مناسبة (ادمج الهاشتاقات الافتراضية مع هاشتاقات البراند والمجال)
+
+القاعدة الذهبية: لا تقل "بمناسبة كذا نقدم لكم..."
+قل شيئاً يجعل العميل يتوقف ويقرأ.
+`.trim();
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                contentAngles: { type: Type.ARRAY, items: { type: Type.STRING } },
+                reelIdea:      { type: Type.STRING },
+                offerIdea:     { type: Type.STRING },
+                messageTone:   { type: Type.STRING },
+                sampleCaption: { type: Type.STRING },
+                hashtags:      { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ['contentAngles', 'reelIdea', 'offerIdea', 'messageTone', 'sampleCaption', 'hashtags'],
+        },
+        feature: 'occasion_opportunity',
+        brand_id: brandBrain.brandId,
+    });
+
+    const result = JSON.parse(response.text);
+    return {
+        occasionId:    occasion.id,
+        occasionName:  occasion.nameAr,
+        daysUntil,
+        urgency,
+        contentAngles: result.contentAngles ?? [],
+        reelIdea:      result.reelIdea ?? '',
+        offerIdea:     result.offerIdea ?? '',
+        messageTone:   result.messageTone ?? '',
+        sampleCaption: result.sampleCaption ?? '',
+        hashtags:      result.hashtags ?? occasion.hashtags,
+    };
+}
+
+// --- Brand Conversation Engine ────────────────────────────────────────────────
+// محرك محادثات البراند — يرد بصوت البراند حسب سيناريو المحادثة
+// يكتشف السيناريو تلقائياً ويولّد رداً جاهزاً للإرسال
+
+export async function generateConversationReply(
+    messages: Array<{ sender: 'customer' | 'agent'; text: string }>,
+    brandBrain: BrandBrainContext,
+): Promise<ConversationReply> {
+    const systemPrompt = buildBrandSystemPrompt(brandBrain);
+    const conversationText = messages
+        .map(m => `${m.sender === 'customer' ? 'العميل' : 'الوكيل'}: ${m.text}`)
+        .join('\n');
+
+    const scenarioDescriptions: Record<ConversationScenario, string> = {
+        [ConversationScenario.FirstInquiry]:       'استفسار أول مرة — العميل يسأل عن المنتج أو الخدمة للمرة الأولى',
+        [ConversationScenario.PriceAsk]:           'سؤال عن السعر — العميل يسأل كم السعر؟',
+        [ConversationScenario.CompetitorCompare]:  'مقارنة بمنافس — العميل يذكر منافساً أو يقارن',
+        [ConversationScenario.PriceObjection]:     'اعتراض على السعر — "غالي" أو "عندي عروض أفضل"',
+        [ConversationScenario.ShippingIssue]:      'مشكلة شحن أو توصيل — تأخير أو مشكلة في الطلب',
+        [ConversationScenario.Complaint]:          'شكوى — العميل غير راضٍ عن تجربته',
+        [ConversationScenario.ProductUnavailable]: 'منتج غير متوفر — المنتج المطلوب غير موجود',
+        [ConversationScenario.AppointmentRequest]: 'حجز موعد — العميل يريد تحديد موعد',
+        [ConversationScenario.FollowUp]:           'متابعة — لم يرد أحد أو المحادثة توقفت',
+        [ConversationScenario.LeadCapture]:        'تحويل لبيع — العميل مهتم ويمكن إغلاق البيع',
+        [ConversationScenario.General]:            'استفسار عام — سؤال عام لا ينتمي لفئة محددة',
+        [ConversationScenario.Escalate]:           'يحتاج تدخل بشري — الموقف معقد أو حساس',
+    };
+
+    const prompt = `
+${systemPrompt}
+
+══════════════════════════════════════════
+المهمة: الرد على محادثة عميل بصوت البراند
+══════════════════════════════════════════
+سجل المحادثة:
+${conversationText}
+
+المطلوب:
+1. **scenario**: صنّف هذه المحادثة بالضبط من بين هذه السيناريوهات:
+${Object.entries(scenarioDescriptions).map(([k, v]) => `   "${k}": ${v}`).join('\n')}
+
+2. **reply**: اكتب رداً جاهزاً بصوت البراند "${brandBrain.identity.name}" تماماً.
+   - لا تبدأ بـ "أهلاً وسهلاً" إذا كانت المحادثة مستمرة بالفعل
+   - الرد يكون مباشراً، إنسانياً، ومتسقاً مع نبرة البراند
+   - إذا كان الرد يتضمن سعراً، استخدم بيانات قاعدة المعرفة أعلاه
+   - الرد لا يتجاوز 3-4 جمل إلا إذا كان ضرورياً
+
+3. **escalate**: true فقط إذا الموقف يتطلب تدخل بشري (شكوى معقدة، مشكلة مالية، تهديد)
+
+4. **followUpSuggestion**: جملة يمكن إرسالها كمتابعة بعد 24 ساعة إذا لم يرد العميل (اختياري)
+
+5. **internalNote**: ملاحظة داخلية للفريق (اختياري، مثل "العميل بدا مهتماً بالمنتج X" أو "يحتاج متابعة")
+`.trim();
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-pro',
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                scenario:           { type: Type.STRING },
+                reply:              { type: Type.STRING },
+                escalate:           { type: Type.BOOLEAN },
+                followUpSuggestion: { type: Type.STRING },
+                internalNote:       { type: Type.STRING },
+            },
+            required: ['scenario', 'reply', 'escalate'],
+        },
+        feature: 'conversation_reply',
+        brand_id: brandBrain.brandId,
+    });
+
+    const result = JSON.parse(response.text);
+    return {
+        reply:              result.reply ?? '',
+        scenario:           (result.scenario as ConversationScenario) ?? ConversationScenario.General,
+        escalate:           result.escalate ?? false,
+        followUpSuggestion: result.followUpSuggestion,
+        internalNote:       result.internalNote,
+    };
+}
+
+// --- Content Generation with Brand Brain ─────────────────────────────────────
+// نسخة محسّنة من توليد المحتوى — تستخدم سياق عقل البراند الكامل
+
+export async function generateBrandContent(
+    topic: string,
+    platform: SocialPlatform,
+    brandBrain: BrandBrainContext,
+    format: 'post' | 'reel_script' | 'story' | 'ad' = 'post',
+): Promise<{ captions: string[]; bestPick: string; reasoning: string }> {
+    const systemPrompt = buildBrandSystemPrompt(brandBrain);
+    const formatInstructions: Record<typeof format, string> = {
+        post:        'منشور نصي للسوشيال ميديا (3-5 أسطر)',
+        reel_script: 'سكريبت Reel (Hook 3 ثواني + جسم + CTA)',
+        story:       'نص Story قصير لا يتجاوز سطرين مع CTA',
+        ad:          'نص إعلان مباشر يركز على القيمة والـ CTA',
+    };
+
+    const prompt = `
+${systemPrompt}
+
+══════════════════════════════════════════
+المهمة: توليد محتوى براند حقيقي
+══════════════════════════════════════════
+الموضوع: ${topic}
+المنصة: ${platform}
+النوع: ${formatInstructions[format]}
+
+المطلوب:
+1. **captions**: 3 نسخ مختلفة من المحتوى — كل نسخة بزاوية مختلفة
+2. **bestPick**: رقم النسخة الأفضل (1، 2، أو 3)
+3. **reasoning**: جملة واحدة توضح لماذا هذه النسخة الأفضل لهذا البراند تحديداً
+
+تذكر: المخرج يجب أن يعكس "${brandBrain.identity.name}" — ليس أي براند آخر.
+`.trim();
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                captions:  { type: Type.ARRAY, items: { type: Type.STRING } },
+                bestPick:  { type: Type.STRING },
+                reasoning: { type: Type.STRING },
+            },
+            required: ['captions', 'bestPick', 'reasoning'],
+        },
+        feature: 'brand_content_gen',
+        brand_id: brandBrain.brandId,
+    });
+
+    const result = JSON.parse(response.text);
+    const pickIndex = parseInt(result.bestPick, 10) - 1;
+    return {
+        captions:  result.captions ?? [],
+        bestPick:  result.captions?.[pickIndex] ?? result.captions?.[0] ?? '',
+        reasoning: result.reasoning ?? '',
+    };
+}
+
+// ── Campaign Brief ─────────────────────────────────────────────────────────────
+
+export async function generateCampaignBrief(
+    goal: string,
+    budget: string,
+    duration: string,
+    brandBrain: BrandBrainContext,
+    model = 'gemini-2.5-pro',
+): Promise<{
+    objective: string;
+    targetAudience: string;
+    keyMessages: string[];
+    channels: string[];
+    kpis: string[];
+    timeline: string;
+}> {
+    const { buildBrandSystemPrompt } = await import('./brandBrainService');
+    const systemPrompt = buildBrandSystemPrompt(brandBrain, 'full');
+
+    const prompt = `
+${systemPrompt}
+
+══ المهمة: بريف حملة تسويقية ══
+الهدف: ${goal}
+الميزانية: ${budget}
+المدة: ${duration}
+
+اكتب بريف حملة تسويقية احترافية يشمل:
+1. objective: جملة واحدة واضحة تصف هدف الحملة
+2. targetAudience: وصف دقيق للجمهور المستهدف (شريحة من جمهور البراند)
+3. keyMessages: 3 رسائل تسويقية رئيسية
+4. channels: القنوات الأمثل بناءً على الجمهور والميزانية
+5. kpis: 3-5 مؤشرات قياس واضحة
+6. timeline: جدول زمني مختصر للحملة
+`.trim();
+
+    const response = await callAIProxy({
+        model,
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                objective:      { type: Type.STRING },
+                targetAudience: { type: Type.STRING },
+                keyMessages:    { type: Type.ARRAY, items: { type: Type.STRING } },
+                channels:       { type: Type.ARRAY, items: { type: Type.STRING } },
+                kpis:           { type: Type.ARRAY, items: { type: Type.STRING } },
+                timeline:       { type: Type.STRING },
+            },
+            required: ['objective', 'targetAudience', 'keyMessages', 'channels', 'kpis', 'timeline'],
+        },
+        feature: 'campaign_brief',
+        brand_id: brandBrain.brandId,
+    });
+
+    return JSON.parse(response.text);
+}
+
+// ── Content Calendar ───────────────────────────────────────────────────────────
+
+export interface CalendarItem {
+    day: number;
+    topic: string;
+    format: string;    // post | reel | story | carousel
+    platform: string;
+    angle: string;
+    occasionLink?: string;
+}
+
+export async function generateContentCalendar(
+    month: number,
+    year: number,
+    postsPerWeek: number,
+    brandBrain: BrandBrainContext,
+    upcomingOccasions: Array<{ name: string; day: number }> = [],
+    model = 'gemini-2.5-flash',
+): Promise<CalendarItem[]> {
+    const { buildBrandSystemPrompt } = await import('./brandBrainService');
+    const systemPrompt = buildBrandSystemPrompt(brandBrain, 'standard');
+
+    const monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const monthName = monthNames[month - 1] ?? String(month);
+
+    const occasionsText = upcomingOccasions.length
+        ? `مناسبات هذا الشهر:\n${upcomingOccasions.map(o => `• يوم ${o.day}: ${o.name}`).join('\n')}`
+        : '';
+
+    const totalPosts = Math.round(postsPerWeek * 4.3);
+
+    const prompt = `
+${systemPrompt}
+
+══ المهمة: تقويم محتوى ${monthName} ${year} ══
+إيقاع النشر: ${postsPerWeek} منشورات/أسبوع (${totalPosts} منشور في الشهر)
+${occasionsText}
+
+اقترح ${totalPosts} منشوراً موزعة على أيام الشهر.
+لكل منشور: اليوم + الموضوع + الفورمات (post/reel/story/carousel) + المنصة + زاوية المحتوى
+راعِ المناسبات الواردة أعلاه عند تحديد التواريخ.
+`.trim();
+
+    const response = await callAIProxy({
+        model,
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                items: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            day:            { type: Type.NUMBER },
+                            topic:          { type: Type.STRING },
+                            format:         { type: Type.STRING },
+                            platform:       { type: Type.STRING },
+                            angle:          { type: Type.STRING },
+                            occasionLink:   { type: Type.STRING },
+                        },
+                        required: ['day', 'topic', 'format', 'platform', 'angle'],
+                    },
+                },
+            },
+            required: ['items'],
+        },
+        feature: 'content_calendar',
+        brand_id: brandBrain.brandId,
+    });
+
+    return JSON.parse(response.text).items ?? [];
+}
+
+// ── Lead Qualification ─────────────────────────────────────────────────────────
+
+export interface LeadQualResult {
+    stage: 'awareness' | 'consideration' | 'decision' | 'retention';
+    score: number;         // 0-100
+    nextAction: string;
+    personalizedMessage: string;
+    urgency: 'high' | 'medium' | 'low';
+}
+
+export async function qualifyLead(
+    conversationHistory: string,
+    brandBrain: BrandBrainContext,
+    model = 'gemini-2.5-pro',
+): Promise<LeadQualResult> {
+    const { buildBrandSystemPrompt } = await import('./brandBrainService');
+    const systemPrompt = buildBrandSystemPrompt(brandBrain, 'full');
+
+    const prompt = `
+${systemPrompt}
+
+══ المهمة: تأهيل عميل محتمل ══
+سجل المحادثة:
+${conversationHistory}
+
+حدد:
+1. stage: مرحلة العميل (awareness/consideration/decision/retention)
+2. score: درجة تأهيل من 0-100 (100 = جاهز للشراء الآن)
+3. nextAction: الخطوة التالية الأمثل من فريق المبيعات
+4. personalizedMessage: رسالة مخصصة لإرسالها للعميل الآن بأسلوب البراند
+5. urgency: أولوية المتابعة (high/medium/low)
+`.trim();
+
+    const response = await callAIProxy({
+        model,
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                stage:               { type: Type.STRING },
+                score:               { type: Type.NUMBER },
+                nextAction:          { type: Type.STRING },
+                personalizedMessage: { type: Type.STRING },
+                urgency:             { type: Type.STRING },
+            },
+            required: ['stage', 'score', 'nextAction', 'personalizedMessage', 'urgency'],
+        },
+        feature: 'lead_qualification',
+        brand_id: brandBrain.brandId,
+    });
+
+    return JSON.parse(response.text);
+}
+
+// ── Follow-up Sequence ─────────────────────────────────────────────────────────
+
+export interface FollowUpMessage {
+    order: number;
+    delayHours: number;   // إرسال بعد كم ساعة
+    channel: string;      // whatsapp | email | instagram | sms
+    text: string;
+    goal: string;         // الهدف من هذه الرسالة
+}
+
+export async function generateFollowUpSequence(
+    trigger: string,
+    numberOfMessages: number,
+    brandBrain: BrandBrainContext,
+    model = 'gemini-2.5-flash',
+): Promise<FollowUpMessage[]> {
+    const { buildBrandSystemPrompt } = await import('./brandBrainService');
+    const systemPrompt = buildBrandSystemPrompt(brandBrain, 'full');
+
+    const prompt = `
+${systemPrompt}
+
+══ المهمة: سلسلة رسائل متابعة ══
+المحفّز (trigger): ${trigger}
+عدد الرسائل: ${numberOfMessages}
+
+اكتب سلسلة متابعة احترافية بأسلوب البراند:
+- كل رسالة لها تأخير زمني منطقي من الرسالة السابقة
+- الرسائل تتصاعد من ودية → قيمة مضافة → عرض → إغلاق
+- كل رسالة تبدو طبيعية وإنسانية — ليست آلية
+- اذكر القناة المناسبة (whatsapp/email/instagram)
+`.trim();
+
+    const response = await callAIProxy({
+        model,
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                messages: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            order:      { type: Type.NUMBER },
+                            delayHours: { type: Type.NUMBER },
+                            channel:    { type: Type.STRING },
+                            text:       { type: Type.STRING },
+                            goal:       { type: Type.STRING },
+                        },
+                        required: ['order', 'delayHours', 'channel', 'text', 'goal'],
+                    },
+                },
+            },
+            required: ['messages'],
+        },
+        feature: 'follow_up_sequence',
+        brand_id: brandBrain.brandId,
+    });
+
+    return JSON.parse(response.text).messages ?? [];
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MEDIA PRODUCTION FLOW — AI Brief Builder + Idea Matrix
+// ══════════════════════════════════════════════════════════════════════════════
+
+import type { CreativeBrief, IdeaMatrixAngle, CreativeRequestForm } from '../types';
+
+/**
+ * buildCreativeBrief
+ * يحوّل طلب Creative Request + Brand Profile → Brief احترافي منظم
+ */
+export async function buildCreativeBrief(
+    request: CreativeRequestForm,
+    brandProfile: BrandHubProfile,
+): Promise<CreativeBrief> {
+    const brandContext = `
+البراند: ${brandProfile.brandName}
+القطاع: ${brandProfile.industry}
+نبرة الصوت: ${brandProfile.brandVoice.toneDescription.join(', ')}
+الجمهور: ${brandProfile.brandAudiences.map(a => a.personaName).join(', ')}
+نقاط البيع: ${brandProfile.keySellingPoints.slice(0, 3).join(' / ')}
+كلمات ممنوعة: ${brandProfile.brandVoice.negativeKeywords.slice(0, 5).join(', ')}
+`.trim();
+
+    const requestContext = `
+عنوان المشروع: ${request.title}
+الهدف: ${request.goal}
+نوع المخرج: ${request.outputType}
+الحملة أو المناسبة: ${request.campaign || 'غير محدد'}
+المنتج أو العرض: ${request.productOffer || 'غير محدد'}
+الـ CTA المطلوب: ${request.cta || 'غير محدد'}
+المنصات: ${request.platforms.join(', ') || 'غير محدد'}
+الموعد النهائي: ${request.deadline || 'غير محدد'}
+ملاحظات: ${request.notes || 'لا توجد'}
+`.trim();
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt: `أنت خبير استراتيجية إبداعية متخصص في بناء Creative Briefs احترافية.
+
+بناءً على معلومات البراند التالية والطلب المُدخَل، اكتب Brief إبداعي منظم ومفصّل باللغة العربية.
+
+معلومات البراند:
+${brandContext}
+
+الطلب:
+${requestContext}
+
+أنتج Brief يشمل: الهدف الواضح، الجمهور المستهدف، الرسالة الجوهرية، العرض، النبرة المناسبة، الاتجاه البصري، مواصفات الفورمات، المخرجات المطلوبة، العناصر الإلزامية، المحظورات، الـ CTA، ومعايير النجاح.`,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                objective:         { type: Type.STRING },
+                audience:          { type: Type.STRING },
+                coreMessage:       { type: Type.STRING },
+                offer:             { type: Type.STRING },
+                tone:              { type: Type.STRING },
+                visualDirection:   { type: Type.STRING },
+                formatSpecs:       { type: Type.STRING },
+                deliverables:      { type: Type.ARRAY, items: { type: Type.STRING } },
+                mandatoryElements: { type: Type.ARRAY, items: { type: Type.STRING } },
+                prohibitions:      { type: Type.ARRAY, items: { type: Type.STRING } },
+                cta:               { type: Type.STRING },
+                successCriteria:   { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: [
+                'objective','audience','coreMessage','offer','tone',
+                'visualDirection','formatSpecs','deliverables',
+                'mandatoryElements','prohibitions','cta','successCriteria',
+            ],
+        },
+        feature: 'creative_brief',
+        brand_id: null,
+    });
+
+    return JSON.parse(response.text) as CreativeBrief;
+}
+
+/**
+ * generateIdeaMatrix
+ * يحوّل البريف + البراند → مصفوفة أفكار: 3 زوايا × hooks × formats
+ */
+export async function generateIdeaMatrix(
+    brief: CreativeBrief,
+    request: Pick<CreativeRequestForm, 'goal' | 'outputType' | 'platforms'>,
+    brandProfile: BrandHubProfile,
+): Promise<IdeaMatrixAngle[]> {
+    const briefSummary = `
+الهدف: ${brief.objective}
+الجمهور: ${brief.audience}
+الرسالة الجوهرية: ${brief.coreMessage}
+النبرة: ${brief.tone}
+الاتجاه البصري: ${brief.visualDirection}
+نوع المخرج: ${request.outputType}
+المنصات: ${request.platforms.join(', ')}
+`.trim();
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt: `أنت Creative Strategist خبير في بناء Idea Matrix للمحتوى الرقمي.
+
+بناءً على Brief التالي وهوية البراند "${brandProfile.brandName}"، اقترح 3 زوايا إبداعية مختلفة.
+
+Brief:
+${briefSummary}
+
+لكل زاوية: اذكر اسمها، Hook واضح وجذاب، المبرر لماذا تناسب البراند والهدف، وقائمة بالفورمات المناسبة لها (من بين: Static / Reel / Carousel / Story / Ad).
+
+الزوايا يجب أن تكون متنوعة ومختلفة تمامًا:
+- زاوية 1: تركز على المشكلة والحل (Pain Point)
+- زاوية 2: تركز على الإثبات الاجتماعي (Social Proof)
+- زاوية 3: تركز على العرض والإلحاح (Offer / Urgency)`,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                angles: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            angle:     { type: Type.STRING },
+                            hook:      { type: Type.STRING },
+                            rationale: { type: Type.STRING },
+                            formats: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        type:        { type: Type.STRING },
+                                        description: { type: Type.STRING },
+                                    },
+                                    required: ['type', 'description'],
+                                },
+                            },
+                        },
+                        required: ['angle', 'hook', 'rationale', 'formats'],
+                    },
+                },
+            },
+            required: ['angles'],
+        },
+        feature: 'idea_matrix',
+        brand_id: null,
+    });
+
+    return JSON.parse(response.text).angles ?? [];
+}
+
+/**
+ * generateCampaignDebrief
+ * يحلل الحملة المكتملة ويولد درسًا مستفادًا وتوصية للمشروع القادم
+ */
+export async function generateCampaignDebrief(
+    projectTitle: string,
+    brief: CreativeBrief | null,
+    pieces: Array<{ title: string; format?: string; variantLabel?: string; status: string; isMaster: boolean }>,
+    brandProfile: BrandHubProfile,
+): Promise<{ whatWorked: string; whatToImprove: string; nextCampaignRecommendation: string; creativeScore: number }> {
+    const publishedCount = pieces.filter(p => p.status === 'published').length;
+    const masterCount    = pieces.filter(p => p.isMaster).length;
+    const variantCount   = pieces.length - masterCount;
+    const formats        = [...new Set(pieces.map(p => p.format).filter(Boolean))].join(', ');
+
+    const briefSummary = brief
+        ? `الهدف: ${brief.objective}\nالرسالة: ${brief.coreMessage}\nالجمهور: ${brief.audience}\nالنبرة: ${brief.tone}`
+        : 'لا يوجد بريف مسجّل';
+
+    const piecesList = pieces
+        .map(p => `- "${p.title}" [${p.format ?? p.variantLabel ?? 'غير محدد'}] — ${p.status === 'published' ? 'تم النشر' : p.status}`)
+        .join('\n');
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt: `أنت مدير إبداعي خبير يراجع حملة بعد انتهائها ويكتب تقرير دروس مستفادة.
+
+البراند: "${brandProfile.brandName}"
+المشروع: "${projectTitle}"
+البريف:
+${briefSummary}
+
+مخرجات الحملة (${pieces.length} قطعة، ${publishedCount} تم نشرها، ${variantCount} نسخة):
+${piecesList}
+الفورمات المنتجة: ${formats || 'غير محددة'}
+
+اكتب تقرير مختصر وعملي باللغة العربية يشمل:
+1. ما الذي نجح في هذه الحملة؟ (الزوايا، الفورمات، التنوع)
+2. ما الذي يمكن تحسينه في المرة القادمة؟ (الثغرات، الفرص الضائعة)
+3. ما هي التوصية للمشروع الإبداعي القادم؟ (نوع المحتوى، المنصات، الزاوية)
+4. درجة الأداء الإبداعي من 100 (بناءً على جودة التخطيط والتنوع والتنفيذ)`,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                whatWorked:                   { type: Type.STRING },
+                whatToImprove:                { type: Type.STRING },
+                nextCampaignRecommendation:   { type: Type.STRING },
+                creativeScore:                { type: Type.INTEGER },
+            },
+            required: ['whatWorked', 'whatToImprove', 'nextCampaignRecommendation', 'creativeScore'],
+        },
+        feature: 'campaign_debrief',
+        brand_id: null,
+    });
+
+    return JSON.parse(response.text);
 }

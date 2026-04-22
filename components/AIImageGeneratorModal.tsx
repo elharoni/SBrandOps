@@ -183,7 +183,8 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                                 className="w-full rounded-xl border border-dark-border bg-dark-bg px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
                             >
                                 <option value="pollinations">{ar ? 'المستقر (مجاني - غير محدود)' : 'Stable (Free & Unlimited)'}</option>
-                                <option value="google">{ar ? 'Google Imagen (احترافي - مدفوع)' : 'Google Imagen (Pro - Paid)'}</option>
+                                <option value="google">{ar ? 'Google Imagen 4 (احترافي)' : 'Google Imagen 4 (Pro)'}</option>
+                                <option value="gemini-native">{ar ? 'Gemini 2.0 Flash (يدعم النص العربي)' : 'Gemini 2.0 Flash (Arabic text)'}</option>
                             </select>
                         </div>
 

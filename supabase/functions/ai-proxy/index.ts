@@ -33,6 +33,11 @@ const ALLOWED_IMAGE_MODELS = new Set([
   'imagen-3.0-generate-002',
 ]);
 
+const ALLOWED_GEMINI_IMAGE_MODELS = new Set([
+  'gemini-2.0-flash-exp',
+  'gemini-2.0-flash',
+]);
+
 // ── Config ────────────────────────────────────────────────────────────────────
 
 // Default daily cap per user: 100,000 tokens (~200 average requests).
@@ -168,6 +173,42 @@ async function handleImageGeneration(
     .filter(Boolean) as string[];
 }
 
+// ── Image generation (Gemini native — supports Arabic text in image) ──────────
+
+async function handleGeminiImageGeneration(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  count: number,
+): Promise<string[]> {
+  const results: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['image', 'text'] },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message ?? `Gemini image API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    for (const part of data.candidates?.[0]?.content?.parts ?? []) {
+      if (part.inlineData?.mimeType?.startsWith('image/')) {
+        results.push(`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`);
+        break;
+      }
+    }
+  }
+  return results;
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
@@ -247,6 +288,27 @@ Deno.serve(async (req: Request) => {
       }
       const clampedCount = Math.min(Math.max(1, Number(count)), 4);
       const images = await handleImageGeneration(apiKey, model, String(prompt), clampedCount, aspect_ratio);
+      return new Response(JSON.stringify({ images }), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'X-Correlation-Id': correlationId,
+          'X-Tokens-Used-Today': String(used),
+          'X-Tokens-Limit-Today': String(DAILY_TOKEN_LIMIT),
+        },
+      });
+    }
+
+    if (mode === 'gemini-image') {
+      if (!ALLOWED_GEMINI_IMAGE_MODELS.has(model)) {
+        return jsonError(`Gemini image model not allowed: ${model}`, 400, correlationId, corsHeaders);
+      }
+      if (!prompt) {
+        return jsonError('prompt is required for image generation', 400, correlationId, corsHeaders);
+      }
+      const clampedCount = Math.min(Math.max(1, Number(count)), 4);
+      const images = await handleGeminiImageGeneration(apiKey, model, String(prompt), clampedCount);
       return new Response(JSON.stringify({ images }), {
         status: 200,
         headers: {
