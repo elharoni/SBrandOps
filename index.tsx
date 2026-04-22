@@ -12,6 +12,11 @@ import { ToastStack } from './components/shared/ToastStack';
 // Initialize Sentry before rendering (no-op if VITE_SENTRY_DSN not set)
 initSentry();
 
+// Auto-reload when a lazy chunk fails after deployment (stale hash)
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload();
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

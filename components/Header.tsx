@@ -184,7 +184,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                             <i className={`fas fa-chevron-down text-[11px] text-light-text-secondary transition-transform dark:text-dark-text-secondary ${isDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
-                        <div className={`surface-panel absolute top-full z-50 mt-2 w-72 sm:w-80 overflow-hidden rounded-2xl ${ar ? 'right-0' : 'left-0'} max-w-[calc(100vw-2rem)] ${isDropdownOpen ? 'visible opacity-100' : 'invisible opacity-0'} transition-all`}>
+                        <div className={`absolute top-full z-50 mt-2 w-72 sm:w-80 overflow-hidden rounded-2xl border border-light-border dark:border-dark-border bg-white dark:bg-[#151b2a] shadow-[var(--shadow-directional)] ${ar ? 'right-0' : 'left-0'} max-w-[calc(100vw-2rem)] ${isDropdownOpen ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-1'} transition-all duration-150`}>
                             <div className="border-b border-light-border/80 px-4 py-3 dark:border-dark-border/80">
                                 <p className="section-kicker">{ar ? 'التبديل بين البراندات' : 'Switch brands'}</p>
                             </div>
