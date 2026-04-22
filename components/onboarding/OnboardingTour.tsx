@@ -121,7 +121,9 @@ const VisualAnalytics = () => (
 const VisualCTA = () => (
     <div className="h-32 flex items-center justify-center">
         <div className="text-center">
-            <div className="text-5xl mb-2 animate-bounce">🚀</div>
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center mx-auto mb-2 shadow-primary-glow">
+                <i className="fas fa-rocket text-white text-xl" />
+            </div>
             <div className="flex gap-1 justify-center">
                 {[1,2,3,4,5].map(s => <i key={s} className="fas fa-star text-yellow-300 text-sm" />)}
             </div>
@@ -243,7 +245,7 @@ export const OnboardingTour: React.FC<Props> = ({ userName, email, emailConfirme
 
                 {/* User greeting */}
                 <p className="text-center text-dark-text-secondary text-xs mt-4">
-                    مرحباً <span className="text-white font-medium">{userName}</span> 👋
+                    مرحباً <span className="text-white font-medium">{userName}</span>
                 </p>
             </div>
         </div>

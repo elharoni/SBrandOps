@@ -37,16 +37,18 @@ export const WelcomeModal: React.FC<Props> = ({ userName, onClose, onUpgrade }) 
 
             <div className={`w-full max-w-sm transition-all duration-500 ${visible ? 'scale-100 translate-y-0' : 'scale-90 translate-y-8'}`}>
 
-                {/* Confetti top */}
+                {/* Icon top */}
                 <div className="text-center mb-4">
-                    <div className="text-5xl animate-bounce">🎉</div>
+                    <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center mx-auto shadow-lg shadow-violet-500/30">
+                        <i className="fas fa-rocket text-white text-2xl" />
+                    </div>
                 </div>
 
                 <div className="rounded-3xl overflow-hidden shadow-2xl">
                     {/* Header */}
                     <div className="bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-600 p-6 text-center">
                         <h2 className="text-xl font-bold text-white mb-1">
-                            مرحباً {userName.split(' ')[0]}! حسابك مفعّل 🚀
+                            مرحباً {userName.split(' ')[0]}! حسابك مفعّل
                         </h2>
                         <p className="text-white/75 text-sm">
                             تجربتك المجانية لمدة 14 يوماً بدأت الآن
@@ -72,9 +74,10 @@ export const WelcomeModal: React.FC<Props> = ({ userName, onClose, onUpgrade }) 
                         </div>
 
                         {/* Urgency */}
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center mb-4">
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-center mb-4 flex items-center justify-center gap-2">
+                            <i className="fas fa-clock text-amber-400 text-xs" />
                             <p className="text-amber-400 text-xs font-semibold">
-                                ⏰ &nbsp;عرض خاص للمستخدمين الجدد — وفّر 30% على الاشتراك السنوي
+                                عرض خاص للمستخدمين الجدد — وفّر 30% على الاشتراك السنوي
                             </p>
                         </div>
 

@@ -508,7 +508,7 @@ const AppShell: React.FC = () => {
         setActiveBrandPage('social-ops/publisher');
         addNotification(
             NotificationType.Success,
-            ar ? '🎉 تم إنشاء البراند! أنشئ أول منشور الآن.' : '🎉 Brand ready! Create your first post.',
+            ar ? 'تم إنشاء البراند! أنشئ أول منشور الآن.' : 'Brand ready! Create your first post.',
         );
         const intelKey = `brand_intel_shown_${user?.id}`;
         if (!localStorage.getItem(intelKey)) {

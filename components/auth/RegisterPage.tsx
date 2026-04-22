@@ -78,7 +78,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
             <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
                 <div className="w-full max-w-md">
                     <div className="text-center mb-6">
-                        <div className="text-4xl mb-3">👋</div>
+                        <div className="w-14 h-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center mx-auto mb-3">
+                            <i className="fas fa-hand-wave text-brand-primary text-2xl" />
+                        </div>
                         <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">أهلاً {name.split(' ')[0]}!</h2>
                         <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm mt-1">
                             سؤال سريع يساعدنا نخصّص تجربتك

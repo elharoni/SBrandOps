@@ -1,8 +1,3 @@
-/**
- * Brand Onboarding Wizard
- * A step-by-step wizard to help users set up their brand completely
- */
-
 import React, { useState } from 'react';
 import { SocialPlatform, NotificationType } from '../types';
 import { addBrand } from '../services/brandService';
@@ -18,58 +13,54 @@ interface BrandOnboardingWizardProps {
 
 type Step = 'info' | 'voice' | 'connect' | 'done';
 
-// ─── Preset options ────────────────────────────────────────────────────────────
-
 const INDUSTRY_OPTIONS = [
-    { en: 'E-commerce', ar: 'تجارة إلكترونية', icon: '🛒' },
-    { en: 'Food & Beverage', ar: 'مطاعم وأغذية', icon: '🍽️' },
-    { en: 'Fashion & Apparel', ar: 'أزياء وملابس', icon: '👗' },
-    { en: 'Health & Wellness', ar: 'صحة ولياقة', icon: '💪' },
-    { en: 'Technology', ar: 'تقنية', icon: '💻' },
-    { en: 'Real Estate', ar: 'عقارات', icon: '🏠' },
-    { en: 'Education', ar: 'تعليم', icon: '📚' },
-    { en: 'Beauty & Cosmetics', ar: 'جمال وتجميل', icon: '💄' },
-    { en: 'Travel & Tourism', ar: 'سياحة وسفر', icon: '✈️' },
-    { en: 'Finance & Banking', ar: 'مالية ومصرفية', icon: '💰' },
-    { en: 'Healthcare', ar: 'رعاية صحية', icon: '🏥' },
-    { en: 'Automotive', ar: 'سيارات', icon: '🚗' },
-    { en: 'Entertainment', ar: 'ترفيه', icon: '🎬' },
-    { en: 'Sports & Fitness', ar: 'رياضة وتمارين', icon: '⚽' },
-    { en: 'Non-Profit', ar: 'منظمة غير ربحية', icon: '🤝' },
-    { en: 'Other', ar: 'أخرى', icon: '🔖' },
+    { en: 'E-commerce',         ar: 'تجارة إلكترونية', icon: 'fa-bag-shopping' },
+    { en: 'Food & Beverage',    ar: 'مطاعم وأغذية',    icon: 'fa-utensils' },
+    { en: 'Fashion & Apparel',  ar: 'أزياء وملابس',    icon: 'fa-shirt' },
+    { en: 'Health & Wellness',  ar: 'صحة ولياقة',       icon: 'fa-heart-pulse' },
+    { en: 'Technology',         ar: 'تقنية',            icon: 'fa-microchip' },
+    { en: 'Real Estate',        ar: 'عقارات',           icon: 'fa-building' },
+    { en: 'Education',          ar: 'تعليم',            icon: 'fa-graduation-cap' },
+    { en: 'Beauty & Cosmetics', ar: 'جمال وتجميل',     icon: 'fa-spa' },
+    { en: 'Travel & Tourism',   ar: 'سياحة وسفر',      icon: 'fa-plane' },
+    { en: 'Finance & Banking',  ar: 'مالية ومصرفية',   icon: 'fa-landmark' },
+    { en: 'Healthcare',         ar: 'رعاية صحية',       icon: 'fa-stethoscope' },
+    { en: 'Automotive',         ar: 'سيارات',           icon: 'fa-car' },
+    { en: 'Entertainment',      ar: 'ترفيه',            icon: 'fa-film' },
+    { en: 'Sports & Fitness',   ar: 'رياضة وتمارين',  icon: 'fa-dumbbell' },
+    { en: 'Non-Profit',         ar: 'منظمة غير ربحية', icon: 'fa-handshake' },
+    { en: 'Other',              ar: 'أخرى',             icon: 'fa-grid-2' },
 ];
 
 const BRAND_VALUE_OPTIONS = [
-    { en: 'Quality', ar: 'الجودة' },
-    { en: 'Innovation', ar: 'الابتكار' },
-    { en: 'Integrity', ar: 'النزاهة' },
+    { en: 'Quality',        ar: 'الجودة' },
+    { en: 'Innovation',     ar: 'الابتكار' },
+    { en: 'Integrity',      ar: 'النزاهة' },
     { en: 'Customer Focus', ar: 'التركيز على العميل' },
     { en: 'Sustainability', ar: 'الاستدامة' },
-    { en: 'Transparency', ar: 'الشفافية' },
-    { en: 'Excellence', ar: 'التميز' },
-    { en: 'Creativity', ar: 'الإبداع' },
-    { en: 'Trust', ar: 'الثقة' },
-    { en: 'Community', ar: 'المجتمع' },
-    { en: 'Diversity', ar: 'التنوع' },
-    { en: 'Passion', ar: 'الشغف' },
+    { en: 'Transparency',   ar: 'الشفافية' },
+    { en: 'Excellence',     ar: 'التميز' },
+    { en: 'Creativity',     ar: 'الإبداع' },
+    { en: 'Trust',          ar: 'الثقة' },
+    { en: 'Community',      ar: 'المجتمع' },
+    { en: 'Diversity',      ar: 'التنوع' },
+    { en: 'Passion',        ar: 'الشغف' },
 ];
 
 const TONE_OF_VOICE_OPTIONS = [
-    { en: 'Friendly', ar: 'ودود' },
-    { en: 'Professional', ar: 'احترافي' },
-    { en: 'Casual', ar: 'غير رسمي' },
+    { en: 'Friendly',      ar: 'ودود' },
+    { en: 'Professional',  ar: 'احترافي' },
+    { en: 'Casual',        ar: 'غير رسمي' },
     { en: 'Authoritative', ar: 'موثوق' },
-    { en: 'Inspiring', ar: 'ملهم' },
-    { en: 'Humorous', ar: 'فكاهي' },
-    { en: 'Empathetic', ar: 'متعاطف' },
-    { en: 'Bold', ar: 'جريء' },
-    { en: 'Elegant', ar: 'راقي' },
-    { en: 'Educational', ar: 'تعليمي' },
-    { en: 'Energetic', ar: 'نشيط' },
-    { en: 'Minimalist', ar: 'بسيط' },
+    { en: 'Inspiring',     ar: 'ملهم' },
+    { en: 'Humorous',      ar: 'فكاهي' },
+    { en: 'Empathetic',    ar: 'متعاطف' },
+    { en: 'Bold',          ar: 'جريء' },
+    { en: 'Elegant',       ar: 'راقي' },
+    { en: 'Educational',   ar: 'تعليمي' },
+    { en: 'Energetic',     ar: 'نشيط' },
+    { en: 'Minimalist',    ar: 'بسيط' },
 ];
-
-// ─── Chip Component ────────────────────────────────────────────────────────────
 
 interface ChipProps {
     label: string;
@@ -82,19 +73,17 @@ const SelectableChip: React.FC<ChipProps> = ({ label, icon, selected, onClick })
     <button
         type="button"
         onClick={onClick}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 ${
             selected
-                ? 'bg-brand-primary text-white border-brand-primary shadow-md scale-105'
-                : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text border-light-border dark:border-dark-border hover:border-brand-primary hover:bg-brand-primary/10'
+                ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                : 'bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text border-light-border dark:border-dark-border hover:border-brand-primary/60 hover:bg-brand-primary/5'
         }`}
     >
-        {icon && <span>{icon}</span>}
+        {icon && <i className={`fas ${icon} text-[10px] opacity-80`} />}
         {label}
-        {selected && <i className="fas fa-check text-xs ml-0.5" />}
+        {selected && <i className="fas fa-check text-[10px] opacity-90" />}
     </button>
 );
-
-// ─── Tag Badge ─────────────────────────────────────────────────────────────────
 
 interface TagBadgeProps {
     label: string;
@@ -103,47 +92,39 @@ interface TagBadgeProps {
 }
 
 const TagBadge: React.FC<TagBadgeProps> = ({ label, colorClass, onRemove }) => (
-    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${colorClass}`}>
+    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-medium ${colorClass}`}>
         {label}
         <button
             type="button"
             onClick={onRemove}
-            className="hover:text-red-400 transition-colors"
+            className="hover:opacity-60 transition-opacity"
             aria-label="Remove"
         >
-            <i className="fas fa-times text-xs" />
+            <i className="fas fa-xmark text-xs" />
         </button>
     </span>
 );
-
-// ─── Main Wizard ───────────────────────────────────────────────────────────────
 
 export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ onComplete, onCancel, addNotification }) => {
     const { t, language } = useLanguage();
     const [currentStep, setCurrentStep] = useState<Step>('info');
     const [isSaving, setIsSaving] = useState(false);
 
-    // Step 1: Brand Info
     const [brandName, setBrandName] = useState('');
     const [industry, setIndustry] = useState('');
     const [logoUrl, setLogoUrl] = useState('');
 
-    // Step 2: Brand Voice
     const [brandValues, setBrandValues] = useState<string[]>([]);
     const [toneDescription, setToneDescription] = useState<string[]>([]);
     const [newValue, setNewValue] = useState('');
     const [newTone, setNewTone] = useState('');
 
-    // Step 3: Social Accounts
     const [connectedPlatforms, setConnectedPlatforms] = useState<Set<SocialPlatform>>(new Set());
     const [connectingPlatform, setConnectingPlatform] = useState<SocialPlatform | null>(null);
 
-    // Created brand ID (set after DB write)
     const [createdBrandId, setCreatedBrandId] = useState<string | null>(null);
 
     const ar = language === 'ar';
-
-    // ── Step navigation ──────────────────────────────────────────────────────
 
     const handleStep1Next = () => {
         if (!brandName.trim()) {
@@ -153,10 +134,8 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
         setCurrentStep('voice');
     };
 
-    // Save brand to DB in background — navigation happens immediately
     const saveBrandToDb = async (skipVoice = false) => {
         setIsSaving(true);
-        // Navigate first so the user is never blocked
         setCurrentStep('connect');
         try {
             const newBrand = await addBrand(brandName, industry, logoUrl);
@@ -178,7 +157,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
             addNotification(NotificationType.Success, ar ? `تم إنشاء "${brandName}" بنجاح!` : `Brand "${brandName}" created!`);
         } catch (error: any) {
             console.error('Failed to save brand:', error);
-            // Still on connect step — warn but don't block
             addNotification(NotificationType.Error, ar ? `تحذير: لم يتم حفظ البيانات (${error.message})` : `Warning: data not saved (${error.message})`);
         } finally {
             setIsSaving(false);
@@ -213,11 +191,7 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
         if (createdBrandId) onComplete(createdBrandId);
     };
 
-    // ── Industry helpers ───────────────────────────────────────────────────────
-
     const toggleIndustry = (val: string) => setIndustry(prev => (prev === val ? '' : val));
-
-    // ── Value / Tone helpers ──────────────────────────────────────────────────
 
     const toggleValue = (val: string) => {
         setBrandValues(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
@@ -225,10 +199,7 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
 
     const addCustomValue = () => {
         const v = newValue.trim();
-        if (v && !brandValues.includes(v)) {
-            setBrandValues(prev => [...prev, v]);
-            setNewValue('');
-        }
+        if (v && !brandValues.includes(v)) { setBrandValues(prev => [...prev, v]); setNewValue(''); }
     };
 
     const toggleTone = (tone: string) => {
@@ -237,49 +208,50 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
 
     const addCustomTone = () => {
         const v = newTone.trim();
-        if (v && !toneDescription.includes(v)) {
-            setToneDescription(prev => [...prev, v]);
-            setNewTone('');
-        }
+        if (v && !toneDescription.includes(v)) { setToneDescription(prev => [...prev, v]); setNewTone(''); }
     };
 
-    // ── Progress steps ─────────────────────────────────────────────────────────
-
     const steps = [
-        { key: 'info',    label: ar ? 'معلومات العلامة' : 'Brand Info',       icon: 'fa-building' },
-        { key: 'voice',   label: ar ? 'صوت العلامة'    : 'Brand Voice',       icon: 'fa-microphone' },
-        { key: 'connect', label: ar ? 'ربط الحسابات'   : 'Connect Accounts',  icon: 'fa-link' },
-        { key: 'done',    label: ar ? 'تم!'             : 'Done',              icon: 'fa-check-circle' },
+        { key: 'info',    label: ar ? 'معلومات العلامة' : 'Brand Info',      icon: 'fa-building-2' },
+        { key: 'voice',   label: ar ? 'صوت العلامة'    : 'Brand Voice',      icon: 'fa-waveform' },
+        { key: 'connect', label: ar ? 'ربط الحسابات'   : 'Connect Accounts', icon: 'fa-link' },
+        { key: 'done',    label: ar ? 'تم!'             : 'Done',             icon: 'fa-circle-check' },
     ];
     const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
-    // ── Render ─────────────────────────────────────────────────────────────────
-
     return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" dir={ar ? 'rtl' : 'ltr'}>
-            <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm" dir={ar ? 'rtl' : 'ltr'}>
+            <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-light-border dark:border-dark-border">
 
-                {/* ── Header ── */}
-                <div className="p-6 border-b border-light-border dark:border-dark-border">
-                    <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">
-                            🚀 {ar ? 'إعداد علامة تجارية جديدة' : 'Set Up New Brand'}
-                        </h2>
-                        <button onClick={onCancel} className="text-light-text-secondary hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text transition-colors">
-                            <i className="fas fa-times text-xl" />
+                {/* Header */}
+                <div className="px-6 pt-6 pb-5 border-b border-light-border dark:border-dark-border">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-brand-primary/10 flex items-center justify-center">
+                                <i className="fas fa-layer-group text-brand-primary text-sm" />
+                            </div>
+                            <h2 className="text-lg font-bold text-light-text dark:text-dark-text">
+                                {ar ? 'إعداد علامة تجارية جديدة' : 'Set Up New Brand'}
+                            </h2>
+                        </div>
+                        <button
+                            onClick={onCancel}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-light-text-secondary hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg transition-all"
+                        >
+                            <i className="fas fa-xmark text-sm" />
                         </button>
                     </div>
 
-                    {/* Progress */}
+                    {/* Progress stepper */}
                     <div className="flex items-center">
                         {steps.map((step, index) => (
                             <React.Fragment key={step.key}>
                                 <div className="flex flex-col items-center">
-                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-all text-sm ${
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all text-sm ${
                                         index < currentStepIndex
-                                            ? 'bg-green-500 text-white'
+                                            ? 'bg-emerald-500/15 text-emerald-500'
                                             : index === currentStepIndex
-                                                ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/30'
+                                                ? 'bg-brand-primary text-white shadow-sm shadow-brand-primary/30'
                                                 : 'bg-light-bg dark:bg-dark-bg text-light-text-secondary dark:text-dark-text-secondary'
                                     }`}>
                                         {index < currentStepIndex
@@ -287,28 +259,28 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                             : <i className={`fas ${step.icon} text-xs`} />
                                         }
                                     </div>
-                                    <p className={`text-xs mt-1 whitespace-nowrap ${index <= currentStepIndex ? 'text-brand-primary font-semibold' : 'text-light-text-secondary dark:text-dark-text-secondary'}`}>
+                                    <p className={`text-[10px] mt-1 whitespace-nowrap font-medium ${index <= currentStepIndex ? 'text-brand-primary' : 'text-light-text-secondary dark:text-dark-text-secondary'}`}>
                                         {step.label}
                                     </p>
                                 </div>
                                 {index < steps.length - 1 && (
-                                    <div className={`flex-1 h-0.5 mx-2 mb-4 transition-all ${index < currentStepIndex ? 'bg-green-500' : 'bg-light-border dark:bg-dark-border'}`} />
+                                    <div className={`flex-1 h-px mx-2 mb-4 transition-all ${index < currentStepIndex ? 'bg-emerald-500/40' : 'bg-light-border dark:bg-dark-border'}`} />
                                 )}
                             </React.Fragment>
                         ))}
                     </div>
                 </div>
 
-                {/* ── Content ── */}
+                {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
 
-                    {/* ── STEP 1: Brand Info ── */}
+                    {/* STEP 1: Brand Info */}
                     {currentStep === 'info' && (
                         <div className="space-y-6 animate-fade-in">
-                            {/* Brand Name */}
                             <div>
                                 <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-2">
-                                    {ar ? 'اسم العلامة التجارية *' : 'Brand Name *'}
+                                    {ar ? 'اسم العلامة التجارية' : 'Brand Name'}
+                                    <span className="text-brand-primary ml-1">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -316,17 +288,19 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                     onChange={e => setBrandName(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && handleStep1Next()}
                                     placeholder={ar ? 'مثال: شركتي' : 'Example: My Company'}
-                                    className="w-full px-4 py-3 rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text focus:ring-2 focus:ring-brand-primary outline-none transition-all"
+                                    className="w-full px-4 py-3 rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary outline-none transition-all text-sm"
                                     autoFocus
                                 />
                             </div>
 
-                            {/* Industry – chip selector */}
                             <div>
-                                <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-3">
+                                <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-1">
                                     {ar ? 'الصناعة / القطاع' : 'Industry / Sector'}
-                                    <span className="text-light-text-secondary dark:text-dark-text-secondary font-normal ml-1">({ar ? 'اختياري' : 'optional'})</span>
+                                    <span className="text-light-text-secondary dark:text-dark-text-secondary font-normal text-xs ml-2">({ar ? 'اختياري' : 'optional'})</span>
                                 </label>
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mb-3">
+                                    {ar ? 'اختر القطاع الذي تعمل فيه' : 'Select the sector your brand operates in'}
+                                </p>
                                 <div className="flex flex-wrap gap-2">
                                     {INDUSTRY_OPTIONS.map(opt => (
                                         <SelectableChip
@@ -339,33 +313,32 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                     ))}
                                 </div>
                                 {industry && (
-                                    <p className="mt-2 text-xs text-brand-primary font-medium">
-                                        ✓ {ar ? 'تم الاختيار:' : 'Selected:'} {INDUSTRY_OPTIONS.find(o => o.en === industry)?.[ar ? 'ar' : 'en'] ?? industry}
+                                    <p className="mt-2.5 text-xs text-brand-primary font-medium flex items-center gap-1.5">
+                                        <i className="fas fa-check-circle text-[11px]" />
+                                        {ar ? 'تم الاختيار:' : 'Selected:'} {INDUSTRY_OPTIONS.find(o => o.en === industry)?.[ar ? 'ar' : 'en'] ?? industry}
                                     </p>
                                 )}
                             </div>
 
-                            {/* Logo URL */}
                             <div>
                                 <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-2">
                                     {ar ? 'رابط الشعار' : 'Logo URL'}
-                                    <span className="text-light-text-secondary dark:text-dark-text-secondary font-normal ml-1">({ar ? 'اختياري' : 'optional'})</span>
+                                    <span className="text-light-text-secondary dark:text-dark-text-secondary font-normal text-xs ml-2">({ar ? 'اختياري' : 'optional'})</span>
                                 </label>
                                 <input
                                     type="url"
                                     value={logoUrl}
                                     onChange={e => setLogoUrl(e.target.value)}
                                     placeholder="https://example.com/logo.png"
-                                    className="w-full px-4 py-3 rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text focus:ring-2 focus:ring-brand-primary outline-none transition-all"
+                                    className="w-full px-4 py-3 rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary outline-none transition-all text-sm"
                                 />
                             </div>
                         </div>
                     )}
 
-                    {/* ── STEP 2: Brand Voice ── */}
+                    {/* STEP 2: Brand Voice */}
                     {currentStep === 'voice' && (
                         <div className="space-y-8 animate-fade-in">
-                            {/* Brand Values */}
                             <div>
                                 <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-1">
                                     {ar ? 'قيم العلامة التجارية' : 'Brand Values'}
@@ -374,7 +347,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                     {ar ? 'اختر من الخيارات أو أضف خياراً مخصصاً' : 'Pick from suggestions or add your own'}
                                 </p>
 
-                                {/* Preset chips */}
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     {BRAND_VALUE_OPTIONS.map(opt => (
                                         <SelectableChip
@@ -386,7 +358,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                     ))}
                                 </div>
 
-                                {/* Custom input */}
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
@@ -394,20 +365,19 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                         onChange={e => setNewValue(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && addCustomValue()}
                                         placeholder={ar ? 'أضف قيمة مخصصة...' : 'Add custom value...'}
-                                        className="flex-1 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text text-sm focus:ring-2 focus:ring-brand-primary outline-none"
+                                        className="flex-1 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary outline-none"
                                     />
                                     <button
                                         type="button"
                                         onClick={addCustomValue}
-                                        className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors"
+                                        className="px-3 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors"
                                     >
-                                        <i className="fas fa-plus" />
+                                        <i className="fas fa-plus text-sm" />
                                     </button>
                                 </div>
 
-                                {/* Selected tags */}
                                 {brandValues.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-3 p-3 bg-brand-primary/5 rounded-xl border border-brand-primary/20">
+                                    <div className="flex flex-wrap gap-2 mt-3 p-3 bg-brand-primary/5 rounded-xl border border-brand-primary/15">
                                         <span className="text-xs text-brand-primary font-semibold w-full mb-1">
                                             {ar ? 'القيم المختارة:' : 'Selected values:'}
                                         </span>
@@ -415,7 +385,7 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                             <TagBadge
                                                 key={v}
                                                 label={BRAND_VALUE_OPTIONS.find(o => o.en === v)?.[ar ? 'ar' : 'en'] ?? v}
-                                                colorClass="bg-brand-primary/15 text-brand-primary"
+                                                colorClass="bg-brand-primary/10 text-brand-primary"
                                                 onRemove={() => toggleValue(v)}
                                             />
                                         ))}
@@ -423,7 +393,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                 )}
                             </div>
 
-                            {/* Tone of Voice */}
                             <div>
                                 <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-1">
                                     {ar ? 'نبرة الصوت' : 'Tone of Voice'}
@@ -432,7 +401,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                     {ar ? 'كيف تريد أن يشعر جمهورك تجاه محتواك؟' : 'How do you want your audience to feel about your content?'}
                                 </p>
 
-                                {/* Preset chips */}
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     {TONE_OF_VOICE_OPTIONS.map(opt => (
                                         <SelectableChip
@@ -444,7 +412,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                     ))}
                                 </div>
 
-                                {/* Custom input */}
                                 <div className="flex gap-2">
                                     <input
                                         type="text"
@@ -452,54 +419,59 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                         onChange={e => setNewTone(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && addCustomTone()}
                                         placeholder={ar ? 'أضف نبرة مخصصة...' : 'Add custom tone...'}
-                                        className="flex-1 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text text-sm focus:ring-2 focus:ring-brand-primary outline-none"
+                                        className="flex-1 px-3 py-2 rounded-lg border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text text-sm focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary outline-none"
                                     />
                                     <button
                                         type="button"
                                         onClick={addCustomTone}
-                                        className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors"
+                                        className="px-3 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors"
                                     >
-                                        <i className="fas fa-plus" />
+                                        <i className="fas fa-plus text-sm" />
                                     </button>
                                 </div>
 
-                                {/* Selected tags */}
                                 {toneDescription.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-3 p-3 bg-purple-500/5 rounded-xl border border-purple-500/20">
-                                        <span className="text-xs text-purple-500 font-semibold w-full mb-1">
+                                    <div className="flex flex-wrap gap-2 mt-3 p-3 bg-violet-500/5 rounded-xl border border-violet-500/15">
+                                        <span className="text-xs text-violet-400 font-semibold w-full mb-1">
                                             {ar ? 'النبرات المختارة:' : 'Selected tones:'}
                                         </span>
-                                        {toneDescription.map(t => (
+                                        {toneDescription.map(tone => (
                                             <TagBadge
-                                                key={t}
-                                                label={TONE_OF_VOICE_OPTIONS.find(o => o.en === t)?.[ar ? 'ar' : 'en'] ?? t}
-                                                colorClass="bg-purple-500/15 text-purple-500"
-                                                onRemove={() => toggleTone(t)}
+                                                key={tone}
+                                                label={TONE_OF_VOICE_OPTIONS.find(o => o.en === tone)?.[ar ? 'ar' : 'en'] ?? tone}
+                                                colorClass="bg-violet-500/10 text-violet-400"
+                                                onRemove={() => toggleTone(tone)}
                                             />
                                         ))}
                                     </div>
                                 )}
                             </div>
 
-                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary bg-light-bg dark:bg-dark-bg rounded-lg p-3">
-                                💡 {ar
-                                    ? 'يمكنك تخطي هذه الخطوة وإضافة التفاصيل لاحقاً من Brand Hub'
-                                    : 'You can skip this and add details later from Brand Hub'}
-                            </p>
+                            <div className="flex items-start gap-2.5 p-3 bg-light-bg dark:bg-dark-bg rounded-xl border border-light-border dark:border-dark-border">
+                                <i className="fas fa-lightbulb text-amber-400 text-xs mt-0.5 shrink-0" />
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                    {ar
+                                        ? 'يمكنك تخطي هذه الخطوة وإضافة التفاصيل لاحقاً من Brand Hub'
+                                        : 'You can skip this and add details later from Brand Hub'}
+                                </p>
+                            </div>
                         </div>
                     )}
 
-                    {/* ── STEP 3: Connect Accounts ── */}
+                    {/* STEP 3: Connect Accounts */}
                     {currentStep === 'connect' && (
                         <div className="space-y-5 animate-fade-in">
                             <div className="text-center mb-2">
-                                <h3 className="text-lg font-bold text-light-text dark:text-dark-text">
-                                    {ar ? '🔗 اربط حساباتك على وسائل التواصل' : '🔗 Connect Your Social Accounts'}
+                                <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center mx-auto mb-3">
+                                    <i className="fas fa-link text-brand-primary text-lg" />
+                                </div>
+                                <h3 className="text-base font-bold text-light-text dark:text-dark-text">
+                                    {ar ? 'اربط حساباتك على وسائل التواصل' : 'Connect Your Social Accounts'}
                                 </h3>
-                                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1">
                                     {ar
-                                        ? 'اختر المنصات التي تريد النشر عليها من خلال sbrandops'
-                                        : 'Choose the platforms you want to publish to via sbrandops'}
+                                        ? 'اختر المنصات التي تريد النشر عليها'
+                                        : 'Choose the platforms you want to publish to'}
                                 </p>
                             </div>
 
@@ -507,11 +479,11 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                 {[
                                     { platform: SocialPlatform.Facebook,  icon: 'fab fa-facebook',  color: 'from-blue-500 to-blue-700',   name: 'Facebook' },
                                     { platform: SocialPlatform.Instagram, icon: 'fab fa-instagram', color: 'from-pink-500 to-purple-600',  name: 'Instagram' },
-                                    { platform: SocialPlatform.X,         icon: 'fab fa-x-twitter', color: 'from-gray-700 to-gray-900',    name: 'Twitter / X' },
+                                    { platform: SocialPlatform.X,         icon: 'fab fa-x-twitter', color: 'from-slate-600 to-slate-800',  name: 'X (Twitter)' },
                                     { platform: SocialPlatform.LinkedIn,  icon: 'fab fa-linkedin',  color: 'from-blue-600 to-blue-800',   name: 'LinkedIn' },
                                 ].map(({ platform, icon, color, name }) => {
-                                    const isConnected   = connectedPlatforms.has(platform);
-                                    const isConnecting  = connectingPlatform === platform;
+                                    const isConnected  = connectedPlatforms.has(platform);
+                                    const isConnecting = connectingPlatform === platform;
 
                                     return (
                                         <button
@@ -520,24 +492,23 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                             disabled={isConnected || !!connectingPlatform}
                                             className={`relative p-4 rounded-xl border-2 transition-all text-left group ${
                                                 isConnected
-                                                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20 cursor-default'
+                                                    ? 'border-emerald-500/40 bg-emerald-500/5 cursor-default'
                                                     : connectingPlatform
-                                                        ? 'border-light-border dark:border-dark-border opacity-60 cursor-not-allowed'
-                                                        : 'border-light-border dark:border-dark-border hover:border-brand-primary hover:shadow-md hover:-translate-y-0.5 cursor-pointer'
+                                                        ? 'border-light-border dark:border-dark-border opacity-50 cursor-not-allowed'
+                                                        : 'border-light-border dark:border-dark-border hover:border-brand-primary/50 hover:shadow-sm cursor-pointer'
                                             }`}
                                         >
-                                            {/* Platform icon */}
-                                            <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white mb-3 shadow-lg`}>
+                                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white mb-3`}>
                                                 {isConnecting
-                                                    ? <i className="fas fa-circle-notch fa-spin text-lg" />
-                                                    : <i className={`${icon} text-lg`} />
+                                                    ? <i className="fas fa-circle-notch fa-spin text-base" />
+                                                    : <i className={`${icon} text-base`} />
                                                 }
                                             </div>
 
-                                            <p className="font-bold text-light-text dark:text-dark-text text-sm">{name}</p>
+                                            <p className="font-semibold text-light-text dark:text-dark-text text-sm">{name}</p>
                                             <p className="text-xs mt-0.5 font-medium">
                                                 {isConnected
-                                                    ? <span className="text-green-500">✓ {ar ? 'متصل' : 'Connected'}</span>
+                                                    ? <span className="text-emerald-500">{ar ? 'متصل' : 'Connected'}</span>
                                                     : isConnecting
                                                         ? <span className="text-brand-primary">{ar ? 'جارٍ الربط...' : 'Connecting...'}</span>
                                                         : <span className="text-light-text-secondary dark:text-dark-text-secondary">{ar ? 'اضغط للربط' : 'Click to connect'}</span>
@@ -545,8 +516,8 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                                             </p>
 
                                             {isConnected && (
-                                                <div className="absolute top-2 right-2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                                    <i className="fas fa-check text-white text-xs" />
+                                                <div className="absolute top-2.5 right-2.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                                    <i className="fas fa-check text-white text-[9px]" />
                                                 </div>
                                             )}
                                         </button>
@@ -555,47 +526,68 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                             </div>
 
                             {connectedPlatforms.size > 0 && (
-                                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 text-center">
-                                    <p className="text-green-700 dark:text-green-400 font-semibold text-sm">
-                                        🎉 {ar
+                                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 text-center flex items-center justify-center gap-2">
+                                    <i className="fas fa-circle-check text-emerald-500 text-sm" />
+                                    <p className="text-emerald-600 dark:text-emerald-400 font-semibold text-sm">
+                                        {ar
                                             ? `تم ربط ${connectedPlatforms.size} منصة بنجاح`
                                             : `${connectedPlatforms.size} platform(s) connected successfully`}
                                     </p>
                                 </div>
                             )}
 
-                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary text-center">
-                                💡 {ar
-                                    ? 'يمكنك ربط المزيد من الحسابات لاحقاً من صفحة Accounts'
-                                    : 'You can connect more accounts later from the Accounts page'}
-                            </p>
+                            <div className="flex items-start gap-2.5 p-3 bg-light-bg dark:bg-dark-bg rounded-xl border border-light-border dark:border-dark-border">
+                                <i className="fas fa-lightbulb text-amber-400 text-xs mt-0.5 shrink-0" />
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                    {ar
+                                        ? 'يمكنك ربط المزيد من الحسابات لاحقاً من صفحة Accounts'
+                                        : 'You can connect more accounts later from the Accounts page'}
+                                </p>
+                            </div>
                         </div>
                     )}
 
-                    {/* ── STEP 4: Done ── */}
+                    {/* STEP 4: Done */}
                     {currentStep === 'done' && (
-                        <div className="text-center space-y-6 py-8 animate-fade-in">
-                            <div className="text-7xl">🎉</div>
+                        <div className="text-center space-y-6 py-6 animate-fade-in">
+                            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 flex items-center justify-center mx-auto">
+                                <i className="fas fa-circle-check text-emerald-500 text-4xl" />
+                            </div>
                             <div>
-                                <h3 className="text-2xl font-bold text-light-text dark:text-dark-text">
+                                <h3 className="text-xl font-bold text-light-text dark:text-dark-text">
                                     {ar ? 'تم الإعداد بنجاح!' : 'Setup Complete!'}
                                 </h3>
-                                <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2">
-                                    {ar ? `علامتك التجارية "${brandName}" جاهزة الآن!` : `Your brand "${brandName}" is ready to go!`}
+                                <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2 text-sm">
+                                    {ar ? `علامتك التجارية "${brandName}" جاهزة الآن` : `Your brand "${brandName}" is ready to go`}
                                 </p>
                             </div>
 
-                            <div className="bg-light-bg dark:bg-dark-bg rounded-xl p-5 text-start space-y-2">
-                                <h4 className="font-bold text-light-text dark:text-dark-text mb-3">
-                                    {ar ? '📋 الخطوات التالية:' : '📋 Next Steps:'}
+                            <div className="bg-light-bg dark:bg-dark-bg rounded-xl p-5 text-start space-y-3 border border-light-border dark:border-dark-border">
+                                <h4 className="font-semibold text-light-text dark:text-dark-text text-sm flex items-center gap-2">
+                                    <i className="fas fa-list-check text-brand-primary text-xs" />
+                                    {ar ? 'الخطوات التالية' : 'Next Steps'}
                                 </h4>
-                                <ul className="space-y-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                                    <li>✅ {ar ? 'انشر أول منشور من Publisher' : 'Create your first post from Publisher'}</li>
-                                    <li>✅ {ar ? 'جدول محتوى من Calendar' : 'Schedule content from Calendar'}</li>
-                                    <li>✅ {ar ? 'تابع الأداء من Analytics' : 'Track performance in Analytics'}</li>
-                                    <li>🔌 {ar ? 'اربط Google Ads و GA4 و Search Console من صفحة Integrations عندما تصبح جاهزًا للتشغيل الفعلي.' : 'Connect Google Ads, GA4, and Search Console from Integrations when you are ready for live operations.'}</li>
+                                <ul className="space-y-2.5">
+                                    {[
+                                        { icon: 'fa-pen-nib',     text: ar ? 'انشر أول منشور من Publisher' : 'Create your first post from Publisher' },
+                                        { icon: 'fa-calendar',    text: ar ? 'جدول محتوى من Calendar' : 'Schedule content from Calendar' },
+                                        { icon: 'fa-chart-line',  text: ar ? 'تابع الأداء من Analytics' : 'Track performance in Analytics' },
+                                        { icon: 'fa-plug-circle-check', text: ar ? 'اربط Google Ads و GA4 من صفحة Integrations' : 'Connect Google Ads & GA4 from Integrations' },
+                                    ].map((item, i) => (
+                                        <li key={i} className="flex items-center gap-2.5 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                                            <div className="w-6 h-6 rounded-md bg-brand-primary/10 flex items-center justify-center shrink-0">
+                                                <i className={`fas ${item.icon} text-brand-primary text-[10px]`} />
+                                            </div>
+                                            {item.text}
+                                        </li>
+                                    ))}
                                     {connectedPlatforms.size > 0 && (
-                                        <li>🔗 {ar ? `تم ربط ${connectedPlatforms.size} حساب` : `${connectedPlatforms.size} account(s) connected`}</li>
+                                        <li className="flex items-center gap-2.5 text-sm text-emerald-600 dark:text-emerald-400">
+                                            <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                                <i className="fas fa-check text-emerald-500 text-[10px]" />
+                                            </div>
+                                            {ar ? `تم ربط ${connectedPlatforms.size} حساب` : `${connectedPlatforms.size} account(s) connected`}
+                                        </li>
                                     )}
                                 </ul>
                             </div>
@@ -603,76 +595,71 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                     )}
                 </div>
 
-                {/* ── Footer ── */}
-                <div className="p-5 border-t border-light-border dark:border-dark-border flex justify-between items-center">
-                    {/* Left: Cancel / Back */}
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-light-border dark:border-dark-border flex justify-between items-center">
                     <div>
                         {currentStep !== 'done' && (
                             <button
                                 onClick={onCancel}
-                                className="px-5 py-2 text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text transition-colors text-sm"
+                                className="px-4 py-2 text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text transition-colors text-sm"
                             >
                                 {ar ? 'إلغاء' : 'Cancel'}
                             </button>
                         )}
                     </div>
 
-                    {/* Right: Action buttons */}
                     <div className="flex gap-3">
-                        {/* Step 1 → Next */}
                         {currentStep === 'info' && (
                             <button
                                 onClick={handleStep1Next}
                                 disabled={!brandName.trim()}
-                                className="px-6 py-2.5 bg-brand-primary text-white rounded-xl font-semibold hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-brand-primary/20 flex items-center gap-2"
+                                className="px-5 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                             >
                                 {ar ? 'التالي' : 'Next'}
-                                <i className={`fas fa-arrow-${ar ? 'left' : 'right'} text-sm`} />
+                                <i className={`fas fa-arrow-${ar ? 'left' : 'right'} text-xs`} />
                             </button>
                         )}
 
-                        {/* Step 2 → Skip / Next */}
                         {currentStep === 'voice' && (
                             <>
                                 <button
                                     onClick={handleSkipVoice}
                                     disabled={isSaving}
-                                    className="px-5 py-2.5 text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text transition-colors text-sm"
+                                    className="px-4 py-2 text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text transition-colors text-sm"
                                 >
                                     {ar ? 'تخطي' : 'Skip'}
                                 </button>
                                 <button
                                     onClick={handleStep2Next}
                                     disabled={isSaving}
-                                    className="px-6 py-2.5 bg-brand-primary text-white rounded-xl font-semibold hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-brand-primary/20 flex items-center gap-2"
+                                    className="px-5 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                                 >
                                     {isSaving
-                                        ? <><i className="fas fa-circle-notch fa-spin" /> {ar ? 'جارٍ الحفظ...' : 'Saving...'}</>
-                                        : <>{ar ? 'التالي' : 'Next'} <i className={`fas fa-arrow-${ar ? 'left' : 'right'} text-sm`} /></>
+                                        ? <><i className="fas fa-circle-notch fa-spin text-xs" /> {ar ? 'جارٍ الحفظ...' : 'Saving...'}</>
+                                        : <>{ar ? 'التالي' : 'Next'} <i className={`fas fa-arrow-${ar ? 'left' : 'right'} text-xs`} /></>
                                     }
                                 </button>
                             </>
                         )}
 
-                        {/* Step 3 → Finish */}
                         {currentStep === 'connect' && (
                             <button
                                 onClick={() => setCurrentStep('done')}
                                 disabled={!!connectingPlatform}
-                                className="px-6 py-2.5 bg-brand-primary text-white rounded-xl font-semibold hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-md shadow-brand-primary/20 flex items-center gap-2"
+                                className="px-5 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 disabled:opacity-40 transition-all flex items-center gap-2"
                             >
                                 {ar ? 'إنهاء' : 'Finish'}
-                                <i className="fas fa-check text-sm" />
+                                <i className="fas fa-check text-xs" />
                             </button>
                         )}
 
-                        {/* Step 4 → Get Started */}
                         {currentStep === 'done' && (
                             <button
                                 onClick={handleFinish}
-                                className="px-8 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/30 text-base"
+                                className="px-6 py-2.5 bg-brand-primary text-white rounded-xl font-semibold hover:bg-brand-primary/90 transition-all flex items-center gap-2 text-sm"
                             >
-                                🚀 {ar ? 'ابدأ الآن!' : 'Get Started!'}
+                                <i className="fas fa-arrow-right text-xs" />
+                                {ar ? 'ابدأ الآن' : 'Get Started'}
                             </button>
                         )}
                     </div>

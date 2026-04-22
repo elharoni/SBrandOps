@@ -60,7 +60,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({ steps, isCollapsed, 
                 </div>
                 <div>
                     <p className="text-xs font-bold text-dark-text">
-                        {pct === 100 ? '🎉 حسابك مكتمل!' : 'اكتمال الحساب'}
+                        {pct === 100 ? 'حسابك مكتمل!' : 'اكتمال الحساب'}
                     </p>
                     <p className="text-[11px] text-dark-text-secondary">{done} من {total} خطوات</p>
                 </div>

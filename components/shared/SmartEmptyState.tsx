@@ -89,8 +89,9 @@ export const SmartEmptyState: React.FC<SmartEmptyStateProps> = ({ variant, onAct
 
             {/* Personalized tip */}
             {tip && (
-                <div className="mb-6 max-w-sm w-full bg-brand-primary/10 border border-brand-primary/20 rounded-xl px-4 py-3">
-                    <p className="text-xs text-brand-primary font-medium leading-relaxed">{tip}</p>
+                <div className="mb-6 max-w-sm w-full bg-brand-primary/10 border border-brand-primary/20 rounded-xl px-4 py-3 flex items-start gap-2.5 text-start">
+                    <i className="fas fa-lightbulb text-brand-primary text-xs mt-0.5 shrink-0" />
+                    <p className="text-xs text-brand-primary font-medium leading-relaxed">{tip.replace(/^💡 نصيحة: /, '')}</p>
                 </div>
             )}
 

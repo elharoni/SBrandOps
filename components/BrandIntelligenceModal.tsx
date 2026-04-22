@@ -208,7 +208,8 @@ export const BrandIntelligenceModal: React.FC<Props> = ({ brand, onClose }) => {
                         <div className="bg-dark-card border-t border-dark-border p-4 flex-shrink-0">
                             <button onClick={handleClose}
                                 className="w-full py-2.5 bg-gradient-to-r from-violet-500 to-indigo-600 text-white font-semibold rounded-xl text-sm">
-                                ابدأ النشر الآن 🚀
+                                <i className="fas fa-arrow-right mr-2 text-xs" />
+                                ابدأ النشر الآن
                             </button>
                         </div>
                     )}
