@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signUp } from '../../services/authService';
-import { isSupabaseConfigured, supabaseConfigError } from '../../services/supabaseClient';
+import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
 
 interface RegisterPageProps {
     onSuccess: () => void;
@@ -16,6 +16,22 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+
+    useEffect(() => {
+        if (resendCooldown <= 0) return;
+        const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [resendCooldown]);
+
+    const handleResend = async () => {
+        setResendStatus('sending');
+        await supabase.auth.resend({ type: 'signup', email });
+        setResendStatus('sent');
+        setResendCooldown(60);
+        setTimeout(() => setResendStatus('idle'), 3000);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,6 +80,24 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                         >
                             العودة لتسجيل الدخول
                         </button>
+                        <div className="mt-4 pt-4 border-t border-light-border dark:border-dark-border">
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mb-2">لم يصلك البريد؟</p>
+                            <button
+                                onClick={handleResend}
+                                disabled={resendCooldown > 0 || resendStatus === 'sending'}
+                                className="w-full py-2 px-4 border border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary hover:border-brand-primary disabled:opacity-50 disabled:cursor-not-allowed font-medium rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                            >
+                                {resendStatus === 'sending' ? (
+                                    <><i className="fas fa-circle-notch fa-spin text-xs"></i> جاري الإرسال...</>
+                                ) : resendStatus === 'sent' ? (
+                                    <><i className="fas fa-check text-green-500 text-xs"></i> تم الإرسال!</>
+                                ) : resendCooldown > 0 ? (
+                                    <>إعادة الإرسال بعد {resendCooldown}ث</>
+                                ) : (
+                                    <><i className="fas fa-paper-plane text-xs"></i> إعادة إرسال رابط التفعيل</>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
