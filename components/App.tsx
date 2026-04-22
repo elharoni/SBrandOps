@@ -8,6 +8,7 @@ import { SkeletonDashboard, SkeletonAnalytics, SkeletonTable, SkeletonCardGrid, 
 import { LoginPage } from './auth/LoginPage';
 import { RegisterPage } from './auth/RegisterPage';
 import { ForgotPasswordPage } from './auth/ForgotPasswordPage';
+import { OnboardingTour } from './onboarding/OnboardingTour';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { AdminSidebar } from './admin/AdminSidebar';
@@ -188,6 +189,7 @@ const AppShell: React.FC = () => {
     const { language } = useLanguage();
     const ar = language === 'ar';
     const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot'>('login');
+    const [showOnboarding, setShowOnboarding] = useState(false);
     const [maintenanceMode, setMaintenanceMode] = useState(false);
     const [announcement, setAnnouncement] = useState<{ text: string; type: 'info' | 'warning' | 'success' | 'danger'; enabled: boolean } | null>(null);
     const [announcementDismissed, setAnnouncementDismissed] = useState(false);
@@ -351,6 +353,15 @@ const AppShell: React.FC = () => {
             fetchAdminData();
         }
     }, [viewMode, isAuthenticated, fetchAdminData]);
+
+    // Show onboarding tour on first login
+    useEffect(() => {
+        if (!isAuthenticated || !user) return;
+        const key = `onboarding_done_${user.id}`;
+        if (!localStorage.getItem(key)) {
+            setShowOnboarding(true);
+        }
+    }, [isAuthenticated, user]);
 
     // Fetch system settings (maintenance mode + announcement) on login
     useEffect(() => {
@@ -946,12 +957,42 @@ const AppShell: React.FC = () => {
     const showTrialBanner = isAuthenticated && !isAdmin && !trialBannerDismissed
         && (trial.isExpiringSoon || trial.isExpired);
 
+    const emailConfirmed = !!user?.email_confirmed_at;
+    const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+
     return (
         <div className="relative flex h-screen overflow-hidden bg-light-bg font-sans text-light-text dark:bg-dark-bg dark:text-dark-text">
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
                 <div className="app-shell-orb -left-20 top-0 h-72 w-72 bg-brand-primary/20" />
                 <div className="app-shell-orb bottom-[-8rem] right-[-6rem] h-80 w-80 bg-brand-secondary/20" />
             </div>
+
+            {/* Onboarding Tour */}
+            {showOnboarding && user && (
+                <OnboardingTour
+                    userName={user.user_metadata?.full_name || user.email?.split('@')[0] || ''}
+                    email={user.email || ''}
+                    emailConfirmed={emailConfirmed}
+                    onComplete={() => {
+                        setShowOnboarding(false);
+                        localStorage.setItem(`onboarding_done_${user.id}`, '1');
+                    }}
+                />
+            )}
+
+            {/* Email verification banner */}
+            {isAuthenticated && !isAdmin && !emailConfirmed && !verifyBannerDismissed && (
+                <div className="fixed top-0 inset-x-0 z-[99] flex items-center justify-between px-4 py-2 bg-amber-500/20 border-b border-amber-500/30 text-amber-300 text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                        <i className="fas fa-envelope-open text-xs"></i>
+                        <span>فعّل بريدك الإلكتروني للوصول الكامل — تحقق من صندوق الوارد</span>
+                    </div>
+                    <button onClick={() => setVerifyBannerDismissed(true)} className="hover:text-white transition-colors ml-4">
+                        <i className="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+            )}
+
             {/* Announcement Banner */}
             {showBanner && announcement && (
                 <div className={`fixed top-0 inset-x-0 z-[100] flex items-center justify-between px-4 py-2 border-b text-sm font-medium ${announcementColors[announcement.type] || announcementColors.info}`}>

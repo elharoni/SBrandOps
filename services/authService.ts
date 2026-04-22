@@ -5,6 +5,7 @@ export interface AuthUser {
     email: string;
     name: string;
     avatarUrl?: string;
+    emailConfirmed?: boolean;
 }
 
 // --- Sign In ---
@@ -13,15 +14,12 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const user = data.user;
-    if (!user.email_confirmed_at) {
-        await supabase.auth.signOut();
-        throw new Error('Email not confirmed');
-    }
     return {
         id: user.id,
         email: user.email || '',
         name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
         avatarUrl: user.user_metadata?.avatar_url,
+        emailConfirmed: !!user.email_confirmed_at,
     };
 }
 
