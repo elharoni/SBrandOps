@@ -96,11 +96,12 @@ export async function assertBrandOwnership(
 
   // brands table: owner_id column holds the creator's user UUID.
   // brand_members table (if exists): user_id + brand_id for team members.
+  // Try user_id first (common column name), fall back to owner_id
   const { data: brand, error } = await supabase
     .from('brands')
     .select('id')
     .eq('id', brandId)
-    .eq('owner_id', userId)
+    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) {
