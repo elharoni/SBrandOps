@@ -13,6 +13,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { verifyJWT, assertBrandOwnership, buildCorsHeaders } from '../_shared/auth.ts';
 import { decryptToken } from '../_shared/tokens.ts';
+import { validateMediaUrls, validatePlatformsLength } from '../_shared/validation.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -58,12 +59,6 @@ async function withRetry<T>(operation: () => Promise<T>, retries = 2): Promise<T
   }
 }
 
-function validateMediaUrls(mediaUrls?: string[]) {
-  if (!mediaUrls?.length) return;
-  if (mediaUrls.some(url => url.startsWith('blob:'))) {
-    throw new Error('Blob URLs are not supported. Upload media to storage first.');
-  }
-}
 
 async function publishToFacebook(account: any, post: ScheduledPostInput): Promise<PublishResult> {
   if (!account.access_token) return { platform: 'Facebook', success: false, error: 'No token' };
@@ -370,8 +365,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Platforms array length guard ────────────────────────────────────────
-    if (post.platforms.length > MAX_PLATFORMS) {
-      return new Response(JSON.stringify({ error: `platforms array must not exceed ${MAX_PLATFORMS} items` }), {
+    try {
+      validatePlatformsLength(post.platforms, MAX_PLATFORMS);
+    } catch (e) {
+      return new Response(JSON.stringify({ error: (e as Error).message }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId },
       });

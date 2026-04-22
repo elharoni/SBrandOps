@@ -1,4 +1,4 @@
-name: Deploy — Production
+name: Deploy
 
 on:
   push:
@@ -13,15 +13,27 @@ on:
         options: [production, staging]
 
 concurrency:
-  group: deploy-${{ github.ref }}
-  cancel-in-progress: false  # Never cancel deploys
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false  # Never cancel in-flight deploys
 
 jobs:
+  # ── Resolve which environment we're targeting ──────────────────────────────
+  # push to main → production; workflow_dispatch → as chosen
+  setup:
+    name: Resolve Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+    steps:
+      - id: env
+        run: echo "environment=${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_OUTPUT
+
   # ────────────────────────────────────────────────────────────────────────────
   deploy-supabase:
-    name: Supabase DB Migrations
+    name: Supabase — Migrations & Edge Functions
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    needs: setup
+    environment: ${{ needs.setup.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,17 +57,43 @@ jobs:
         run: |
           supabase functions deploy auto-publisher
           supabase functions deploy analytics-aggregator
+          supabase functions deploy monitor-health
+
+  # ────────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test (post-migration)
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-supabase]
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - name: Health check — monitor-health endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          MONITOR_SECRET: ${{ secrets.MONITOR_SECRET }}
+        run: |
+          if [ -z "$MONITOR_SECRET" ]; then
+            echo "MONITOR_SECRET not configured — skipping health check"
+            exit 0
+          fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "X-Monitor-Key: $MONITOR_SECRET" \
+            "$SUPABASE_URL/functions/v1/monitor-health")
+          echo "monitor-health returned HTTP $STATUS"
+          if [ "$STATUS" = "503" ]; then
+            echo "::error::monitor-health returned 503 — system is DOWN after deploy"
+            exit 1
+          fi
+          echo "Health check passed (HTTP $STATUS)"
 
   # ────────────────────────────────────────────────────────────────────────────
   deploy-frontend:
     name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
-    needs: deploy-supabase
-    environment: ${{ github.event.inputs.environment || 'production' }}
+    needs: [setup, smoke-test]
+    environment: ${{ needs.setup.outputs.environment }}
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
       VITE_FACEBOOK_APP_ID: ${{ secrets.VITE_FACEBOOK_APP_ID }}
       VITE_INSTAGRAM_CLIENT_ID: ${{ secrets.VITE_INSTAGRAM_CLIENT_ID }}
       VITE_TWITTER_API_KEY: ${{ secrets.VITE_TWITTER_API_KEY }}
@@ -86,20 +124,37 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+          vercel-args: ${{ needs.setup.outputs.environment == 'staging' && '--' || '--prod' }}
           working-directory: ./
 
   # ────────────────────────────────────────────────────────────────────────────
   notify:
-    name: Notify Deploy Status
+    name: Deploy Notification
     runs-on: ubuntu-latest
-    needs: [deploy-supabase, deploy-frontend]
+    needs: [setup, deploy-supabase, smoke-test, deploy-frontend]
     if: always()
     steps:
-      - name: Summarize
+      - name: Write job summary
         run: |
-          echo "## Deploy Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Supabase: ${{ needs.deploy-supabase.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: ${{ needs.deploy-frontend.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Triggered by: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          ENV="${{ needs.setup.outputs.environment }}"
+          echo "## Deploy Summary — \`$ENV\`" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Supabase migrations | ${{ needs.deploy-supabase.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke test | ${{ needs.smoke-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.deploy-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: \`${{ github.sha }}\` · Triggered by: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Slack alert on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then exit 0; fi
+          ENV="${{ needs.setup.outputs.environment }}"
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \":rotating_light: *Deploy to \`$ENV\` FAILED*\nCommit: \`${{ github.sha }}\`\nActor: @${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>\"
+            }"

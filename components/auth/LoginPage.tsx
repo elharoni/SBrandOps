@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { signIn } from '../../services/authService';
+import { signIn, signInWithGoogle } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
 import { SBrandOpsLogo } from '../SBrandOpsLogo';
+import { AuthInput, AuthErrorBanner, AuthConfigWarning, AuthDivider, AuthSubmitButton } from '../shared/UIComponents';
 
 interface LoginPageProps {
     onSuccess: () => void;
@@ -9,10 +10,20 @@ interface LoginPageProps {
     onNavigateToForgot?: () => void;
 }
 
+const GoogleIcon = () => (
+    <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+    </svg>
+);
+
 export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToRegister, onNavigateToForgot }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [needsVerification, setNeedsVerification] = useState(false);
@@ -54,33 +65,43 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
         }
     };
 
+    const handleGoogleSignIn = async () => {
+        setError(null);
+        setGoogleLoading(true);
+        try {
+            await signInWithGoogle();
+        } catch (err: any) {
+            setError(err?.message || 'فشل تسجيل الدخول عبر Google');
+            setGoogleLoading(false);
+        }
+    };
+
     if (needsVerification) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
                 <div className="w-full max-w-md text-center">
                     <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
                         <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i className="fas fa-envelope-open-text text-amber-500 text-2xl"></i>
+                            <i className="fas fa-envelope-open-text text-amber-500 text-2xl" />
                         </div>
                         <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-2">تفعيل البريد الإلكتروني مطلوب</h2>
                         <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6 text-sm">
                             حسابك موجود لكن يحتاج تفعيل. تحقق من بريدك <strong>{email}</strong> وانقر على رابط التفعيل.
                         </p>
-                        <button
+                        <AuthSubmitButton
                             onClick={handleResend}
                             disabled={resendCooldown > 0 || resendStatus === 'sending'}
-                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center gap-2 mb-3"
+                            loading={resendStatus === 'sending'}
+                            loadingText=" جاري الإرسال..."
+                            className="mb-3"
                         >
-                            {resendStatus === 'sending' ? (
-                                <><i className="fas fa-circle-notch fa-spin text-xs"></i> جاري الإرسال...</>
-                            ) : resendStatus === 'sent' ? (
-                                <><i className="fas fa-check text-xs"></i> تم الإرسال!</>
-                            ) : resendCooldown > 0 ? (
-                                <>إعادة الإرسال بعد {resendCooldown}ث</>
-                            ) : (
-                                <><i className="fas fa-paper-plane text-xs"></i> إعادة إرسال رابط التفعيل</>
-                            )}
-                        </button>
+                            {resendStatus === 'sent'
+                                ? <><i className="fas fa-check text-xs" /> تم الإرسال!</>
+                                : resendCooldown > 0
+                                    ? <>إعادة الإرسال بعد {resendCooldown}ث</>
+                                    : <><i className="fas fa-paper-plane text-xs" /> إعادة إرسال رابط التفعيل</>
+                            }
+                        </AuthSubmitButton>
                         <button
                             onClick={() => setNeedsVerification(false)}
                             className="w-full py-2 px-4 text-sm text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition-colors"
@@ -96,104 +117,71 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
     return (
         <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
             <div className="w-full max-w-md">
-                {/* Logo */}
                 <div className="text-center mb-8 flex flex-col items-center">
                     <SBrandOpsLogo size="lg" layout="stacked" />
                     <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2">منصة إدارة البراندات الشاملة</p>
                 </div>
 
-                {/* Card */}
                 <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
                     <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-6 text-center">تسجيل الدخول</h2>
 
-                    {!isSupabaseConfigured && (
-                        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
-                            <div className="flex items-start gap-2">
-                                <i className="fas fa-triangle-exclamation mt-0.5 text-amber-500 text-sm flex-shrink-0"></i>
-                                <div>
-                                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">التطبيق غير مهيأ بعد</p>
-                                    <p className="mt-1 text-xs leading-5 text-amber-700/90 dark:text-amber-200/90">
-                                        {supabaseConfigError}. أضف القيم إلى ملف <code className="font-mono">.env</code> ثم أعد تشغيل التطبيق.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
-                            <i className="fas fa-exclamation-circle text-red-500 text-sm flex-shrink-0"></i>
-                            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-                        </div>
-                    )}
+                    {!isSupabaseConfigured && <AuthConfigWarning error={supabaseConfigError} />}
+                    {error && <AuthErrorBanner message={error} />}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary mb-1.5">
-                                البريد الإلكتروني
-                            </label>
-                            <div className="relative">
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary">
-                                    <i className="fas fa-envelope text-sm"></i>
-                                </span>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    required
-                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
-                                    placeholder="name@company.com"
-                                    dir="ltr"
-                                />
-                            </div>
-                        </div>
+                        <AuthInput
+                            label="البريد الإلكتروني"
+                            icon="fa-envelope"
+                            type="email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            required
+                            placeholder="name@company.com"
+                            dir="ltr"
+                        />
 
-                        <div>
-                            <label className="block text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary mb-1.5">
-                                كلمة المرور
-                            </label>
-                            <div className="relative">
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary">
-                                    <i className="fas fa-lock text-sm"></i>
-                                </span>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                    minLength={6}
-                                    className="w-full pr-10 pl-10 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
-                                    placeholder="••••••••"
-                                    dir="ltr"
-                                />
+                        <AuthInput
+                            label="كلمة المرور"
+                            icon="fa-lock"
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            placeholder="••••••••"
+                            dir="ltr"
+                            suffix={
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(p => !p)}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition"
+                                    className="text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition"
                                 >
-                                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
                                 </button>
-                            </div>
-                        </div>
+                            }
+                        />
 
-                        <button
+                        <AuthSubmitButton
                             type="submit"
                             disabled={isLoading || !email || !password || !isSupabaseConfigured}
-                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
+                            loading={isLoading}
+                            loadingText=" جاري تسجيل الدخول..."
                         >
-                            {isLoading ? (
-                                <>
-                                    <i className="fas fa-circle-notch fa-spin"></i>
-                                    جاري تسجيل الدخول...
-                                </>
-                            ) : (
-                                <>
-                                    <i className="fas fa-sign-in-alt"></i>
-                                    تسجيل الدخول
-                                </>
-                            )}
-                        </button>
+                            <i className="fas fa-sign-in-alt" /> تسجيل الدخول
+                        </AuthSubmitButton>
                     </form>
+
+                    <AuthDivider />
+
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={googleLoading || !isSupabaseConfigured}
+                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-light-border bg-white py-2.5 text-sm font-semibold text-light-text transition-colors hover:bg-light-bg disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-border dark:bg-dark-card dark:text-dark-text dark:hover:bg-dark-bg"
+                    >
+                        {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
+                        متابعة عبر Google
+                    </button>
 
                     <div className="mt-6 space-y-3 text-center">
                         {onNavigateToForgot && (

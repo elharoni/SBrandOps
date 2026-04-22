@@ -33,9 +33,11 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'ads-ops': '/app/ads',
     'seo-ops': '/app/seo',
     'brand-hub': '/app/brand-hub',
+    'brand-brain': '/app/brand-brain',
     'idea-ops': '/app/idea-ops',
     workflow: '/app/workflow',
     integrations: '/app/integrations',
+    'integration-os': '/app/integration-os',
     'error-center': '/app/error-center',
     'marketing-plans': '/app/marketing-plans',
     'brand-analysis': '/app/brand-analysis',
@@ -49,7 +51,10 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'user-settings': '/app/settings',
     billing: '/app/billing',
     'team-management': '/app/team',
-    crm: '/app/crm',
+    'crm/dashboard': '/app/crm/dashboard',
+    'crm/customers': '/app/crm/customers',
+    'crm/pipeline': '/app/crm/pipeline',
+    'crm/tickets': '/app/crm/tickets',
     'mobile-home': '/app/mobile-home',
 };
 

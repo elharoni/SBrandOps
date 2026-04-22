@@ -25,6 +25,7 @@ import { getCompetitiveWatchlists, getContentBriefs } from '../../services/compe
 import { getBriefPerformanceRollups, getWatchlistPerformanceRollups, getAnalyticsData } from '../../services/analyticsService';
 import { ContextualAIChip } from '../shared/ContextualAIChip';
 import { usePageAnalytics } from '../../hooks/page/usePageAnalytics';
+import { SkeletonAnalytics } from '../shared/Skeleton';
 
 const AIPostReviewModal = lazy(() => import('../AIPostReviewModal').then((module) => ({ default: module.AIPostReviewModal })));
 const OverviewTab = lazy(() => import('./analytics/OverviewTab').then((module) => ({ default: module.OverviewTab })));
@@ -67,14 +68,7 @@ const dataPointAverage = (values: number[]) => {
     return values.reduce((sum, value) => sum + value, 0) / values.length;
 };
 
-const TabFallback: React.FC = () => (
-    <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-light-border bg-light-bg/60 dark:border-dark-border dark:bg-dark-bg/50">
-        <div className="flex items-center gap-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
-            <i className="fas fa-circle-notch fa-spin" />
-            <span>Loading analytics module…</span>
-        </div>
-    </div>
-);
+const TabFallback: React.FC = () => <SkeletonAnalytics />;
 
 const AIInsightsTab: React.FC<{ data: AnalyticsData; addNotification: (type: NotificationType, m: string) => void }> = ({ data, addNotification }) => {
     const { t } = useLanguage();
@@ -760,26 +754,26 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
             <div className="grid gap-4 md:grid-cols-2">
                 <ProviderConnectionCallout
                     title="GA4"
-                    description="Ø®ØµØ§Ø¦Øµ Ø§Ù„ØªØ­Ù„ÙŠÙ„ Ø§Ù„Ù…Ø­ÙÙˆØ¸Ø© Ù„Ù„Ø¨Ø±Ø§Ù†Ø¯ ÙˆØ§Ù„ØªÙŠ ÙŠØ¬Ø¨ Ø£Ù† ØªØ®Ø¯Ù… Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ± ÙˆØ§Ù„Ù‚Ø±Ø§Ø¡Ø© Ø§Ù„ØªÙ†ÙÙŠØ°ÙŠØ©."
+                    description="خصائص التحليل المحفوظة للبراند والتي يجب أن تخدم التقارير والقراءة التنفيذية."
                     connection={ga4Connection}
                     brandAssets={brandAssets}
-                    emptyTitle="Ù„Ø§ ØªÙˆØ¬Ø¯ Ø®Ø§ØµÙŠØ© GA4 Ù…Ø­ÙÙˆØ¸Ø© Ø¨Ø¹Ø¯"
-                    emptyDescription="Ø§Ø±Ø¨Ø· Google Analytics 4 Ù…Ù† Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª Ù„Ø­ÙØ¸ Ø§Ù„Ø®ØµØ§Ø¦Øµ ÙˆØ¥Ø¸Ù‡Ø§Ø± Ø­Ø§Ù„Ø© Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø© Ù‡Ù†Ø§."
-                    primaryActionLabel="ÙØªØ­ Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª"
+                    emptyTitle="لا توجد خاصية GA4 محفوظة بعد"
+                    emptyDescription="اربط Google Analytics 4 من مساحة التكاملات لحفظ الخصائص وإظهار حالة المزامنة هنا."
+                    primaryActionLabel="فتح مساحة التكاملات"
                     onPrimaryAction={() => onNavigate('integrations')}
-                    secondaryActionLabel="ÙØªØ­ Analytics"
+                    secondaryActionLabel="فتح Analytics"
                     onSecondaryAction={() => onNavigate('analytics')}
                 />
                 <ProviderConnectionCallout
                     title="Search Console"
-                    description="Ø®ØµØ§Ø¦Øµ Ø§Ù„Ø¨Ø­Ø« Ø§Ù„Ø¹Ø¶ÙˆÙŠ Ø§Ù„Ù…Ø±ØªØ¨Ø·Ø© Ø¨Ù‡Ø°Ù‡ Ø§Ù„Ø¨Ø±Ø§Ù†Ø¯ Ù„Ù„Ø¸Ù‡ÙˆØ± ÙˆØ§Ù„Ø§Ù†Ø·Ø¨Ø§Ø¹Ø§Øª ÙˆØ§Ù„Ù…ÙˆØ§Ù‚Ø¹."
+                    description="خصائص البحث العضوي المرتبطة بهذه البراند للظهور والانطباعات والمواقع."
                     connection={searchConsoleConnection}
                     brandAssets={brandAssets}
-                    emptyTitle="Ù„Ø§ ØªÙˆØ¬Ø¯ Ø®ØµØ§Ø¦Øµ Search Console Ù…Ø­ÙÙˆØ¸Ø© Ø¨Ø¹Ø¯"
-                    emptyDescription="Ø§Ø±Ø¨Ø· Search Console Ù…Ù† Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª Ù„ÙƒÙŠ ØªØ¸Ù‡Ø± Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ù…ÙˆØ«Ù‚Ø© ÙˆØ­Ø§Ù„Ø© Ø§Ù„Ù…Ø²Ø§Ù…Ù†Ø© ÙÙŠ Ù‡Ø°Ù‡ Ø§Ù„Ø´Ø§Ø´Ø©."
-                    primaryActionLabel="ÙØªØ­ Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª"
+                    emptyTitle="لا توجد خصائص Search Console محفوظة بعد"
+                    emptyDescription="اربط Search Console من مساحة التكاملات لكي تظهر المواقع الموثقة وحالة المزامنة في هذه الشاشة."
+                    primaryActionLabel="فتح مساحة التكاملات"
                     onPrimaryAction={() => onNavigate('integrations')}
-                    secondaryActionLabel="ÙØªØ­ SEO Ops"
+                    secondaryActionLabel="فتح SEO Ops"
                     onSecondaryAction={() => onNavigate('seo-ops')}
                 />
             </div>

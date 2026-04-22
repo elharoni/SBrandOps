@@ -3,7 +3,7 @@
  * تزامن URL مع حالة الصفحة
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     brandPageToPath,
@@ -46,6 +46,10 @@ export function useAppRouting({
 }: UseAppRoutingOptions) {
     const navigate = useNavigate();
     const location = useLocation();
+    // Tracks whether the URL→state sync has run at least once on mount.
+    // Prevents Effect 1 from overriding a valid deep-link URL with stale
+    // initial Zustand state before Effect 2 has had a chance to read it.
+    const hydrated = useRef(false);
 
     // ── Sync state → URL ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -68,6 +72,10 @@ export function useAppRouting({
             return;
         }
 
+        // On mount, Effect 2 hasn't run yet — don't clobber the URL with the
+        // Zustand default ('dashboard') before it gets to read the real path.
+        if (!hydrated.current) return;
+
         const targetPath = viewMode === 'admin'
             ? adminPageToPath(activeAdminPage)
             : brandPageToPath(activeBrandPage);
@@ -89,6 +97,7 @@ export function useAppRouting({
             if (path === AUTH_ROUTES.register) setAuthPage('register');
             else if (path === AUTH_ROUTES.forgotPassword) setAuthPage('forgot');
             else setAuthPage('login');
+            hydrated.current = true;
             return;
         }
 
@@ -96,6 +105,7 @@ export function useAppRouting({
             if (!isAdmin) {
                 // Not authorized — redirect to brand workspace
                 navigate('/app', { replace: true });
+                hydrated.current = true;
                 return;
             }
             if (viewMode !== 'admin') setViewMode('admin');
@@ -106,6 +116,8 @@ export function useAppRouting({
             const page = pathToBrandPage(path);
             if (page !== activeBrandPage) setActiveBrandPage(page);
         }
+
+        hydrated.current = true;
     }, [location.pathname, isAuthenticated]);
 
     // ── Navigation helper (use instead of setActiveBrandPage directly) ────────

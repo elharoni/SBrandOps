@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || (ar ? 'مستخدم' : 'User');
     const userEmail = user?.email || '';
     const navSections = useMemo(() => getNavSections(t, ar), [t, ar]);
-    const [openMenus, setOpenMenus] = useState<string[]>(['social-ops', 'ai-studio']);
+    const [openMenus, setOpenMenus] = useState<string[]>(['social-ops']);
 
     const toggleMenu = (id: string) => {
         if (isCollapsed) {

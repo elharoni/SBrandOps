@@ -77,6 +77,8 @@ export const ErrorCenterPage: React.FC<ErrorCenterPageProps> = ({ addNotificatio
     const [severityFilter, setSeverityFilter] = useState<'all' | ErrorSeverity>('all');
     const [sourceFilter, setSourceFilter] = useState<'all' | ErrorSource>('all');
     const [statusFilter, setStatusFilter] = useState<'all' | ErrorStatus>('all');
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 20;
 
     useEffect(() => {
         setLocalErrors(errors);
@@ -92,6 +94,13 @@ export const ErrorCenterPage: React.FC<ErrorCenterPageProps> = ({ addNotificatio
     }, [localErrors, severityFilter, sourceFilter, statusFilter]);
     
     const newErrorsCount = useMemo(() => localErrors.filter(e => e.status === ErrorStatus.New).length, [localErrors]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredErrors.length / PAGE_SIZE));
+    const pagedErrors = filteredErrors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+    const handleSeverityFilter = (v: 'all' | ErrorSeverity) => { setSeverityFilter(v); setPage(1); };
+    const handleSourceFilter = (v: 'all' | ErrorSource) => { setSourceFilter(v); setPage(1); };
+    const handleStatusFilter = (v: 'all' | ErrorStatus) => { setStatusFilter(v); setPage(1); };
 
     const handleAnalyzeErrors = () => {
         const errorsToAnalyze = filteredErrors.filter(e => e.status === ErrorStatus.New);
@@ -158,22 +167,45 @@ export const ErrorCenterPage: React.FC<ErrorCenterPageProps> = ({ addNotificatio
                  <div className="flex justify-between items-center">
                     <h2 className="text-xl font-bold text-light-text dark:text-dark-text">سجل الأخطاء ({filteredErrors.length})</h2>
                     <div className="flex items-center gap-2">
-                        <select value={severityFilter} onChange={e => setSeverityFilter(e.target.value as any)} className="bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg py-1 px-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                        <select value={severityFilter} onChange={e => handleSeverityFilter(e.target.value as any)} className="bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg py-1 px-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                             <option value="all">كل الخطورة</option>
                             {Object.values(ErrorSeverity).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
-                        <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value as any)} className="bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg py-1 px-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                        <select value={sourceFilter} onChange={e => handleSourceFilter(e.target.value as any)} className="bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg py-1 px-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                             <option value="all">كل المصادر</option>
                             {Object.values(ErrorSource).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
-                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)} className="bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg py-1 px-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                        <select value={statusFilter} onChange={e => handleStatusFilter(e.target.value as any)} className="bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg py-1 px-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">
                             <option value="all">كل الحالات</option>
                             {Object.values(ErrorStatus).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </div>
                 </div>
                 {filteredErrors.length > 0 ? (
-                    filteredErrors.map(error => <ErrorCard key={error.id} error={error} onUpdateStatus={handleUpdateStatus} />)
+                    <>
+                    {pagedErrors.map(error => <ErrorCard key={error.id} error={error} onUpdateStatus={handleUpdateStatus} />)}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 pt-2">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary border border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <i className="fas fa-chevron-right text-[10px]" /> السابق
+                            </button>
+                            <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                {page} / {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary border border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                التالي <i className="fas fa-chevron-left text-[10px]" />
+                            </button>
+                        </div>
+                    )}
+                    </>
                 ) : (
                     <div className="text-center py-10 bg-light-card dark:bg-dark-card rounded-lg border border-light-border dark:border-dark-border">
                         <i className="fas fa-check-circle text-4xl text-green-400 mb-3"></i>

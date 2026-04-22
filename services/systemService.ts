@@ -108,6 +108,38 @@ export async function getSystemData(brandId: string): Promise<SystemData> {
 // ── Team Management ───────────────────────────────────────────────────────────
 
 export async function inviteUser(brandId: string, email: string, role: UserRole): Promise<User> {
+    // ── Seat quota check ──────────────────────────────────────────────────────
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        const { data: tenantRow } = await supabase
+            .from('tenants')
+            .select('subscription_plans(max_users)')
+            .eq('owner_id', user.id)
+            .maybeSingle();
+
+        if (tenantRow) {
+            const limit: number | null =
+                (tenantRow.subscription_plans as { max_users?: number } | null)?.max_users ?? null;
+            if (limit !== null) {
+                const { count } = await supabase
+                    .from('team_members')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('brand_id', brandId)
+                    .in('status', ['active', 'pending']);
+
+                if ((count ?? 0) >= limit) {
+                    const err = new Error(
+                        `لقد وصلت للحد الأقصى من المستخدمين (${limit}). يرجى الترقية للخطة التالية.`,
+                    );
+                    (err as any).code = 'QUOTA_USERS';
+                    (err as any).current = count ?? 0;
+                    (err as any).max = limit;
+                    throw err;
+                }
+            }
+        }
+    }
+
     const { data, error } = await supabase
         .from('team_members')
         .insert({

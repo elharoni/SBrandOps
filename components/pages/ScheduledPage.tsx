@@ -183,6 +183,8 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'scheduledAt', direction: 'asc' });
     const [search, setSearch] = useState('');
     const [schedView, setSchedView] = useState<'posts' | 'best-time' | 'status-overview'>('posts');
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 15;
 
     // Stats
     const stats = useMemo(() => ({
@@ -222,7 +224,11 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
 
     const handleSort = (key: SortKey) => {
         setSortConfig(c => ({ key, direction: c.key === key && c.direction === 'asc' ? 'desc' : 'asc' }));
+        setPage(1);
     };
+
+    const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / PAGE_SIZE));
+    const pagedPosts = filteredAndSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     const toggleSelect = (id: string) => {
         setSelectedIds(prev => {
@@ -239,6 +245,9 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
             setSelectedIds(new Set(filteredAndSorted.map(p => p.id)));
         }
     };
+
+    const handleFilterStatus = (f: FilterStatus) => { setFilterStatus(f); setPage(1); };
+    const handleSearch = (v: string) => { setSearch(v); setPage(1); };
 
     const handleBulkDelete = () => {
         selectedIds.forEach(id => onDeletePost(id));
@@ -432,7 +441,7 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
                         type="text"
                         placeholder="ابحث في المنشورات..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
+                        onChange={e => handleSearch(e.target.value)}
                         className="w-full bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-xl py-2.5 pr-9 pl-4 text-sm text-light-text dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-brand-primary"
                     />
                 </div>
@@ -440,7 +449,7 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
                     {STATUS_FILTERS.map(f => (
                         <button
                             key={f.key}
-                            onClick={() => setFilterStatus(f.key)}
+                            onClick={() => handleFilterStatus(f.key)}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                                 filterStatus === f.key
                                     ? 'bg-brand-primary text-white'
@@ -475,8 +484,9 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
                 </div>
 
                 {filteredAndSorted.length > 0 ? (
+                    <>
                     <div className="mt-4 flex flex-col gap-3">
-                        {filteredAndSorted.map(post => (
+                        {pagedPosts.map(post => (
                             <div key={post.id} className="px-2 py-1">
                                 <ScheduledPostItem
                                     post={post}
@@ -488,6 +498,28 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
                             </div>
                         ))}
                     </div>
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 pt-4">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary border border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <i className="fas fa-chevron-right text-[10px]" /> السابق
+                            </button>
+                            <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                {page} / {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary border border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                التالي <i className="fas fa-chevron-left text-[10px]" />
+                            </button>
+                        </div>
+                    )}
+                    </>
                 ) : (
                     <div className="mt-8">
                         <EmptyScheduled onCreatePost={onNavigateToPublisher ?? (() => {})} />

@@ -1,24 +1,9 @@
-/**
- * components/shared/SectionError.tsx
- *
- * Displays a section-level error — used when a specific part of the page
- * fails to load (not a full crash). Allows retry without full page refresh.
- *
- * Usage:
- *   const { data, isLoading, error, refetch } = useQuery(...)
- *   if (error) return <SectionError message="تعذّر تحميل التحليلات" onRetry={refetch} />
- */
-
 import React from 'react';
 
 interface SectionErrorProps {
-    /** Arabic error message shown to the user */
     message?: string;
-    /** Optional technical detail (shown only in dev) */
     detail?: string;
-    /** Callback to retry the failed operation */
     onRetry?: () => void;
-    /** Compact mode for use inside cards */
     compact?: boolean;
 }
 
@@ -30,8 +15,8 @@ export function SectionError({
 }: SectionErrorProps) {
     if (compact) {
         return (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-error-container/15 text-error text-sm">
-                <span className="material-symbols-outlined text-base">error_outline</span>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/15 text-red-600 dark:text-red-400 text-sm">
+                <i className="fas fa-exclamation-circle flex-shrink-0 text-sm" />
                 <span>{message}</span>
                 {onRetry && (
                     <button
@@ -46,65 +31,23 @@ export function SectionError({
     }
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[180px] p-6 rounded-xl bg-surface-high gap-3 text-center">
-            <div className="w-10 h-10 rounded-full bg-error-container/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-error text-xl">cloud_off</span>
+        <div className="flex flex-col items-center justify-center min-h-[180px] p-6 rounded-xl bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border gap-3 text-center">
+            <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                <i className="fas fa-cloud-slash text-red-500 text-lg" />
             </div>
             <div>
-                <p className="text-on-surface font-medium">{message}</p>
+                <p className="text-light-text dark:text-dark-text font-medium">{message}</p>
                 {detail && import.meta.env.DEV && (
-                    <p className="text-on-surface-variant text-xs mt-1 font-mono">{detail}</p>
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary text-xs mt-1 font-mono">{detail}</p>
                 )}
             </div>
             {onRetry && (
                 <button
                     onClick={onRetry}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface-highest text-on-surface-variant text-sm hover:text-on-surface transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary text-sm hover:text-light-text dark:hover:text-dark-text transition-colors"
                 >
-                    <span className="material-symbols-outlined text-base">refresh</span>
+                    <i className="fas fa-rotate-right text-sm" />
                     إعادة المحاولة
-                </button>
-            )}
-        </div>
-    );
-}
-
-/**
- * Empty state component — shown when data loaded successfully but is empty.
- */
-interface EmptyStateProps {
-    title: string;
-    description?: string;
-    actionLabel?: string;
-    onAction?: () => void;
-    icon?: string; // material symbol name
-}
-
-export function EmptyState({
-    title,
-    description,
-    actionLabel,
-    onAction,
-    icon = 'inbox',
-}: EmptyStateProps) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[220px] p-8 rounded-xl bg-surface-high gap-3 text-center">
-            <div className="w-12 h-12 rounded-full bg-primary-container/10 flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-2xl">{icon}</span>
-            </div>
-            <div>
-                <p className="text-on-surface font-semibold">{title}</p>
-                {description && (
-                    <p className="text-on-surface-variant text-sm mt-1">{description}</p>
-                )}
-            </div>
-            {actionLabel && onAction && (
-                <button
-                    onClick={onAction}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary-container text-on-primary text-sm font-medium hover:opacity-90 transition-opacity"
-                >
-                    <span className="material-symbols-outlined text-base">add</span>
-                    {actionLabel}
                 </button>
             )}
         </div>

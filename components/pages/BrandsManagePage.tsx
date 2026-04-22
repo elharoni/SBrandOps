@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Brand } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { EmptyBrands } from '../shared/EmptyState';
 
 interface BrandsManagePageProps {
     brands: Brand[];
@@ -86,23 +87,7 @@ export const BrandsManagePage: React.FC<BrandsManagePageProps> = ({
             {/* Brands list */}
             <div className="surface-panel overflow-hidden rounded-2xl">
                 {brands.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
-                            <i className="fas fa-building text-xl" />
-                        </div>
-                        <p className="text-sm font-semibold text-light-text dark:text-dark-text">
-                            {ar ? 'لا يوجد براندات بعد' : 'No brands yet'}
-                        </p>
-                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                            {ar ? 'أنشئ أول براند للبدء' : 'Create your first brand to get started'}
-                        </p>
-                        <button
-                            onClick={onAddBrand}
-                            className="mt-2 rounded-2xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white"
-                        >
-                            {ar ? 'إضافة براند' : 'Add Brand'}
-                        </button>
-                    </div>
+                    <EmptyBrands onAdd={onAddBrand} />
                 ) : (
                     <ul className="divide-y divide-light-border/60 dark:divide-dark-border/60">
                         {brands.map((brand) => {

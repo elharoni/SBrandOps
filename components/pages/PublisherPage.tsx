@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Publisher } from '../Publisher';
 import { ScheduledPost, NotificationType, BrandHubProfile, PublisherBrief } from '../../types';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
+import { Spinner } from '../shared/UIComponents';
 import { useLanguage } from '../../context/LanguageContext';
 import { getContentBriefs } from '../../services/competitiveIntelService';
 
@@ -121,6 +122,8 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
             description={copy.description}
             stats={stats}
         >
+            <Publisher {...props} publisherBrief={props.publisherBrief} />
+
             <PageSection
                 title={copy.libraryTitle}
                 description={copy.libraryDescription}
@@ -136,7 +139,8 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
                 )}
             >
                 {isLoadingBriefs ? (
-                    <div className="surface-panel-soft rounded-[1.5rem] p-5 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                    <div className="surface-panel-soft rounded-[1.5rem] p-5 flex items-center justify-center gap-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                        <Spinner size="sm" />
                         {copy.loadingBriefs}
                     </div>
                 ) : savedBriefs.length === 0 ? (
@@ -216,8 +220,6 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
                     </div>
                 )}
             </PageSection>
-
-            <Publisher {...props} publisherBrief={props.publisherBrief} />
         </PageScaffold>
     );
 };

@@ -234,8 +234,15 @@ export async function connectSelectedAssets(
         market?: string;
     },
 ): Promise<void> {
+    // Force-refresh so we always send a fresh token to the Edge Function.
+    // After the Facebook OAuth popup the in-memory token can be stale.
+    await supabase.auth.refreshSession();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Not authenticated. Please sign in again.');
+
+    // Explicitly set the fresh token on the Functions client — the auto-update
+    // from onAuthStateChange may not have fired yet at the point of invocation.
+    supabase.functions.setAuth(session.access_token);
 
     const { error } = await supabase.functions.invoke('connect-accounts', {
         body: {
@@ -247,20 +254,18 @@ export async function connectSelectedAssets(
             default_asset_type: options?.defaultAssetType,
             default_market:   options?.market,
         },
-        headers: { Authorization: `Bearer ${session.access_token}` },
     });
 
     if (error) {
-        console.error('Error saving accounts via Edge:', error);
-        // Try to surface the actual error body from the Edge Function response
-        let msg = (error as any).message ?? 'Edge error';
-        try {
-            const ctx = (error as any).context;
-            if (ctx?.json) {
-                const body = await ctx.json();
-                if (body?.error) msg = body.error;
-            }
-        } catch { /* ignore parse errors */ }
+        // Supabase FunctionsHttpError: context is the parsed JSON body (plain object),
+        // not a Response — so we read context.error directly instead of calling .json()
+        const ctx = (error as any).context;
+        const serverMsg: string | undefined =
+            (typeof ctx?.error === 'string' ? ctx.error : null)          // {"error":"..."} shape
+            ?? (typeof ctx?.message === 'string' ? ctx.message : null)   // {"message":"..."} shape
+            ?? (typeof ctx === 'string' ? ctx : null);                   // raw text body
+        const msg = serverMsg ?? (error as any).message ?? 'Edge Function error';
+        console.error('connect-accounts error:', msg, ctx);
         throw new Error(msg);
     }
 }

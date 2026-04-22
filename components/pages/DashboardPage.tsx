@@ -496,7 +496,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             });
         }
 
-        return list.slice(0, 4);
+        return list;
     }, [ar, criticalErrors, unreadConversations, hasBrandProfile, hasConnectedAccount, hasLinkedAds, todayScheduledCount]);
 
     // ── Section C — ما الذي تعلمناه ─────────────────────────────────────────
@@ -793,9 +793,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                     <SectionKicker icon="fa-bolt" label={ar ? 'ما الذي يجب فعله الآن' : 'What to do now'} accent="text-amber-600" />
                     {priorities.length > 0 ? (
                         <div className="space-y-3">
-                            {priorities.map((p) => (
+                            {priorities.slice(0, 4).map((p) => (
                                 <PriorityCard key={p.id} {...p} onNavigate={onNavigate} />
                             ))}
+                            {priorities.length > 4 && (
+                                <button
+                                    onClick={() => onNavigate('error-center')}
+                                    className="w-full rounded-2xl border border-dashed border-light-border px-4 py-3 text-center text-sm font-medium text-light-text-secondary transition-colors hover:border-brand-primary hover:text-brand-primary dark:border-dark-border"
+                                >
+                                    {ar
+                                        ? `و${priorities.length - 4} مهام إضافية أخرى…`
+                                        : `and ${priorities.length - 4} more action${priorities.length - 4 > 1 ? 's' : ''}…`}
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="surface-panel-soft rounded-[1.4rem] px-5 py-8 text-center">
@@ -877,10 +887,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
             {/* ── Analytics metrics ─────────────────────────────────────────── */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricTile title={ar ? 'إجمالي المتابعين' : 'Total followers'} value={formatter.format(analyticsData.overallStats.totalFollowers)} icon="fa-users" trend="12%" positive comparedText={ar ? 'مقارنة بالشهر الماضي' : 'vs last month'} />
-                <MetricTile title={ar ? 'الوصول' : 'Reach'} value={formatter.format(analyticsData.overallStats.impressions)} icon="fa-eye" trend="5.3%" positive comparedText={ar ? 'مقارنة بالشهر الماضي' : 'vs last month'} />
-                <MetricTile title={ar ? 'التفاعل' : 'Engagement'} value={formatter.format(analyticsData.overallStats.engagement)} icon="fa-heart" trend="2.1%" positive={false} comparedText={ar ? 'مقارنة بالشهر الماضي' : 'vs last month'} />
-                <MetricTile title={ar ? 'المنشورات' : 'Posts published'} value={formatter.format(analyticsData.overallStats.postsPublished)} icon="fa-paper-plane" trend="8%" positive comparedText={ar ? 'مقارنة بالشهر الماضي' : 'vs last month'} />
+                <MetricTile title={ar ? 'إجمالي المتابعين' : 'Total followers'} value={formatter.format(analyticsData.overallStats.totalFollowers)} icon="fa-users" positive />
+                <MetricTile title={ar ? 'الوصول' : 'Reach'} value={formatter.format(analyticsData.overallStats.impressions)} icon="fa-eye" positive />
+                <MetricTile title={ar ? 'التفاعل' : 'Engagement'} value={formatter.format(analyticsData.overallStats.engagement)} icon="fa-heart" positive={false} />
+                <MetricTile title={ar ? 'المنشورات' : 'Posts published'} value={formatter.format(analyticsData.overallStats.postsPublished)} icon="fa-paper-plane" />
             </div>
 
             {/* ── Operator metrics + chart + alerts + messages ─────────────── */}
@@ -893,7 +903,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         <div key={metric.label} className="surface-panel-soft rounded-[1.5rem] p-4">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                    <span className="text-lg font-black text-light-text dark:text-dark-text">{metric.label}</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-lg font-black text-light-text dark:text-dark-text">{metric.label}</span>
+                                        <span className="rounded-full bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Demo</span>
+                                    </div>
                                     <p className="truncate text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{metric.sublabel}</p>
                                 </div>
                                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${metric.bg} ${metric.color}`}>
@@ -910,20 +923,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         </div>
                     ))}
                 </div>
-                {!hasLinkedAds && (
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-                        <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-                            <i className="fas fa-triangle-exclamation text-[10px]" />
-                            {ar ? 'هذه بيانات توضيحية. اربط Google Ads من صفحة التكاملات للحصول على أرقام فعلية.' : 'This is demo data. Connect Google Ads from Integrations for live numbers.'}
-                        </p>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                    <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                        <i className="fas fa-triangle-exclamation text-[10px]" />
+                        {ar ? 'هذه بيانات توضيحية. اربط Google Ads من صفحة التكاملات للحصول على أرقام فعلية.' : 'All figures are demo data. Connect Google Ads from Integrations for live numbers.'}
+                    </p>
+                    {!hasLinkedAds && (
                         <button
                             onClick={() => onNavigate('integrations')}
                             className="flex-shrink-0 rounded-xl bg-amber-500/15 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-500/25 dark:text-amber-400 transition-colors"
                         >
                             {ar ? 'وصّل الإعلانات الآن ←' : 'Connect ads now →'}
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
             </Panel>
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">

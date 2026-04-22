@@ -455,14 +455,14 @@ export const AdsOpsPage: React.FC<AdsOpsPageProps> = ({
 
             <ProviderConnectionCallout
                 title="Google Ads"
-                description="Ù…ØµØ¯Ø± Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ø¥Ø¹Ù„Ø§Ù†ÙŠØ© Ø§Ù„Ù…Ø±ØªØ¨Ø·Ø© Ø¨Ù‡Ø°Ø§ Ø§Ù„Ø¨Ø±Ø§Ù†Ø¯ ÙˆØ¨Ø£ØµÙˆÙ„ Ads Ops."
+                description="مصدر الحسابات الإعلانية المرتبطة بهذا البراند وبأصول Ads Ops."
                 connection={googleAdsConnection}
                 brandAssets={brandAssets}
-                emptyTitle="Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø§ØªØµØ§Ù„ Google Ads Ø­ÙŠ Ø¨Ø¹Ø¯"
-                emptyDescription="Ø¹Ù†Ø¯ Ø±Ø¨Ø· Google Ads Ù…Ù† Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª Ø³ØªÙØ­ÙØ¸ Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ù…ÙƒØªØ´ÙØ© ÙˆØªØ¸Ù‡Ø± Ø­Ø§Ù„ØªÙ‡Ø§ Ù‡Ù†Ø§ Ù…Ø¨Ø§Ø´Ø±Ø©."
-                primaryActionLabel="ÙØªØ­ Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª"
+                emptyTitle="لا يوجد اتصال Google Ads حي بعد"
+                emptyDescription="عند ربط Google Ads من مساحة التكاملات ستُحفظ الحسابات المكتشفة وتظهر حالتها هنا مباشرة."
+                primaryActionLabel="فتح مساحة التكاملات"
                 onPrimaryAction={() => onNavigate('integrations')}
-                secondaryActionLabel="ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø±Ø¨Ø·"
+                secondaryActionLabel="تحديث الربط"
                 onSecondaryAction={() => onNavigate('integrations')}
             />
 

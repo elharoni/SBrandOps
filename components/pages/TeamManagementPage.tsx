@@ -1,6 +1,8 @@
 ﻿import React, { useMemo, useState } from 'react';
 import { NotificationType, User, UserRole } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { usePlanLimits } from '../../hooks/usePlanLimits';
+import { QuotaWarning, QuotaLimitModal } from '../shared/PaywallGate';
 
 interface TeamManagementPageProps {
     users: User[];
@@ -70,13 +72,25 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({
     const { language } = useLanguage();
     const ar = language === 'ar';
 
+    const { canAddUser, limits } = usePlanLimits();
+    const atSeatLimit = !canAddUser(users.length);
+
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
+    const [showQuotaModal, setShowQuotaModal] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<UserRole>(UserRole.Editor);
     const [isInviting, setIsInviting] = useState(false);
     const [pendingRoleUserId, setPendingRoleUserId] = useState<string | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleOpenInvite = () => {
+        if (atSeatLimit) {
+            setShowQuotaModal(true);
+        } else {
+            setInviteModalOpen(true);
+        }
+    };
 
     const copy = useMemo(() => ({
         title: ar ? 'إدارة الفريق' : 'Team management',
@@ -178,13 +192,19 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({
                     <p className="mt-2 max-w-3xl text-sm text-light-text-secondary dark:text-dark-text-secondary">{copy.subtitle}</p>
                 </div>
                 <button
-                    onClick={() => setInviteModalOpen(true)}
+                    onClick={handleOpenInvite}
                     className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-primary/90"
                 >
-                    <i className="fas fa-user-plus text-xs" />
+                    <i className={`fas ${atSeatLimit ? 'fa-lock' : 'fa-user-plus'} text-xs`} />
                     <span>{copy.invite}</span>
                 </button>
             </div>
+
+            <QuotaWarning
+                currentCount={users.length}
+                maxCount={limits.maxUsers}
+                entityName={ar ? 'عضو' : 'member'}
+            />
 
             {users.length === 0 ? (
                 <EmptyState
@@ -192,7 +212,7 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({
                     description={copy.emptyDescription}
                     action={(
                         <button
-                            onClick={() => setInviteModalOpen(true)}
+                            onClick={handleOpenInvite}
                             className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-primary/90"
                         >
                             <i className="fas fa-user-plus text-xs" />
@@ -265,6 +285,15 @@ export const TeamManagementPage: React.FC<TeamManagementPageProps> = ({
                         </table>
                     </div>
                 </div>
+            )}
+
+            {showQuotaModal && limits.maxUsers !== null && (
+                <QuotaLimitModal
+                    entityName={ar ? 'أعضاء فريق' : 'team members'}
+                    currentCount={users.length}
+                    maxCount={limits.maxUsers}
+                    onClose={() => setShowQuotaModal(false)}
+                />
             )}
 
             {inviteModalOpen && (

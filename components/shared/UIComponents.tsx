@@ -10,6 +10,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
+    loadingText?: string;
     icon?: string;
     iconPosition?: 'left' | 'right';
     fullWidth?: boolean;
@@ -20,6 +21,7 @@ export const Button: React.FC<ButtonProps> = ({
     variant = 'primary',
     size = 'md',
     loading = false,
+    loadingText,
     icon,
     iconPosition = 'left',
     fullWidth = false,
@@ -27,10 +29,10 @@ export const Button: React.FC<ButtonProps> = ({
     disabled,
     ...props
 }) => {
-    const baseClasses = 'inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
+    const baseClasses = 'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
 
     const variantClasses = {
-        primary: 'bg-brand-primary hover:bg-brand-secondary text-white focus:ring-brand-primary disabled:opacity-50',
+        primary: 'bg-brand-primary hover:bg-brand-primary/90 text-white focus:ring-brand-primary disabled:opacity-50',
         secondary: 'bg-dark-card hover:bg-dark-bg border border-dark-border text-dark-text focus:ring-brand-primary',
         danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
         ghost: 'bg-transparent hover:bg-dark-card text-dark-text-secondary hover:text-dark-text',
@@ -52,8 +54,9 @@ export const Button: React.FC<ButtonProps> = ({
             {...props}
         >
             {loading && <i className="fas fa-circle-notch fa-spin" />}
+            {loading && loadingText ? loadingText : null}
             {!loading && icon && iconPosition === 'left' && <i className={icon} />}
-            {children}
+            {!loading && children}
             {!loading && icon && iconPosition === 'right' && <i className={icon} />}
         </button>
     );
@@ -344,3 +347,78 @@ export const Avatar: React.FC<AvatarProps> = ({
         </div>
     );
 };
+
+/* ==================== Auth Shared Components ==================== */
+
+export interface AuthInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+    label: string;
+    icon: string;
+    suffix?: React.ReactNode;
+}
+
+export const AuthInput: React.FC<AuthInputProps> = ({ label, icon, suffix, className = '', ...props }) => (
+    <div>
+        <label className="block text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary mb-1.5">
+            {label}
+        </label>
+        <div className="relative">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-light-text-secondary dark:text-dark-text-secondary pointer-events-none">
+                <i className={`fas ${icon} text-sm`} />
+            </span>
+            <input
+                className={`w-full pr-10 ${suffix ? 'pl-10' : 'pl-4'} py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm ${className}`}
+                {...props}
+            />
+            {suffix && (
+                <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                    {suffix}
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+export const AuthErrorBanner: React.FC<{ message: string }> = ({ message }) => (
+    <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
+        <i className="fas fa-exclamation-circle text-red-500 text-sm flex-shrink-0" />
+        <p className="text-red-600 dark:text-red-400 text-sm">{message}</p>
+    </div>
+);
+
+export const AuthConfigWarning: React.FC<{ error: string }> = ({ error }) => (
+    <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+        <div className="flex items-start gap-2">
+            <i className="fas fa-triangle-exclamation mt-0.5 text-amber-500 text-sm flex-shrink-0" />
+            <div>
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">التطبيق غير مهيأ بعد</p>
+                <p className="mt-1 text-xs leading-5 text-amber-700/90 dark:text-amber-200/90">
+                    {error}. أضف القيم إلى ملف <code className="font-mono">.env</code> ثم أعد تشغيل التطبيق.
+                </p>
+            </div>
+        </div>
+    </div>
+);
+
+export const AuthDivider: React.FC = () => (
+    <div className="relative my-5">
+        <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-light-border dark:border-dark-border" />
+        </div>
+        <div className="relative flex justify-center text-xs">
+            <span className="bg-light-card dark:bg-dark-card px-3 text-light-text-secondary dark:text-dark-text-secondary">أو</span>
+        </div>
+    </div>
+);
+
+export const AuthSubmitButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    loading?: boolean;
+    loadingText?: string;
+}> = ({ loading, loadingText = 'جاري...', children, className = '', disabled, ...props }) => (
+    <button
+        className={`w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center gap-2 ${className}`}
+        disabled={disabled || loading}
+        {...props}
+    >
+        {loading ? <><i className="fas fa-circle-notch fa-spin" />{loadingText}</> : children}
+    </button>
+);
