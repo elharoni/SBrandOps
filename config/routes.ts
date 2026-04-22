@@ -39,14 +39,18 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'error-center': '/app/error-center',
     'marketing-plans': '/app/marketing-plans',
     'brand-analysis': '/app/brand-analysis',
+    'brand-brain-review': '/app/brand-brain-review',
     'ai-video': '/app/ai-video',
     'content-studio': '/app/content-studio',
+    'media-ops': '/app/media-ops',
+    'brand-knowledge': '/app/brand-knowledge',
     'asset-library': '/app/asset-library',
     system: '/app/system',
     'user-settings': '/app/settings',
     billing: '/app/billing',
     'team-management': '/app/team',
     crm: '/app/crm',
+    'mobile-home': '/app/mobile-home',
 };
 
 export const ROUTE_TO_BRAND_PAGE: Record<string, string> = Object.fromEntries(

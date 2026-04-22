@@ -1,16 +1,20 @@
 
 
-import React, { useState, useEffect } from 'react';
-import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation } from '../../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
+import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
+import { getBrandSkillsReport } from '../../services/evaluationService';
+import { SkillStats } from '../../types';
 
 interface BrandHubPageProps {
+    brandId: string;
     initialProfile: BrandHubProfile;
     onUpdate: (profile: BrandHubProfile) => void;
     addNotification: (type: NotificationType, message: string) => void;
 }
 
-type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets';
+type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'knowledge';
 
 const ScoreDonut: React.FC<{ score: number }> = ({ score }) => {
     const color = score >= 85 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400';
@@ -234,7 +238,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
 };
 
 
-export const BrandHubPage: React.FC<BrandHubPageProps> = ({ initialProfile, onUpdate, addNotification }) => {
+export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProfile, onUpdate, addNotification }) => {
     const [profile, setProfile] = useState(initialProfile);
     const [activeTab, setActiveTab] = useState<ActiveTab>('identity');
     const [showOnboarding, setShowOnboarding] = useState(false);
@@ -243,6 +247,96 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ initialProfile, onUp
     const [contentToEvaluate, setContentToEvaluate] = useState('');
     const [evaluationResult, setEvaluationResult] = useState<BrandConsistencyEvaluation | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
+
+    // Knowledge Base State
+    const [knowledgeEntries, setKnowledgeEntries] = useState<BrandKnowledgeEntry[]>([]);
+    const [knowledgeTab, setKnowledgeTab] = useState<BrandKnowledgeType>('product');
+    const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false);
+    const [showKnowledgeForm, setShowKnowledgeForm] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<BrandKnowledgeEntry | null>(null);
+    const [kForm, setKForm] = useState({ title: '', content: '' });
+    const [kSaving, setKSaving] = useState(false);
+
+    const loadKnowledge = useCallback(async () => {
+        if (!brandId) return;
+        setIsLoadingKnowledge(true);
+        try {
+            const entries = await getBrandKnowledge(brandId);
+            setKnowledgeEntries(entries);
+        } catch (err) {
+            console.warn('[BrandHub] knowledge fetch error:', err);
+        } finally {
+            setIsLoadingKnowledge(false);
+        }
+    }, [brandId]);
+
+    useEffect(() => {
+        if (activeTab === 'knowledge') loadKnowledge();
+    }, [activeTab, loadKnowledge]);
+
+    const openAddForm = () => {
+        setEditingEntry(null);
+        setKForm({ title: '', content: '' });
+        setShowKnowledgeForm(true);
+    };
+
+    const openEditForm = (entry: BrandKnowledgeEntry) => {
+        setEditingEntry(entry);
+        setKForm({ title: entry.title, content: entry.content });
+        setShowKnowledgeForm(true);
+    };
+
+    const handleKSave = async () => {
+        if (!kForm.title.trim() || !kForm.content.trim()) return;
+        setKSaving(true);
+        try {
+            if (editingEntry) {
+                await updateKnowledgeEntry(brandId, editingEntry.id, { title: kForm.title, content: kForm.content });
+                addNotification(NotificationType.Success, 'تم تحديث السجل.');
+            } else {
+                await addKnowledgeEntry(brandId, { type: knowledgeTab, title: kForm.title, content: kForm.content, metadata: {}, sortOrder: 0 });
+                addNotification(NotificationType.Success, 'تم إضافة السجل.');
+            }
+            setShowKnowledgeForm(false);
+            await loadKnowledge();
+        } catch (err) {
+            addNotification(NotificationType.Error, 'فشل الحفظ.');
+        } finally {
+            setKSaving(false);
+        }
+    };
+
+    const handleKDelete = async (entry: BrandKnowledgeEntry) => {
+        try {
+            await deleteKnowledgeEntry(brandId, entry.id);
+            setKnowledgeEntries(prev => prev.filter(e => e.id !== entry.id));
+            addNotification(NotificationType.Success, 'تم الحذف.');
+        } catch {
+            addNotification(NotificationType.Error, 'فشل الحذف.');
+        }
+    };
+
+    // Skills Performance State
+    const [skillsReport, setSkillsReport] = useState<Record<string, SkillStats>>({});
+    const [isLoadingStats, setIsLoadingStats] = useState(false);
+    const [statsDays, setStatsDays] = useState(30);
+
+    const loadSkillStats = useCallback(async (days: number) => {
+        if (!brandId) return;
+        setIsLoadingStats(true);
+        try {
+            const report = await getBrandSkillsReport(brandId, days);
+            setSkillsReport(report);
+        } catch (err) {
+            console.warn('[BrandHub] skills report error:', err);
+        } finally {
+            setIsLoadingStats(false);
+        }
+    }, [brandId]);
+
+    useEffect(() => {
+        if (activeTab === 'ai-memory') loadSkillStats(statsDays);
+    }, [activeTab, statsDays, loadSkillStats]);
 
     // Brand Assets State
     const [brandAssets, setBrandAssets] = useState({
@@ -323,11 +417,12 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ initialProfile, onUp
 
             <div className="bg-dark-bg p-1 rounded-lg flex items-center gap-1 flex-wrap">
                 {([
-                    { id: 'identity',  label: 'الهوية',    icon: 'fa-building' },
-                    { id: 'assets',    label: 'الأصول',    icon: 'fa-palette' },
-                    { id: 'voice',     label: 'الصوت',     icon: 'fa-microphone' },
-                    { id: 'audience',  label: 'الجمهور',   icon: 'fa-users' },
-                    { id: 'ai-memory', label: 'ذاكرة AI',  icon: 'fa-brain' },
+                    { id: 'identity',  label: 'الهوية',      icon: 'fa-building' },
+                    { id: 'assets',    label: 'الأصول',      icon: 'fa-palette' },
+                    { id: 'voice',     label: 'الصوت',       icon: 'fa-microphone' },
+                    { id: 'audience',  label: 'الجمهور',     icon: 'fa-users' },
+                    { id: 'knowledge', label: 'قاعدة المعرفة', icon: 'fa-database' },
+                    { id: 'ai-memory', label: 'ذاكرة AI',    icon: 'fa-brain' },
                 ] as const).map(tab => (
                     <button
                         key={tab.id}
@@ -671,6 +766,154 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ initialProfile, onUp
                         </div>
                     );
                 })()}
+                {/* ── Knowledge Base Tab ──────────────────────────────────── */}
+                {activeTab === 'knowledge' && (() => {
+                    const KNOWLEDGE_TYPES: { id: BrandKnowledgeType; label: string; icon: string; placeholder: { title: string; content: string } }[] = [
+                        { id: 'product',         label: 'المنتجات والخدمات', icon: 'fa-box-open',    placeholder: { title: 'اسم المنتج أو الخدمة', content: 'وصف المنتج، المميزات، السعر، إلخ...' } },
+                        { id: 'faq',             label: 'الأسئلة الشائعة',  icon: 'fa-question-circle', placeholder: { title: 'السؤال', content: 'الإجابة الكاملة...' } },
+                        { id: 'policy',          label: 'السياسات',          icon: 'fa-file-contract', placeholder: { title: 'نوع السياسة (شحن، إرجاع، دفع...)', content: 'تفاصيل السياسة...' } },
+                        { id: 'competitor',      label: 'المنافسون',         icon: 'fa-chess',        placeholder: { title: 'اسم المنافس', content: 'نقاط القوة، الضعف، الفرق...' } },
+                        { id: 'scenario_script', label: 'سيناريوهات الرد',   icon: 'fa-comments',     placeholder: { title: 'اسم السيناريو (مثل: رد على شكوى تأخير)', content: 'الرد المقترح بالكامل...' } },
+                    ];
+                    const currentTypeConfig = KNOWLEDGE_TYPES.find(t => t.id === knowledgeTab)!;
+                    const visibleEntries = knowledgeEntries.filter(e => e.type === knowledgeTab);
+
+                    return (
+                        <div className="space-y-5">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                                <div>
+                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                        <i className="fas fa-database text-brand-pink" />
+                                        قاعدة المعرفة الخاصة
+                                    </h2>
+                                    <p className="text-xs text-dark-text-secondary mt-1">
+                                        هذه المعلومات تُغذّي الذكاء الاصطناعي في كل طلباتك — كلما كانت أدق كانت المخرجات أفضل.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={openAddForm}
+                                    className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-secondary transition-colors"
+                                >
+                                    <i className="fas fa-plus text-xs" />
+                                    إضافة سجل
+                                </button>
+                            </div>
+
+                            {/* Type sub-tabs */}
+                            <div className="flex gap-1.5 flex-wrap">
+                                {KNOWLEDGE_TYPES.map(t => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => setKnowledgeTab(t.id)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                            knowledgeTab === t.id
+                                                ? 'bg-brand-primary text-white'
+                                                : 'bg-dark-bg text-dark-text-secondary hover:text-white border border-dark-border'
+                                        }`}
+                                    >
+                                        <i className={`fas ${t.icon} text-[10px]`} />
+                                        {t.label}
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                            knowledgeTab === t.id ? 'bg-white/20' : 'bg-dark-card'
+                                        }`}>
+                                            {knowledgeEntries.filter(e => e.type === t.id).length}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Add/Edit Form */}
+                            {showKnowledgeForm && (
+                                <div className="rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-5 space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                                            <i className={`fas ${currentTypeConfig.icon} text-brand-pink`} />
+                                            {editingEntry ? 'تعديل السجل' : `إضافة — ${currentTypeConfig.label}`}
+                                        </h3>
+                                        <button onClick={() => setShowKnowledgeForm(false)} className="text-dark-text-secondary hover:text-white text-xs">
+                                            <i className="fas fa-times" />
+                                        </button>
+                                    </div>
+                                    <input
+                                        value={kForm.title}
+                                        onChange={e => setKForm(f => ({ ...f, title: e.target.value }))}
+                                        placeholder={currentTypeConfig.placeholder.title}
+                                        className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink"
+                                    />
+                                    <textarea
+                                        value={kForm.content}
+                                        onChange={e => setKForm(f => ({ ...f, content: e.target.value }))}
+                                        placeholder={currentTypeConfig.placeholder.content}
+                                        rows={4}
+                                        className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none"
+                                    />
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={handleKSave}
+                                            disabled={kSaving || !kForm.title.trim() || !kForm.content.trim()}
+                                            className="flex items-center gap-1.5 px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-secondary disabled:opacity-40 transition-colors"
+                                        >
+                                            {kSaving ? <i className="fas fa-spinner fa-spin text-xs" /> : <i className="fas fa-save text-xs" />}
+                                            حفظ
+                                        </button>
+                                        <button onClick={() => setShowKnowledgeForm(false)} className="px-4 py-2 text-sm text-dark-text-secondary hover:text-white transition-colors">
+                                            إلغاء
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Entries list */}
+                            {isLoadingKnowledge ? (
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map(i => <div key={i} className="h-16 bg-dark-bg rounded-xl animate-pulse" />)}
+                                </div>
+                            ) : visibleEntries.length === 0 ? (
+                                <div className="py-16 text-center rounded-2xl border border-dashed border-dark-border">
+                                    <i className={`fas ${currentTypeConfig.icon} text-4xl text-dark-text-secondary mb-3 block opacity-30`} />
+                                    <p className="text-sm text-dark-text-secondary mb-4">لا توجد سجلات في {currentTypeConfig.label} بعد</p>
+                                    <button
+                                        onClick={openAddForm}
+                                        className="px-4 py-2 bg-brand-primary/10 text-brand-secondary rounded-xl text-sm font-semibold hover:bg-brand-primary hover:text-white transition-colors"
+                                    >
+                                        <i className="fas fa-plus me-2 text-xs" />
+                                        أضف أول سجل
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {visibleEntries.map(entry => (
+                                        <div key={entry.id} className="group rounded-xl border border-dark-border bg-dark-bg p-4 hover:border-brand-primary/30 transition-colors">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-bold text-white truncate">{entry.title}</p>
+                                                    <p className="mt-1 text-xs text-dark-text-secondary leading-relaxed line-clamp-2">{entry.content}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                    <button
+                                                        onClick={() => openEditForm(entry)}
+                                                        className="w-8 h-8 flex items-center justify-center rounded-lg text-dark-text-secondary hover:text-white hover:bg-blue-500/20 transition-colors"
+                                                        title="تعديل"
+                                                    >
+                                                        <i className="fas fa-pen text-xs" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleKDelete(entry)}
+                                                        className="w-8 h-8 flex items-center justify-center rounded-lg text-dark-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                                        title="حذف"
+                                                    >
+                                                        <i className="fas fa-trash text-xs" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+
                 {activeTab === 'ai-memory' && (
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-white">ذاكرة AI ومقياس الاتساق</h2>
@@ -708,6 +951,135 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ initialProfile, onUp
                                 </ul>
                             </div>
                         )}
+
+                        {/* ── Skills Performance Section ─────────────────── */}
+                        {(() => {
+                            const SKILL_NAMES: Record<string, string> = {
+                                ContentGeneration:       'توليد محتوى',
+                                OccasionOpportunity:     'تحويل مناسبة لفرصة',
+                                ConversationReply:       'محرك محادثات البراند',
+                                CampaignBrief:           'بريف حملة تسويقية',
+                                MarketingPlanSuggestion: 'اقتراح خطة تسويق',
+                                HashtagResearch:         'بحث هاشتاقات',
+                                CompetitorAnalysis:      'تحليل منافس',
+                                ContentCalendar:         'تقويم المحتوى',
+                                AdCopywriting:           'كتابة نص إعلاني',
+                                SEOContentBrief:         'بريف محتوى SEO',
+                                AudienceInsight:         'تحليل الجمهور',
+                                BrandVoiceCheck:         'فحص صوت البراند',
+                                LeadQualification:       'تأهيل عميل محتمل',
+                                FollowUpSequence:        'سلسلة رسائل متابعة',
+                            };
+
+                            const skillEntries = Object.entries(skillsReport);
+                            const totalAll = skillEntries.reduce((s, [, v]) => s + v.totalExecutions, 0);
+                            const bestSkill = skillEntries.sort((a, b) => b[1].usedRate - a[1].usedRate)[0];
+
+                            return (
+                                <div className="space-y-4 pt-2 border-t border-dark-border">
+                                    <div className="flex items-center justify-between flex-wrap gap-3">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                <i className="fas fa-chart-bar text-brand-pink" />
+                                                أداء مهارات الذكاء الاصطناعي
+                                            </h3>
+                                            <p className="text-xs text-dark-text-secondary mt-0.5">كيف يتفاعل فريقك مع مخرجات AI</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 bg-dark-bg rounded-xl p-1">
+                                            {([7, 30, 90] as const).map(d => (
+                                                <button
+                                                    key={d}
+                                                    onClick={() => setStatsDays(d)}
+                                                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                                        statsDays === d ? 'bg-brand-primary text-white' : 'text-dark-text-secondary hover:text-white'
+                                                    }`}
+                                                >
+                                                    {d} يوم
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {isLoadingStats ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-dark-bg rounded-xl animate-pulse" />)}
+                                        </div>
+                                    ) : skillEntries.length === 0 ? (
+                                        <div className="py-10 text-center rounded-2xl border border-dashed border-dark-border">
+                                            <i className="fas fa-chart-bar text-3xl text-dark-text-secondary mb-3 block opacity-30" />
+                                            <p className="text-sm text-dark-text-secondary">لا توجد بيانات بعد.</p>
+                                            <p className="text-xs text-dark-text-secondary/60 mt-1">استخدم استوديو المحتوى أو الصندوق الوارد وقيّم المخرجات لتبدأ البيانات بالظهور.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Summary row */}
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <div className="bg-dark-bg rounded-xl p-3 text-center">
+                                                    <p className="text-2xl font-black text-white">{totalAll}</p>
+                                                    <p className="text-[11px] text-dark-text-secondary mt-0.5">إجمالي التقييمات</p>
+                                                </div>
+                                                <div className="bg-dark-bg rounded-xl p-3 text-center">
+                                                    <p className="text-2xl font-black text-emerald-400">
+                                                        {totalAll > 0
+                                                            ? Math.round(skillEntries.reduce((s,[,v]) => s + v.usedRate * v.totalExecutions, 0) / totalAll * 100)
+                                                            : 0}%
+                                                    </p>
+                                                    <p className="text-[11px] text-dark-text-secondary mt-0.5">معدل الاستخدام</p>
+                                                </div>
+                                                <div className="bg-dark-bg rounded-xl p-3 text-center">
+                                                    <p className="text-2xl font-black text-yellow-400">
+                                                        {bestSkill ? (SKILL_NAMES[bestSkill[0]] ?? bestSkill[0]).split(' ')[0] : '—'}
+                                                    </p>
+                                                    <p className="text-[11px] text-dark-text-secondary mt-0.5">أفضل مهارة</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Per-skill cards */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {skillEntries
+                                                    .sort((a, b) => b[1].totalExecutions - a[1].totalExecutions)
+                                                    .map(([skillType, stats]) => {
+                                                        const nameAr = SKILL_NAMES[skillType] ?? skillType;
+                                                        const usedPct   = Math.round(stats.usedRate * 100);
+                                                        const editedPct = Math.round(stats.editedRate * 100);
+                                                        const rejPct    = Math.round(stats.rejectedRate * 100);
+                                                        const scoreColor = usedPct >= 60 ? 'text-emerald-400' : usedPct >= 30 ? 'text-yellow-400' : 'text-rose-400';
+                                                        return (
+                                                            <div key={skillType} className="bg-dark-bg rounded-xl p-4 space-y-3">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-sm font-bold text-white leading-snug">{nameAr}</p>
+                                                                    <span className="text-[11px] font-bold text-dark-text-secondary bg-dark-card px-2 py-0.5 rounded-full flex-shrink-0">
+                                                                        {stats.totalExecutions} تقييم
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Bar: used / edited / rejected */}
+                                                                <div className="h-2 w-full rounded-full overflow-hidden flex gap-px">
+                                                                    {usedPct > 0   && <div className="bg-emerald-500 rounded-full" style={{ width: `${usedPct}%` }} title={`استُخدم ${usedPct}%`} />}
+                                                                    {editedPct > 0 && <div className="bg-blue-400 rounded-full"   style={{ width: `${editedPct}%` }} title={`عُدِّل ${editedPct}%`} />}
+                                                                    {rejPct > 0    && <div className="bg-rose-500 rounded-full"   style={{ width: `${rejPct}%` }} title={`رُفض ${rejPct}%`} />}
+                                                                    {(100 - usedPct - editedPct - rejPct) > 0 && <div className="bg-dark-border flex-1 rounded-full" />}
+                                                                </div>
+
+                                                                <div className="flex items-center justify-between text-[11px]">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className="flex items-center gap-1 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />{usedPct}% استُخدم</span>
+                                                                        <span className="flex items-center gap-1 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />{editedPct}% عُدِّل</span>
+                                                                        <span className="flex items-center gap-1 text-rose-400"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />{rejPct}% رُفض</span>
+                                                                    </div>
+                                                                    {stats.averageRating > 0 && (
+                                                                        <span className="text-yellow-400 font-bold">★ {stats.averageRating.toFixed(1)}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>

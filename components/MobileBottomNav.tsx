@@ -9,11 +9,11 @@ interface Props {
 }
 
 const tabs = (ar: boolean) => [
-    { id: 'dashboard',            icon: 'fa-home',              label: ar ? 'الرئيسية'  : 'Home'      },
-    { id: 'social-ops/publisher', icon: 'fa-plus-circle',       label: ar ? 'نشر'       : 'Create'    },
-    { id: 'analytics',            icon: 'fa-chart-pie',         label: ar ? 'تحليلات'   : 'Analytics' },
-    { id: 'inbox',                icon: 'fa-inbox',             label: ar ? 'الرسائل'   : 'Inbox'     },
-    { id: '__menu__',             icon: 'fa-bars',              label: ar ? 'القائمة'   : 'Menu'      },
+    { id: 'mobile-home', icon: 'fa-home',       label: ar ? 'الرئيسية' : 'Home'      },
+    { id: 'inbox',       icon: 'fa-inbox',       label: ar ? 'الرسائل'  : 'Inbox'     },
+    { id: 'content-ops', icon: 'fa-layer-group', label: ar ? 'المحتوى'  : 'Content'   },
+    { id: 'analytics',   icon: 'fa-chart-pie',   label: ar ? 'الأداء'   : 'Analytics' },
+    { id: '__menu__',    icon: 'fa-bars',         label: ar ? 'المزيد'   : 'More'      },
 ];
 
 export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpenSidebar, unreadCount = 0 }) => {
@@ -46,39 +46,26 @@ export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpe
                                 <div className="absolute inset-0 rounded-2xl bg-brand-primary/10" />
                             )}
 
-                            {/* Publisher create button — special style */}
-                            {tab.id === 'social-ops/publisher' ? (
-                                <div className={`relative flex h-11 w-11 items-center justify-center rounded-2xl shadow-primary-glow transition-all duration-200 ${
-                                    isActive
-                                        ? 'bg-brand-primary scale-105'
-                                        : 'bg-gradient-to-br from-brand-primary to-brand-secondary'
-                                }`}>
-                                    <i className="fas fa-plus text-white text-base" />
-                                </div>
-                            ) : (
-                                <div className="relative">
-                                    <i className={`fas ${tab.icon} text-lg transition-all duration-200 ${
-                                        isActive
-                                            ? 'text-brand-primary'
-                                            : 'text-light-text-secondary dark:text-dark-text-secondary'
-                                    }`} />
-                                    {tab.id === 'inbox' && unreadCount > 0 && (
-                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
-                                            {unreadCount > 9 ? '9+' : unreadCount}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-
-                            {tab.id !== 'social-ops/publisher' && (
-                                <span className={`text-[10px] font-medium transition-colors duration-200 ${
+                            <div className="relative">
+                                <i className={`fas ${tab.icon} text-lg transition-all duration-200 ${
                                     isActive
                                         ? 'text-brand-primary'
                                         : 'text-light-text-secondary dark:text-dark-text-secondary'
-                                }`}>
-                                    {tab.label}
-                                </span>
-                            )}
+                                }`} />
+                                {tab.id === 'inbox' && unreadCount > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
+                            </div>
+
+                            <span className={`text-[10px] font-medium transition-colors duration-200 ${
+                                isActive
+                                    ? 'text-brand-primary'
+                                    : 'text-light-text-secondary dark:text-dark-text-secondary'
+                            }`}>
+                                {tab.label}
+                            </span>
                         </button>
                     );
                 })}

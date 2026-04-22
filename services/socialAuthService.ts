@@ -1,4 +1,4 @@
-import { SocialAsset, SocialPlatform } from '../types';
+import { SocialAsset, SocialPlatform, AssetType, AssetPurpose } from '../types';
 import { supabase } from './supabaseClient';
 import { checkFBSDK, ensureFBSDK } from './facebookSDK';
 
@@ -36,9 +36,11 @@ export async function initiateSocialLogin(platform: SocialPlatform): Promise<Aut
         }
 
         return new Promise((resolve, reject) => {
+            // Facebook: ads_read allows fetching Ad Accounts (works for app admins without review)
+            // Instagram: removed instagram_basic (deprecated by Meta, removed for new apps)
             const scopes = platform === SocialPlatform.Facebook
-                ? 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content,business_management'
-                : 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement';
+                ? 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content,read_insights,ads_read'
+                : 'pages_show_list,pages_read_engagement,instagram_content_publish,instagram_manage_insights,instagram_manage_messages';
 
             window.FB.login((response: any) => {
                 if (!response.authResponse) {
@@ -112,7 +114,14 @@ export async function initiateSocialLogin(platform: SocialPlatform): Promise<Aut
         }, 500);
 
         // Listen for postMessage from callback page
+        // SECURITY: validate event.origin so only our Supabase Edge Function
+        // can deliver OAuth tokens — not arbitrary pages in the popup's chain.
+        const allowedOrigin = import.meta.env.VITE_SUPABASE_URL
+            ? new URL(import.meta.env.VITE_SUPABASE_URL).origin
+            : null;
+
         const messageHandler = (event: MessageEvent) => {
+            if (allowedOrigin && event.origin !== allowedOrigin) return;
             if (event.data?.type === 'OAUTH_SUCCESS' && event.data?.platform === platform) {
                 clearInterval(interval);
                 popup.close();
@@ -191,6 +200,7 @@ export async function fetchAvailableAssets(platform: SocialPlatform, token: stri
                                 followers: ig.followers_count || 0,
                                 avatarUrl: ig.profile_picture_url || `https://picsum.photos/seed/${ig.username}/100`,
                                 accessToken: page.access_token,
+                                pageId: page.id,
                             });
                         });
                     }),
@@ -218,17 +228,65 @@ export async function connectSelectedAssets(
     assets: SocialAsset[],
     platform: SocialPlatform,
     userToken: string,
+    options?: {
+        defaultPurposes?: AssetPurpose[];
+        defaultAssetType?: AssetType;
+        market?: string;
+    },
 ): Promise<void> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) throw new Error('Not authenticated. Please sign in again.');
 
     const { error } = await supabase.functions.invoke('connect-accounts', {
-        body: { brand_id: brandId, platform, assets, user_token: userToken },
+        body: {
+            brand_id:         brandId,
+            platform,
+            assets,
+            user_token:       userToken,
+            default_purposes: options?.defaultPurposes ?? ['publishing', 'analytics'],
+            default_asset_type: options?.defaultAssetType,
+            default_market:   options?.market,
+        },
         headers: { Authorization: `Bearer ${session.access_token}` },
     });
 
     if (error) {
         console.error('Error saving accounts via Edge:', error);
-        throw new Error(`Failed to save accounts: ${(error as any).message || 'Edge error'}`);
+        // Try to surface the actual error body from the Edge Function response
+        let msg = (error as any).message ?? 'Edge error';
+        try {
+            const ctx = (error as any).context;
+            if (ctx?.json) {
+                const body = await ctx.json();
+                if (body?.error) msg = body.error;
+            }
+        } catch { /* ignore parse errors */ }
+        throw new Error(msg);
     }
+}
+
+/** جلب كل الأصول المربوطة ببراند من integration_health view */
+export async function fetchConnectedAssets(brandId: string) {
+    const { data, error } = await supabase
+        .from('integration_health')
+        .select('*')
+        .eq('brand_id', brandId)
+        .order('platform', { ascending: true });
+
+    if (error) throw error;
+    return data ?? [];
+}
+
+/** تحديث وظائف أصل موجود */
+export async function updateAssetPurposes(
+    assetId: string,
+    purposes: AssetPurpose[],
+    market?: string,
+): Promise<void> {
+    const { error } = await supabase
+        .from('social_accounts')
+        .update({ purposes, market: market ?? null, updated_at: new Date().toISOString() })
+        .eq('id', assetId);
+
+    if (error) throw error;
 }

@@ -47,18 +47,23 @@ function mapToProfile(data: any, brandName: string): BrandHubProfile {
 
 export async function getBrandHubProfile(brandId: string, brandName: string): Promise<BrandHubProfile> {
     try {
-        const { data, error } = await supabase
-            .from('brand_profiles')
-            .select('*')
-            .eq('brand_id', brandId)
-            .single();
+        // Fetch brand profile and brand metadata (country, website) in parallel
+        const [profileResult, brandResult] = await Promise.all([
+            supabase.from('brand_profiles').select('*').eq('brand_id', brandId).maybeSingle(),
+            supabase.from('brands').select('country, website_url').eq('id', brandId).maybeSingle(),
+        ]);
 
-        if (error || !data) {
-            // No profile yet — return empty one (first time setup)
-            return getEmptyBrandProfile(brandName);
+        const profile = profileResult.data
+            ? mapToProfile(profileResult.data, brandName)
+            : getEmptyBrandProfile(brandName);
+
+        // Enrich profile with country/website from the brands table
+        if (brandResult.data) {
+            profile.country = brandResult.data.country ?? undefined;
+            profile.website = brandResult.data.website_url ?? undefined;
         }
 
-        return mapToProfile(data, brandName);
+        return profile;
     } catch (error) {
         console.warn('⚠️ Brand hub profile fetch failed:', error);
         return getEmptyBrandProfile(brandName);

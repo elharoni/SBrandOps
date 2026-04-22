@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { resetPassword } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError } from '../../services/supabaseClient';
+import { SBrandOpsLogo } from '../SBrandOpsLogo';
 
 interface ForgotPasswordPageProps {
     onNavigateToLogin: () => void;
@@ -32,12 +33,9 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
         <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg px-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-primary mb-4">
-                        <i className="fas fa-layer-group text-white text-2xl"></i>
-                    </div>
-                    <h1 className="text-2xl font-bold text-light-text dark:text-dark-text">SBrandOps</h1>
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm mt-1">استعادة كلمة المرور</p>
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <SBrandOpsLogo size="md" layout="stacked" />
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm mt-2">استعادة كلمة المرور</p>
                 </div>
 
                 <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-xl border border-light-border dark:border-dark-border p-8">

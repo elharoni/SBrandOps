@@ -1301,6 +1301,30 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
                 </div>
             </div>
 
+            {/* ── Mobile Quick Actions (lg:hidden) ── */}
+            <div className="mt-4 lg:hidden flex items-center gap-2 flex-shrink-0">
+                <button
+                    onClick={() => { setActiveTab('approvals'); }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm font-semibold text-amber-600 active:scale-95 transition-all"
+                >
+                    <i className="fas fa-clipboard-check" />
+                    موافقات ({content.filter(p => p.status === ContentStatus.InReview).length})
+                </button>
+                <button
+                    onClick={() => setShowAIIdeation(true)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 px-4 py-3 text-sm font-semibold text-brand-primary active:scale-95 transition-all"
+                >
+                    <i className="fas fa-lightbulb" />
+                    أفكار
+                </button>
+                <button
+                    onClick={() => setShowAIStudio(true)}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-pink to-brand-purple text-white shadow-md active:scale-95 transition-all"
+                >
+                    <i className="fas fa-wand-magic-sparkles text-base" />
+                </button>
+            </div>
+
             {/* ── Tab Navigation ── */}
             <div className="border-b border-light-border dark:border-dark-border mt-6 flex-shrink-0">
                 <nav className="-mb-px flex gap-1">
@@ -1463,6 +1487,17 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
                         </div>
                     );
                 })()}
+            </div>
+
+            {/* ── Mobile Quick Capture FAB (lg:hidden) ── */}
+            <div className="fixed bottom-[72px] end-4 z-50 lg:hidden">
+                <button
+                    onClick={() => setShowAIIdeation(true)}
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary text-white shadow-[var(--shadow-primary)] active:scale-90 transition-all"
+                    title="التقط فكرة الآن"
+                >
+                    <i className="fas fa-plus text-lg" />
+                </button>
             </div>
 
             {showAIStudio && <AIStudioModal onClose={() => setShowAIStudio(false)} brandProfile={brandProfile} onGenerate={handleAIGenerate} />}

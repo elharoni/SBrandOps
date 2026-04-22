@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { ScheduledPost, PostStatus, PLATFORM_ASSETS, ContentPiece, BrandHubProfile, PublisherBrief } from '../../types';
+import React, { useState, useMemo, useCallback } from 'react';
+import { ScheduledPost, PostStatus, PLATFORM_ASSETS, ContentPiece, BrandHubProfile, PublisherBrief, NotificationType, SkillType } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { SmartOccasionsPanel } from '../SmartOccasionsPanel';
 import { getUpcomingOccasions, getDaysUntil } from '../../data/occasions';
+import { EvaluationButtons } from '../shared/EvaluationButtons';
+import type { CalendarItem } from '../../services/geminiService';
 
 type CalendarEvent = {
     id: string;
@@ -19,7 +21,10 @@ interface CalendarPageProps {
     onUpdatePost: (postId: string, updates: Partial<Omit<ScheduledPost, 'id'>>) => void;
     onDeletePost?: (id: string) => void;
     brandProfile?: BrandHubProfile;
+    brandId?: string;
     onSendToPublisher?: (brief: PublisherBrief) => void;
+    addNotification?: (type: NotificationType, message: string) => void;
+    onAddToContentPipeline?: (title: string, content: string) => void;
 }
 
 const CONTENT_TYPE_COLORS: { [key: string]: { bg: string; border: string; text: string } } = {
@@ -160,11 +165,64 @@ const DayDetailModal: React.FC<{
     );
 };
 
-export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeline, onEditPost, onUpdatePost, onDeletePost, brandProfile, onSendToPublisher }) => {
+export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeline, onEditPost, onUpdatePost, onDeletePost, brandProfile, brandId, onSendToPublisher, addNotification, onAddToContentPipeline }) => {
     const { t, language } = useLanguage();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+
+    // AI Calendar Generator state
+    const [showAIPanel, setShowAIPanel] = useState(false);
+    const [aiItems, setAiItems] = useState<CalendarItem[]>([]);
+    const [aiExecutionId, setAiExecutionId] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [postsPerWeek, setPostsPerWeek] = useState(4);
+    const [addedItems, setAddedItems] = useState<Set<number>>(new Set());
+
+    const handleGenerateCalendar = useCallback(async () => {
+        if (!brandId || !brandProfile) return;
+        setIsGenerating(true);
+        setAiItems([]);
+        setAiExecutionId(null);
+        setAddedItems(new Set());
+        try {
+            const { processMarketingRequest } = await import('../../services/platformBrainService');
+            const now = currentDate;
+            const occasions = getUpcomingOccasions(60).map(o => ({ name: o.nameAr, day: getDaysUntil(o) }));
+            const response = await processMarketingRequest(
+                {
+                    brandId,
+                    requestText: `توليد تقويم محتوى للشهر ${now.getMonth() + 1}/${now.getFullYear()}`,
+                    forcedSkill: SkillType.ContentCalendar,
+                    context: {
+                        month: now.getMonth() + 1,
+                        year: now.getFullYear(),
+                        postsPerWeek,
+                        occasions,
+                    },
+                },
+                brandProfile,
+            );
+            const items = (response.output.calendarItems as CalendarItem[]) ?? [];
+            setAiItems(items);
+            setAiExecutionId(response.executionId);
+            addNotification?.(NotificationType.Success, `تم توليد ${items.length} فكرة محتوى.`);
+        } catch (err) {
+            console.error('[CalendarPage] generate calendar error:', err);
+            addNotification?.(NotificationType.Error, 'فشل توليد التقويم.');
+        } finally {
+            setIsGenerating(false);
+        }
+    }, [brandId, brandProfile, currentDate, postsPerWeek, addNotification]);
+
+    const handleAddToPipeline = useCallback((item: CalendarItem, index: number) => {
+        if (!onAddToContentPipeline) return;
+        const title = `[${item.format}] ${item.topic}`;
+        const content = `${item.angle}${item.occasionLink ? `\n\nمناسبة: ${item.occasionLink}` : ''}`;
+        onAddToContentPipeline(title, content);
+        setAddedItems(prev => new Set([...prev, index]));
+        addNotification?.(NotificationType.Success, 'تمت الإضافة إلى لوحة المحتوى.');
+    }, [onAddToContentPipeline, addNotification]);
 
     const allEvents = useMemo<CalendarEvent[]>(() => {
         const postEvents: CalendarEvent[] = posts
@@ -297,6 +355,21 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeli
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* AI Calendar Generator button */}
+                    {brandId && brandProfile && (
+                        <button
+                            onClick={() => setShowAIPanel(s => !s)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                                showAIPanel
+                                    ? 'bg-brand-primary text-white border-brand-primary'
+                                    : 'bg-light-card dark:bg-dark-card border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary hover:border-brand-primary/50 hover:text-brand-primary'
+                            }`}
+                        >
+                            <i className="fas fa-wand-magic-sparkles text-[10px]" />
+                            توليد بـ AI
+                        </button>
+                    )}
+
                     {/* View toggle */}
                     <div className="flex rounded-xl overflow-hidden border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card">
                         <button
@@ -497,6 +570,119 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({ posts, contentPipeli
                 />
             )}
         </div>
+
+        {/* ── AI Calendar Generator Panel ────────────────────────────── */}
+        {showAIPanel && brandId && brandProfile && (
+            <div className="flex-shrink-0 w-80 xl:w-96 hidden lg:flex flex-col rounded-2xl border border-brand-primary/30 bg-dark-card overflow-hidden">
+                {/* Panel header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border bg-brand-primary/10">
+                    <div className="flex items-center gap-2">
+                        <i className="fas fa-wand-magic-sparkles text-brand-secondary text-sm" />
+                        <span className="text-sm font-bold text-white">توليد تقويم AI</span>
+                    </div>
+                    <button onClick={() => setShowAIPanel(false)} className="text-dark-text-secondary hover:text-white">
+                        <i className="fas fa-times text-xs" />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {/* Settings */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-dark-text-secondary">الشهر</span>
+                            <span className="text-xs font-bold text-white">
+                                {currentDate.toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' })}
+                            </span>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-dark-text-secondary">منشورات في الأسبوع</span>
+                                <span className="text-xs font-bold text-brand-secondary">{postsPerWeek}</span>
+                            </div>
+                            <input
+                                type="range" min={2} max={7} value={postsPerWeek}
+                                onChange={e => setPostsPerWeek(Number(e.target.value))}
+                                className="w-full accent-brand-primary"
+                            />
+                            <div className="flex justify-between text-[10px] text-dark-text-secondary">
+                                <span>2</span><span>7</span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleGenerateCalendar}
+                            disabled={isGenerating}
+                            className="w-full py-2.5 bg-brand-primary hover:bg-brand-secondary text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                        >
+                            {isGenerating
+                                ? <><i className="fas fa-spinner fa-spin text-xs" /> جارٍ التوليد...</>
+                                : <><i className="fas fa-bolt text-xs" /> توليد تقويم {currentDate.toLocaleDateString('ar-EG', { month: 'long' })}</>
+                            }
+                        </button>
+                    </div>
+
+                    {/* Evaluation bar after generation */}
+                    {aiExecutionId && aiItems.length > 0 && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-dark-bg border border-dark-border">
+                            <span className="text-[11px] text-dark-text-secondary">قيّم التقويم:</span>
+                            <EvaluationButtons
+                                executionId={aiExecutionId}
+                                brandId={brandId}
+                                skillType={SkillType.ContentCalendar}
+                                output={aiItems.map(i => i.topic).join(', ')}
+                                compact
+                            />
+                        </div>
+                    )}
+
+                    {/* Generated items */}
+                    {aiItems.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-dark-text-secondary">
+                                {aiItems.length} فكرة محتوى
+                            </p>
+                            {aiItems.map((item, i) => {
+                                const isAdded = addedItems.has(i);
+                                return (
+                                    <div key={i} className={`rounded-xl border p-3 space-y-1.5 transition-colors ${isAdded ? 'border-emerald-700/40 bg-emerald-900/10' : 'border-dark-border bg-dark-bg'}`}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-brand-primary/20 text-brand-secondary">{item.format}</span>
+                                                    <span className="text-[10px] text-dark-text-secondary">{item.platform}</span>
+                                                    <span className="text-[10px] font-bold text-dark-text-secondary">يوم {item.day}</span>
+                                                </div>
+                                                <p className="text-xs font-semibold text-white leading-snug">{item.topic}</p>
+                                                <p className="text-[11px] text-dark-text-secondary mt-0.5 line-clamp-2">{item.angle}</p>
+                                            </div>
+                                        </div>
+                                        {onAddToContentPipeline && (
+                                            <button
+                                                onClick={() => handleAddToPipeline(item, i)}
+                                                disabled={isAdded}
+                                                className={`w-full py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+                                                    isAdded
+                                                        ? 'bg-emerald-900/20 text-emerald-400 cursor-default'
+                                                        : 'bg-dark-card hover:bg-brand-primary/20 text-dark-text-secondary hover:text-brand-secondary'
+                                                }`}
+                                            >
+                                                {isAdded ? <><i className="fas fa-check me-1" /> تمت الإضافة</> : <><i className="fas fa-plus me-1" /> أضف للوحة المحتوى</>}
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {!isGenerating && aiItems.length === 0 && (
+                        <div className="py-8 text-center">
+                            <i className="fas fa-calendar-plus text-3xl text-dark-text-secondary mb-3 block opacity-30" />
+                            <p className="text-xs text-dark-text-secondary">اضبط الإعدادات واضغط "توليد"<br/>سيقترح AI أفكار محتوى لكل الشهر</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
 
         {/* Smart Occasions Sidebar */}
         {brandProfile && onSendToPublisher && (

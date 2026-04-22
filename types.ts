@@ -46,6 +46,40 @@ export enum SocialPlatform {
     Pinterest = 'Pinterest',
 }
 
+export enum AssetType {
+    Page            = 'page',
+    IgAccount       = 'ig_account',
+    AdAccount       = 'ad_account',
+    Pixel           = 'pixel',
+    Store           = 'store',
+    Site            = 'site',
+    InboxChannel    = 'inbox_channel',
+    YouTubeChannel  = 'youtube_channel',
+    TikTokAccount   = 'tiktok_account',
+    LinkedInPage    = 'linkedin_page',
+    XAccount        = 'x_account',
+}
+
+export enum AssetPurpose {
+    Publishing  = 'publishing',
+    Inbox       = 'inbox',
+    Analytics   = 'analytics',
+    Commerce    = 'commerce',
+    Ads         = 'ads',
+    Seo         = 'seo',
+}
+
+export enum SyncStatus {
+    Active          = 'active',
+    NeedsReconnect  = 'needs_reconnect',
+    TokenExpired    = 'token_expired',
+    ScopeMissing    = 'scope_missing',
+    WebhookInactive = 'webhook_inactive',
+    PartialSync     = 'partial_sync',
+    SyncDelayed     = 'sync_delayed',
+    Disconnected    = 'disconnected',
+}
+
 export interface SocialAsset {
     id: string;
     name: string;
@@ -53,6 +87,32 @@ export interface SocialAsset {
     followers: number;
     avatarUrl: string;
     accessToken?: string;
+    pageId?: string;  // Facebook Page ID — set for Instagram assets (IG account is linked to a page)
+    // Integration OS fields
+    assetType?: AssetType;
+    purposes?: AssetPurpose[];
+    market?: string;
+}
+
+export interface ConnectedAsset {
+    id: string;
+    brand_id: string;
+    platform: SocialPlatform;
+    asset_type: AssetType;
+    asset_name: string;
+    avatar_url?: string;
+    followers_count?: number;
+    purposes: AssetPurpose[];
+    market?: string;
+    is_primary: boolean;
+    sync_status: SyncStatus;
+    last_synced_at?: string;
+    sync_error?: string;
+    webhook_active: boolean;
+    token_expiring_soon: boolean;
+    token_expires_at?: string;
+    token_is_valid: boolean;
+    connection_status: string;
 }
 
 export const PLATFORM_ASSETS: { [key in SocialPlatform]: { icon: string; color: string; textColor: string; hexColor: string; } } = {
@@ -124,6 +184,8 @@ export enum AccountStatus {
     Expired = 'Expired',
 }
 
+// --- Asset Registry (migration 048 — enums defined above in lines 49-81) ---
+
 export interface SocialAccount {
     id: string;
     platform: SocialPlatform;
@@ -131,6 +193,40 @@ export interface SocialAccount {
     avatarUrl: string;
     followers: number;
     status: AccountStatus;
+    // Asset registry fields (migration 048)
+    assetType?: AssetType;
+    purposes?: AssetPurpose[];
+    market?: string;
+    isPrimary?: boolean;
+    syncStatus?: SyncStatus;
+    lastSyncedAt?: string | null;
+    syncError?: string | null;
+    webhookActive?: boolean;
+    scopesGranted?: string[];
+}
+
+export interface IntegrationHealth {
+    id: string;
+    brandId: string;
+    platform: string;
+    assetType: AssetType;
+    assetName: string;
+    avatarUrl: string | null;
+    followersCount: number | null;
+    purposes: AssetPurpose[];
+    market: string | null;
+    isPrimary: boolean;
+    syncStatus: SyncStatus;
+    lastSyncedAt: string | null;
+    syncError: string | null;
+    webhookActive: boolean;
+    scopesGranted: string[];
+    connectionStatus: AccountStatus;
+    tokenExpiringSoon: boolean;
+    tokenExpiresAt: string | null;
+    tokenIsValid: boolean | null;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export enum AdPlatform {
@@ -176,6 +272,8 @@ export interface BrandAudience {
 export interface BrandHubProfile {
     brandName: string;
     industry: string;
+    country?: string;   // ISO-2 code, sourced from brands.country
+    website?: string;
     values: string[];
     keySellingPoints: string[];
     styleGuidelines: string[];
@@ -1852,3 +1950,398 @@ export const DESIGN_FORMAT_MAP: Record<DesignWorkflowOutputFormat, DesignWorkflo
     'ad-banner-landscape':  { format: 'ad-banner-landscape',  width: 1200, height: 628,  label: 'Ad Landscape',       labelAr: 'إعلان أفقي',         aspectRatio: '16:9' },
     'custom':               { format: 'custom',               width: 1080, height: 1080, label: 'Custom Size',        labelAr: 'مقاس مخصص',         aspectRatio: '1:1'  },
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SKILL ENGINE — محرك المهارات
+// ══════════════════════════════════════════════════════════════════════════════
+
+export enum SkillType {
+    ContentGeneration       = 'content_generation',
+    OccasionOpportunity     = 'occasion_opportunity',
+    ConversationReply       = 'conversation_reply',
+    CampaignBrief           = 'campaign_brief',
+    MarketingPlanSuggestion = 'marketing_plan_suggestion',
+    HashtagResearch         = 'hashtag_research',
+    CompetitorAnalysis      = 'competitor_analysis',
+    ContentCalendar         = 'content_calendar',
+    AdCopywriting           = 'ad_copywriting',
+    SEOContentBrief         = 'seo_content_brief',
+    AudienceInsight         = 'audience_insight',
+    BrandVoiceCheck         = 'brand_voice_check',
+    LeadQualification       = 'lead_qualification',
+    FollowUpSequence        = 'follow_up_sequence',
+}
+
+export type SkillContextLevel = 'minimal' | 'standard' | 'full';
+// minimal  ~80 tokens  : name + tone + forbidden words
+// standard ~300 tokens : + audience + selling points
+// full     ~1200 tokens: + products + FAQs + policies + memory
+
+export type SkillPreferredModel = 'gemini-2.5-flash' | 'gemini-2.5-pro';
+
+export interface SkillDefinition {
+    type: SkillType;
+    nameAr: string;
+    nameEn: string;
+    description: string;
+    triggerKeywords: string[];
+    inputSchema: string[];
+    outputKeys: string[];
+    kpis: string[];
+    confidenceThreshold: number;
+    requiresHumanApproval: boolean;
+    contextLevel: SkillContextLevel;
+    preferredModel: SkillPreferredModel;
+}
+
+export interface TaskClassification {
+    detectedSkill: SkillType;
+    confidence: number;
+    extractedEntities: Record<string, string>;
+    ambiguous: boolean;
+    alternativeSkills: SkillType[];
+}
+
+export interface SkillExecution {
+    id: string;
+    skillType: SkillType;
+    brandId: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    rawOutput: string;
+    confidence: number;
+    brandPolicyPassed: boolean;
+    requiresApproval: boolean;
+    executionTimeMs: number;
+    timestamp: string;
+}
+
+// ── Evaluation (التغذية الراجعة) ─────────────────────────────────────────────
+
+export type EvaluationSignalType =
+    | 'used'            // المستخدم استخدم المخرج مباشرة
+    | 'edited'          // المستخدم عدّل المخرج
+    | 'rejected'        // المستخدم رفض المخرج
+    | 'converted'       // المخرج حقق conversion
+    | 'human_escalated' // احتاج تدخل بشري
+    | 'rated';          // المستخدم قيّم المخرج بالنجوم
+
+export interface EvaluationSignal {
+    executionId: string;
+    brandId: string;
+    skillType: SkillType;
+    signal: EvaluationSignalType;
+    originalOutput: string;
+    editedOutput?: string;
+    rating?: number;    // 1-5
+    note?: string;
+}
+
+export interface SkillStats {
+    totalExecutions: number;
+    usedRate: number;
+    editedRate: number;
+    rejectedRate: number;
+    averageRating: number;
+}
+
+// ── Marketing Request (الطلب العام للمنسق) ───────────────────────────────────
+
+export interface MarketingRequest {
+    brandId: string;
+    requestText: string;
+    context?: Record<string, unknown>;
+    platform?: SocialPlatform;
+    urgency?: 'high' | 'medium' | 'low';
+    forcedSkill?: SkillType;
+}
+
+export interface PlatformBrainResponse {
+    executionId: string;
+    skill: SkillType;
+    confidence: number;
+    output: Record<string, unknown>;
+    requiresApproval: boolean;
+    brandPolicyPassed: boolean;
+    classification: TaskClassification;
+    executionTimeMs: number;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// BRAND BRAIN — نواة عقل البراند
+// نظام التشغيل التسويقي: يجمع هوية البراند وقاعدة معرفته وذاكرته في سياق موحد
+// ══════════════════════════════════════════════════════════════════════════════
+
+// --- Brand Knowledge Base ---
+
+export type BrandKnowledgeType =
+    | 'product'          // منتج أو خدمة
+    | 'faq'              // سؤال شائع وإجابته
+    | 'policy'           // سياسة (شحن، دفع، إرجاع)
+    | 'competitor'       // معلومات منافس
+    | 'scenario_script'; // سكريبت سيناريو محادثة
+
+export interface BrandKnowledgeEntry {
+    id: string;
+    brandId: string;
+    type: BrandKnowledgeType;
+    title: string;
+    content: string;
+    metadata?: Record<string, unknown>;
+    sortOrder: number;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// --- Conversation Scenarios ---
+
+export enum ConversationScenario {
+    FirstInquiry       = 'first_inquiry',       // استفسار أول مرة
+    PriceAsk           = 'price_ask',            // سؤال عن السعر
+    CompetitorCompare  = 'competitor_compare',   // مقارنة بمنافس
+    PriceObjection     = 'price_objection',      // اعتراض على السعر
+    ShippingIssue      = 'shipping_issue',       // مشكلة شحن أو توصيل
+    Complaint          = 'complaint',            // شكوى
+    ProductUnavailable = 'product_unavailable',  // منتج غير متوفر
+    AppointmentRequest = 'appointment_request',  // حجز موعد
+    FollowUp           = 'follow_up',            // متابعة بعد عدم الرد
+    LeadCapture        = 'lead_capture',         // تحويل المحادثة لبيع أو Lead
+    General            = 'general',              // استفسار عام
+    Escalate           = 'escalate',             // تحويل لموظف بشري
+}
+
+export interface ConversationReply {
+    reply: string;                          // الرد الجاهز للإرسال
+    scenario: ConversationScenario;         // السيناريو الذي تم اكتشافه
+    escalate: boolean;                      // هل يجب تحويل المحادثة لبشري؟
+    followUpSuggestion?: string;            // اقتراح متابعة
+    internalNote?: string;                  // ملاحظة داخلية للفريق
+}
+
+// --- Occasion Opportunity (المناسبة كفرصة تسويقية) ---
+
+export interface OccasionOpportunity {
+    occasionId: string;
+    occasionName: string;
+    daysUntil: number;
+    urgency: 'high' | 'medium' | 'low';    // high ≤3 days, medium ≤7, low ≤14
+    contentAngles: string[];               // 3 زوايا محتوى مختلفة
+    reelIdea: string;                      // فكرة Reel جاهزة
+    offerIdea: string;                     // فكرة عرض أو ترويج
+    messageTone: string;                   // نبرة الرسالة المناسبة لهذه المناسبة
+    sampleCaption: string;                 // كابشن جاهز مناسب للبراند
+    hashtags: string[];                    // هاشتاقات مناسبة
+}
+
+// --- Brand Brain Context (السياق الكامل لعقل البراند) ---
+
+export interface BrandBrainContext {
+    brandId: string;
+    identity: {
+        name: string;
+        industry: string;
+        country: string;
+        website?: string;
+    };
+    voice: {
+        tone: string[];
+        keywords: string[];
+        negativeKeywords: string[];
+        dos: string[];
+        donts: string[];
+    };
+    audiences: {
+        name: string;
+        description: string;
+        painPoints: string[];
+        emotions: string[];
+    }[];
+    knowledge: {
+        products: string;     // مُهيَّأ للـ AI prompt
+        faqs: string;
+        policies: string;
+        competitors: string;
+    };
+    memory: string;           // ذاكرة المحتوى السابق والتصحيحات
+    sellingPoints: string[];
+    values: string[];
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MEDIA PRODUCTION FLOW — خط إنتاج الميديا
+// Creative Studio: من الهدف إلى مخرجات ميديا جاهزة ومرتبطة بالأداء
+// ══════════════════════════════════════════════════════════════════════════════
+
+export type MediaProjectGoal =
+    | 'awareness'
+    | 'engagement'
+    | 'conversion'
+    | 'leads'
+    | 'retention'
+    | 'traffic';
+
+export type MediaProjectOutputType =
+    | 'static'
+    | 'carousel'
+    | 'reel'
+    | 'story'
+    | 'ad'
+    | 'motion'
+    | 'mixed';
+
+export type MediaProjectPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export type MediaProjectStatus =
+    | 'request'     // مرحلة الطلب
+    | 'brief'       // AI يولّد البريف
+    | 'matrix'      // Idea Matrix جاهز
+    | 'production'  // التنفيذ جارٍ
+    | 'review'      // في المراجعة
+    | 'approved'    // مُعتمد
+    | 'published'   // منشور
+    | 'archived';   // أرشيف
+
+export type MediaProjectTrack = 'design' | 'video' | 'copy';
+export type MediaPieceStatus = 'draft' | 'in_progress' | 'review' | 'approved' | 'published';
+export type MediaReviewLevel = 'internal' | 'marketing' | 'client';
+export type MediaReviewStatus = 'pending' | 'approved' | 'changes_requested' | 'rejected';
+
+// ── AI Creative Brief ─────────────────────────────────────────────────────────
+
+export interface CreativeBrief {
+    objective: string;
+    audience: string;
+    coreMessage: string;
+    offer: string;
+    tone: string;
+    visualDirection: string;
+    formatSpecs: string;
+    deliverables: string[];
+    mandatoryElements: string[];
+    prohibitions: string[];
+    cta: string;
+    successCriteria: string[];
+}
+
+// ── Idea Matrix ───────────────────────────────────────────────────────────────
+
+export interface IdeaMatrixFormat {
+    type: string;        // Static / Reel / Carousel / Story / Ad
+    description: string; // وصف مختصر لكيفية تنفيذ هذا الفورمات بهذا الـ hook
+}
+
+export interface IdeaMatrixAngle {
+    angle: string;                // اسم الزاوية (Pain Point / Social Proof / Urgency)
+    hook: string;                 // الـ hook المقترح
+    rationale: string;            // لماذا هذه الزاوية تناسب البراند والهدف
+    formats: IdeaMatrixFormat[];  // الفورمات المقترحة لهذه الزاوية
+}
+
+// ── Core Entities ─────────────────────────────────────────────────────────────
+
+export interface MediaProject {
+    id: string;
+    brandId: string;
+    title: string;
+    goal: MediaProjectGoal;
+    outputType: MediaProjectOutputType;
+    campaign?: string;
+    productOffer?: string;
+    cta?: string;
+    platforms: string[];
+    deadline?: string;           // ISO date
+    priority: MediaProjectPriority;
+    status: MediaProjectStatus;
+    brief: CreativeBrief | null;
+    ideaMatrix: IdeaMatrixAngle[];
+    performance: Record<string, unknown>;
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface MediaProjectPiece {
+    id: string;
+    projectId: string;
+    brandId: string;
+    isMaster: boolean;
+    variantOf?: string;
+    title: string;
+    content: string;
+    track?: MediaProjectTrack;
+    format?: string;
+    angle?: string;
+    hook?: string;
+    script?: string;
+    platform?: string;
+    variantLabel?: string;       // '1:1' / '9:16' / 'Arabic' / 'No-audio'
+    status: MediaPieceStatus;
+    notes?: string;
+    publishedPostId?: string;    // linked scheduled_post after publishing
+    createdAt: string;
+    updatedAt: string;
+}
+
+// ── Campaign Insights (Learning Loop) ─────────────────────────────────────────
+
+export interface MediaCampaignInsight {
+    id: string;
+    projectId: string;
+    brandId: string;
+    whatWorked: string;
+    whatToImprove: string;
+    nextCampaignRecommendation: string;
+    creativeScore: number;
+    piecesSummary: Array<{ id: string; title: string; format?: string; status: string }>;
+    generatedAt: string;
+    createdAt: string;
+}
+
+export interface MediaProjectReview {
+    id: string;
+    projectId: string;
+    brandId: string;
+    pieceId?: string;
+    reviewLevel: MediaReviewLevel;
+    status: MediaReviewStatus;
+    reviewerName?: string;
+    comment?: string;
+    createdAt: string;
+}
+
+// ── Summary (from view) ───────────────────────────────────────────────────────
+
+export interface MediaProjectSummary {
+    id: string;
+    brandId: string;
+    title: string;
+    goal: MediaProjectGoal;
+    outputType: MediaProjectOutputType;
+    campaign?: string;
+    platforms: string[];
+    deadline?: string;
+    priority: MediaProjectPriority;
+    status: MediaProjectStatus;
+    createdAt: string;
+    updatedAt: string;
+    piecesCount: number;
+    masterCount: number;
+    approvedPieces: number;
+    pendingReviews: number;
+}
+
+// ── Creative Request Form (UI intake) ─────────────────────────────────────────
+
+export interface CreativeRequestForm {
+    title: string;
+    goal: MediaProjectGoal;
+    outputType: MediaProjectOutputType;
+    campaign: string;
+    productOffer: string;
+    cta: string;
+    platforms: SocialPlatform[];
+    deadline: string;
+    priority: MediaProjectPriority;
+    notes: string;
+}

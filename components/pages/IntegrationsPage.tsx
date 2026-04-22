@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
     AccountStatus,
+    AssetPurpose,
     NotificationType,
     PLATFORM_ASSETS,
     SocialPlatform,
@@ -29,6 +30,8 @@ import { disconnectSocialAccount, updateAccountStatus } from '../../services/soc
 import { useLanguage } from '../../context/LanguageContext';
 import { useUIStore } from '../../stores/uiStore';
 import { AssetSelectionModal } from '../AssetSelectionModal';
+import { ConnectionIntentModal } from '../ConnectionIntentModal';
+import { IntegrationHealthCenter } from '../IntegrationHealthCenter';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
 import {
     countConnectionsNeedingAttention,
@@ -985,9 +988,11 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [loadingPlatform, setLoadingPlatform] = useState<SocialPlatform | null>(null);
     const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
+    const [isIntentModalOpen, setIsIntentModalOpen] = useState(false);
     const [currentPlatform, setCurrentPlatform] = useState<SocialPlatform | null>(null);
     const [currentToken, setCurrentToken] = useState<string | null>(null);
     const [foundAssets, setFoundAssets] = useState<SocialAsset[]>([]);
+    const [syncSummary, setSyncSummary] = useState<{ platform: SocialPlatform; count: number; purposes: AssetPurpose[] } | null>(null);
     const [pendingDisconnect, setPendingDisconnect] = useState<DisconnectTarget | null>(null);
     const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
     const [providerDialog, setProviderDialog] = useState<ProviderDialogState | null>(null);
@@ -1159,13 +1164,18 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         }
     };
 
-    const handleAssetsConfirmed = async (selectedAssets: SocialAsset[]) => {
+    const handleIntentPlatformSelect = (platform: SocialPlatform) => {
+        handleConnectPlatform(platform);
+    };
+
+    const handleAssetsConfirmed = async (selectedAssets: SocialAsset[], purposes: AssetPurpose[], market?: string) => {
         if (!currentPlatform || !currentToken) return;
 
         setLoadingPlatform(currentPlatform);
         try {
-            await connectSelectedAssets(brandId, selectedAssets, currentPlatform, currentToken);
-            addNotification(NotificationType.Success, ar ? `تم ربط ${currentPlatform} بنجاح.` : `${currentPlatform} connected successfully.`);
+            await connectSelectedAssets(brandId, selectedAssets, currentPlatform, currentToken, { defaultPurposes: purposes, market });
+            setSyncSummary({ platform: currentPlatform, count: selectedAssets.length, purposes });
+            addNotification(NotificationType.Success, ar ? `تم ربط ${selectedAssets.length} ${selectedAssets.length === 1 ? 'حساب' : 'حسابات'} من ${currentPlatform} بنجاح.` : `${selectedAssets.length} ${currentPlatform} account${selectedAssets.length !== 1 ? 's' : ''} connected successfully.`);
             setIsAssetModalOpen(false);
             setCurrentPlatform(null);
             setCurrentToken(null);
@@ -1173,7 +1183,20 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             await refreshData();
         } catch (error) {
             console.error('IntegrationsPage connect assets failed:', error);
-            addNotification(NotificationType.Error, ar ? 'فشل حفظ الأصول المرتبطة. حاول مرة أخرى.' : 'Failed to save connected assets. Please try again.');
+            const msg = error instanceof Error ? error.message : '';
+            const isServerConfig = msg.includes('OAUTH_ENCRYPTION_KEY') || msg.includes('misconfiguration') || msg.includes('503') || msg.includes('Server misconfiguration');
+            const isAuthError = msg.includes('401') || msg.includes('403') || msg.includes('Unauthorized') || msg.includes('Forbidden');
+            let userMsg: string;
+            if (isServerConfig) {
+                userMsg = ar
+                    ? 'خطأ في إعداد الخادم: مفتاح التشفير غير مضبوط في Supabase — يرجى إضافة OAUTH_ENCRYPTION_KEY في secrets.'
+                    : 'Server config error: OAUTH_ENCRYPTION_KEY is not set in Supabase — add it under Edge Function secrets.';
+            } else if (isAuthError) {
+                userMsg = ar ? 'انتهت الجلسة — يرجى تسجيل الدخول مرة أخرى.' : 'Session expired — please sign in again.';
+            } else {
+                userMsg = ar ? `فشل حفظ الأصول المرتبطة: ${msg || 'حاول مرة أخرى.'}` : `Failed to save connected assets: ${msg || 'Please try again.'}`;
+            }
+            addNotification(NotificationType.Error, userMsg);
         } finally {
             setLoadingPlatform(null);
         }
@@ -1241,9 +1264,9 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                             {isRefreshing ? <i className="fas fa-circle-notch fa-spin text-xs" /> : <i className="fas fa-sync-alt text-xs" />}
                             <span>{ar ? 'تحديث الحالة' : 'Refresh status'}</span>
                         </button>
-                        <button type="button" onClick={() => onNavigate('social-ops/accounts')} className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-primary/90">
-                            <i className="fas fa-link text-xs" />
-                            <span>{ar ? 'فتح مدير القنوات' : 'Open channel manager'}</span>
+                        <button type="button" onClick={() => setIsIntentModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-primary/90">
+                            <i className="fas fa-plug text-xs" />
+                            <span>{ar ? 'ربط حساب جديد' : 'Connect account'}</span>
                         </button>
                     </>
                 )}
@@ -1254,6 +1277,38 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     { label: ar ? 'قريبًا' : 'Coming soon', value: formatNumber(comingSoonCount, locale) },
                 ]}
             >
+                {/* ── First Sync Summary Banner ─────────────────────────── */}
+                {syncSummary && (
+                    <div className="mb-2 flex items-start gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white">
+                            <i className="fas fa-circle-check text-lg" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-light-text dark:text-dark-text">
+                                {ar
+                                    ? `تم ربط ${syncSummary.count} ${syncSummary.count === 1 ? 'حساب' : 'حسابات'} من ${syncSummary.platform}`
+                                    : `${syncSummary.count} ${syncSummary.platform} account${syncSummary.count !== 1 ? 's' : ''} connected`}
+                            </p>
+                            <p className="mt-0.5 text-xs text-emerald-700 dark:text-emerald-300">
+                                {ar
+                                    ? `الوظائف المفعّلة: ${syncSummary.purposes.map(p => ({ publishing: 'النشر', inbox: 'الوارد', analytics: 'التحليلات', ads: 'الإعلانات', commerce: 'التجارة', seo: 'السيو' })[p] ?? p).join(' · ')}`
+                                    : `Active for: ${syncSummary.purposes.join(' · ')}`}
+                            </p>
+                        </div>
+                        <button onClick={() => setSyncSummary(null)} className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
+                            <i className="fas fa-xmark text-sm" />
+                        </button>
+                    </div>
+                )}
+
+                {/* ── Integration Health Center ────────────────────────── */}
+                <PageSection
+                    title={ar ? 'صحة الاتصالات' : 'Connection Health'}
+                    description={ar ? 'حالة كل أصل مربوط — التوكن، المزامنة، الوظائف، والتنبيهات.' : 'Status of every connected asset — token, sync, purpose, and alerts.'}
+                >
+                    <IntegrationHealthCenter brandId={brandId} />
+                </PageSection>
+
                 <PageSection title="Publishing" description={ar ? 'قنوات النشر الحية وحسابات السوشيال المتصلة. من هنا ترى الحالة الفعلية للحسابات، ثم تفتح شاشة القنوات إذا احتجت إدارة الأصول أو إعادة التهيئة.' : 'Live publishing channels and connected social accounts. Use this section to review real account state, then open the channels screen when you need deeper asset management.'} actions={(
                     <button type="button" onClick={() => onNavigate('social-ops/accounts')} className="rounded-xl border border-light-border px-3 py-2 text-xs font-semibold text-light-text-secondary hover:text-light-text dark:border-dark-border dark:text-dark-text-secondary dark:hover:text-dark-text">
                         {ar ? 'فتح شاشة القنوات' : 'Open channels'}
@@ -1540,6 +1595,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     </PageSection>
                 )}
             </PageScaffold>
+
+            <ConnectionIntentModal
+                isOpen={isIntentModalOpen}
+                onClose={() => setIsIntentModalOpen(false)}
+                onSelectPlatform={handleIntentPlatformSelect}
+            />
 
             <AssetSelectionModal
                 isOpen={isAssetModalOpen}

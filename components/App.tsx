@@ -24,6 +24,7 @@ const BrandsManagePage = lazy(() => import('./pages/BrandsManagePage').then(m =>
 import { AddBrandModal } from './AddBrandModal';
 import { BrandOnboardingWizard } from './BrandOnboardingWizard';
 import { BrandIntelligenceModal } from './BrandIntelligenceModal';
+import { BrandBrainReviewScreen } from './BrandBrainReviewScreen';
 import { MobileBottomNav } from './MobileBottomNav';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ToastStack } from './shared/ToastStack';
@@ -59,6 +60,7 @@ import {
     DesignAsset,
 } from '../types';
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const MobileHomePage = lazy(() => import('./pages/MobileHomePage').then(m => ({ default: m.MobileHomePage })));
 const AdsOpsPage = lazy(() => import('./pages/AdsOpsPage').then(m => ({ default: m.AdsOpsPage })));
 const SEOOpsPage = lazy(() => import('./pages/SEOOpsPageV2'));
 const SocialSearchPage = lazy(() => import('./pages/SocialSearchPage').then(m => ({ default: m.SocialSearchPage })));
@@ -79,6 +81,8 @@ const TenantsPage = lazy(() => import('./admin/pages/TenantsPage').then(m => ({ 
 const BillingPage = lazy(() => import('./admin/pages/BillingPage').then(m => ({ default: m.BillingPage })));
 const MarketingPlansPage = lazy(() => import('./pages/MarketingPlansPage').then(m => ({ default: m.MarketingPlansPage })));
 const BrandAnalysisPage = lazy(() => import('./pages/BrandAnalysisPage').then(m => ({ default: m.BrandAnalysisPage })));
+const BrandBrainPage      = lazy(() => import('./pages/BrandBrainPage').then(m => ({ default: m.BrandBrainPage })));
+const BrandKnowledgePage  = lazy(() => import('./pages/BrandKnowledgePage').then(m => ({ default: m.BrandKnowledgePage })));
 const AIMonitorPage = lazy(() => import('./admin/pages/AIMonitorPage').then(m => ({ default: m.AIMonitorPage })));
 const QueuesPage = lazy(() => import('./admin/pages/QueuesPage').then(m => ({ default: m.QueuesPage })));
 const AdminSettingsPage = lazy(() => import('./admin/pages/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
@@ -86,6 +90,8 @@ const SystemHealthPage = lazy(() => import('./admin/pages/SystemHealthPage').the
 const CommandPalette = lazy(() => import('./admin/shared/ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const AIProviderKeysPage = lazy(() => import('./admin/pages/AIProviderKeysPage').then(m => ({ default: m.AIProviderKeysPage })));
 const AdminLogsPage = lazy(() => import('./admin/pages/AdminLogsPage').then(m => ({ default: m.AdminLogsPage })));
+const AdminDataAnalyticsPage = lazy(() => import('./admin/pages/AdminDataAnalyticsPage').then(m => ({ default: m.AdminDataAnalyticsPage })));
+const IntegrationOSPage = lazy(() => import('./pages/IntegrationOSPage').then(m => ({ default: m.IntegrationOSPage })));
 const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
 const UserBillingPage = lazy(() => import('./pages/UserBillingPage').then(m => ({ default: m.UserBillingPage })));
 const CrmDashboardPage = lazy(() => import('./pages/crm/CrmDashboardPage').then(m => ({ default: m.CrmDashboardPage })));
@@ -96,6 +102,7 @@ const MarketingSite  = lazy(() => import('./marketing/MarketingSite'));
 const DesignOpsPage  = lazy(() => import('./pages/DesignOpsPage').then(m => ({ default: m.DesignOpsPage })));
 const VideoStudioPage = lazy(() => import('./pages/VideoStudioPage').then(m => ({ default: m.VideoStudioPage })));
 const ContentStudioPage = lazy(() => import('./pages/ContentStudioPage').then(m => ({ default: m.ContentStudioPage })));
+const MediaOpsPage = lazy(() => import('./pages/MediaOpsPage').then(m => ({ default: m.MediaOpsPage })));
 const AssetLibraryPage = lazy(() => import('./pages/AssetLibraryPage').then(m => ({ default: m.AssetLibraryPage })));
 
 const buildFallbackBrandProfile = (brandName = ''): BrandHubProfile => ({
@@ -258,6 +265,13 @@ const AppShell: React.FC = () => {
         setViewMode,
         setAuthPage,
     });
+
+    // ── Mobile: auto-redirect dashboard → mobile-home ────────────────────────
+    useEffect(() => {
+        if (isAuthenticated && activeBrandPage === 'dashboard' && window.innerWidth < 1024) {
+            setActiveBrandPage('mobile-home');
+        }
+    }, [isAuthenticated, activeBrandPage]);
 
     // ── Brand Data Hook (core/essential data only) ────────────────────────────
     // Phase 0: useBrandData now fetches only 3 essential items (socialAccounts,
@@ -653,6 +667,7 @@ const AppShell: React.FC = () => {
         if (brandsLoading || (brandDataLoading && activeBrand)) {
             // Page-specific skeleton while loading
             switch (activeBrandPage) {
+                case 'mobile-home': return <SkeletonDashboard />;
                 case 'dashboard': return <SkeletonDashboard />;
                 case 'analytics': return <SkeletonAnalytics />;
                 case 'inbox': return <SkeletonInbox />;
@@ -668,6 +683,14 @@ const AppShell: React.FC = () => {
         }
 
         switch (activeBrandPage) {
+            case 'mobile-home':
+                return (
+                    <MobileHomePage
+                        brandId={activeBrand.id}
+                        brandName={activeBrand.name}
+                        onNavigate={setActiveBrandPage}
+                    />
+                );
             case 'dashboard':
                 return (
                     <DashboardPage
@@ -682,6 +705,7 @@ const AppShell: React.FC = () => {
                         hasConnectedAccount={socialAccounts.length > 0}
                         hasBrandProfile={Boolean(fetchedBrandProfile)}
                         hasLinkedAds={hasLiveGoogleAdsConnection}
+                        brandProfile={resolvedBrandProfile ?? undefined}
                     />
                 );
             case 'social-ops/publisher':
@@ -693,7 +717,7 @@ const AppShell: React.FC = () => {
             case 'social-ops/social-search':
                 return <SocialSearchPage brandId={activeBrand.id} addNotification={addNotification} onSendToPublisher={handleSocialIdeaToPublisher} />;
             case 'calendar':
-                return <CalendarPage posts={scheduledPosts} contentPipeline={contentPipeline} onEditPost={handleEditPost} onUpdatePost={handleUpdatePost} onDeletePost={async (id) => { await deleteScheduledPost(id); fetchDataForBrand(activeBrand); }} brandProfile={resolvedBrandProfile} onSendToPublisher={handleLoadPublisherBrief} />;
+                return <CalendarPage posts={scheduledPosts} contentPipeline={contentPipeline} onEditPost={handleEditPost} onUpdatePost={handleUpdatePost} onDeletePost={async (id) => { await deleteScheduledPost(id); fetchDataForBrand(activeBrand); }} brandProfile={resolvedBrandProfile} brandId={activeBrand.id} onSendToPublisher={handleLoadPublisherBrief} addNotification={addNotification} onAddToContentPipeline={(title, content) => addContentPiece(activeBrand.id, { title, generatedContent: content, type: 'Social', status: 'Ideas' as any, platforms: [] })} />;
             case 'content-ops':
                 return (
                     <ContentOpsPage
@@ -823,6 +847,18 @@ const AppShell: React.FC = () => {
                         />
                     </Suspense>
                 );
+            case 'media-ops':
+                return (
+                    <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
+                        <MediaOpsPage
+                            brandId={activeBrand.id}
+                            brandProfile={resolvedBrandProfile}
+                            addNotification={addNotification}
+                            onNavigate={setActiveBrandPage}
+                            onSendToPublisher={handleLoadPublisherBrief}
+                        />
+                    </Suspense>
+                );
             case 'asset-library':
                 return (
                     <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
@@ -854,7 +890,19 @@ const AppShell: React.FC = () => {
             case 'inbox':
                 return <InboxPage brandId={activeBrand.id} addNotification={addNotification} brandProfile={resolvedBrandProfile} conversations={conversations} onAddTask={handleAddTask} />;
             case 'brand-hub':
-                return <BrandHubPage initialProfile={resolvedBrandProfile} onUpdate={(p) => updateBrandProfile(activeBrand.id, p)} addNotification={addNotification} />;
+                return <BrandHubPage brandId={activeBrand.id} initialProfile={resolvedBrandProfile} onUpdate={(p) => updateBrandProfile(activeBrand.id, p)} addNotification={addNotification} />;
+            case 'brand-brain':
+                return <BrandBrainPage brandId={activeBrand.id} brandName={activeBrand.name} addNotification={addNotification} />;
+            case 'brand-knowledge':
+                return (
+                    <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
+                        <BrandKnowledgePage brandId={activeBrand.id} addNotification={addNotification} />
+                    </Suspense>
+                );
+            case 'brand-brain-review':
+                return resolvedBrandProfile
+                    ? <BrandBrainReviewScreen brandProfile={resolvedBrandProfile} onApprove={() => setActiveBrandPage('dashboard')} onEdit={() => setActiveBrandPage('brand-hub')} />
+                    : <BrandHubPage brandId={activeBrand.id} initialProfile={resolvedBrandProfile} onUpdate={(p) => updateBrandProfile(activeBrand.id, p)} addNotification={addNotification} />;
             case 'brand-analysis':
                 return <BrandAnalysisPage brandProfile={resolvedBrandProfile} addNotification={addNotification} />;
             case 'workflow':
@@ -870,6 +918,8 @@ const AppShell: React.FC = () => {
                         onNavigate={setActiveBrandPage}
                     />
                 );
+            case 'integration-os':
+                return <IntegrationOSPage brandId={activeBrand.id} addNotification={addNotification} />;
             case 'error-center':
                 return <ErrorCenterPage addNotification={addNotification} errors={errors} />;
             case 'system':
@@ -922,7 +972,7 @@ const AppShell: React.FC = () => {
             case 'crm/customers':
                 return <CustomersPage brandId={activeBrand.id} onViewCustomer={() => {}} />;
             case 'crm/pipeline':
-                return <CrmPipelinePage brandId={activeBrand.id} />;
+                return <CrmPipelinePage brandId={activeBrand.id} brandProfile={resolvedBrandProfile} addNotification={addNotification} />;
             case 'crm/tickets':
                 return <CrmTicketsPage brandId={activeBrand.id} />;
             default:
@@ -966,6 +1016,7 @@ const AppShell: React.FC = () => {
             case 'admin-settings': return <AdminSettingsPage permissions={adminPermissions} generalSettings={generalSettings} securitySettings={securitySettings} isLoading={isPageLoading} addNotification={addNotification} />;
             case 'admin-ai-keys': return <AIProviderKeysPage />;
             case 'admin-logs': return <AdminLogsPage />;
+            case 'admin-data-analytics': return <AdminDataAnalyticsPage />;
             default: return <div>Admin page not found: {activeAdminPage}</div>;
         }
     };

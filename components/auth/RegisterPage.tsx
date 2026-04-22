@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signUp } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
+import { SBrandOpsLogo } from '../SBrandOpsLogo';
 
 interface RegisterPageProps {
     onSuccess: () => void;
@@ -116,7 +117,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                             disabled={!surveyGoal}
                             className="w-full py-3 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all text-sm shadow-lg shadow-indigo-500/25"
                         >
-                            متابعة <i className="fas fa-arrow-left mr-2 text-xs"></i>
+                            متابعة <i className="fas fa-arrow-left ms-2 text-xs"></i>
                         </button>
                         <button onClick={() => setSuccess(true)} className="w-full mt-2 py-2 text-xs text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition-colors">
                             تخطّى هذه الخطوة
@@ -214,19 +215,16 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
         <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-primary mb-4">
-                        <i className="fas fa-layer-group text-white text-2xl"></i>
-                    </div>
-                    <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">SBrandOps</h1>
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary mt-1">منصة إدارة البراندات الشاملة</p>
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <SBrandOpsLogo size="lg" layout="stacked" />
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2">منصة إدارة البراندات الشاملة</p>
                 </div>
 
                 <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
                     <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-6 text-center">إنشاء حساب جديد</h2>
 
                     {!isSupabaseConfigured && (
-                        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+                        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
                             <div className="flex items-start gap-2">
                                 <i className="fas fa-triangle-exclamation mt-0.5 text-amber-500 text-sm flex-shrink-0"></i>
                                 <div>
@@ -240,7 +238,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                     )}
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
                             <i className="fas fa-exclamation-circle text-red-500 text-sm flex-shrink-0"></i>
                             <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
                         </div>
@@ -258,7 +256,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                                     value={name}
                                     onChange={e => setName(e.target.value)}
                                     required
-                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition text-sm"
+                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
                                     placeholder="عبدالرحمن الحاروني"
                                 />
                             </div>
@@ -275,7 +273,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     required
-                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition text-sm"
+                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
                                     placeholder="name@company.com"
                                     dir="ltr"
                                 />
@@ -294,7 +292,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                                     onChange={e => setPassword(e.target.value)}
                                     required
                                     minLength={6}
-                                    className="w-full pr-10 pl-10 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition text-sm"
+                                    className="w-full pr-10 pl-10 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
                                     placeholder="6 أحرف على الأقل"
                                     dir="ltr"
                                 />
@@ -315,7 +313,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                                     value={confirmPassword}
                                     onChange={e => setConfirmPassword(e.target.value)}
                                     required
-                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition text-sm"
+                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
                                     placeholder="••••••••"
                                     dir="ltr"
                                 />
@@ -325,7 +323,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                         <button
                             type="submit"
                             disabled={isLoading || !email || !password || !name || !isSupabaseConfigured}
-                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-secondary disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
                                 <><i className="fas fa-circle-notch fa-spin"></i> جاري الإنشاء...</>

@@ -19,7 +19,10 @@ import {
 import {
     generateContentPlan, generatePriorityRecommendations, generateMonthlyPlan,
 } from '../../services/geminiService';
+import { saveSkillExecution } from '../../services/skillEngine';
 import { useBrandStore } from '../../stores/brandStore';
+import { EvaluationButtons } from '../shared/EvaluationButtons';
+import { SkillType } from '../../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -99,6 +102,7 @@ const AiPlanGeneratorModal: React.FC<{
     const [generatedPlan, setGeneratedPlan] = useState<AiContentPlan | null>(null);
     const [expandedItem, setExpandedItem] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [planExecutionId, setPlanExecutionId] = useState<string | null>(null);
 
     const togglePlatform = (p: SocialPlatform) => {
         setForm(f => ({
@@ -121,6 +125,19 @@ const AiPlanGeneratorModal: React.FC<{
             });
             setGeneratedPlan(plan);
             setStep('result');
+            // Save execution for evaluation tracking
+            const execId = await saveSkillExecution({
+                skillType:          SkillType.MarketingPlanSuggestion,
+                brandId,
+                input:              { objective: form.objective, durationDays: form.durationDays },
+                output:             plan as unknown as Record<string, unknown>,
+                rawOutput:          plan.overview ?? '',
+                confidence:         0.85,
+                brandPolicyPassed:  true,
+                requiresApproval:   false,
+                executionTimeMs:    0,
+            });
+            setPlanExecutionId(execId);
         } catch {
             setStep('error');
         }
@@ -365,9 +382,20 @@ const AiPlanGeneratorModal: React.FC<{
                     )}
                     {step === 'result' && (
                         <>
-                            <button onClick={() => setStep('form')} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
-                                <i className="fas fa-redo mr-1" /> تعديل المدخلات
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setStep('form')} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+                                    <i className="fas fa-redo mr-1" /> تعديل المدخلات
+                                </button>
+                                {planExecutionId && (
+                                    <EvaluationButtons
+                                        executionId={planExecutionId}
+                                        brandId={brandId}
+                                        skillType={SkillType.MarketingPlanSuggestion}
+                                        output={generatedPlan?.overview ?? ''}
+                                        compact
+                                    />
+                                )}
+                            </div>
                             <button onClick={handleSave} disabled={saving}
                                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl text-sm hover:bg-indigo-700 disabled:opacity-50">
                                 {saving ? <i className="fas fa-circle-notch fa-spin" /> : <i className="fas fa-save" />}
@@ -585,23 +613,38 @@ const PlansTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string; onSen
 // STRAT-2: Priority Recommendations Tab
 // ══════════════════════════════════════════════════════════════════════════════
 
-const PrioritiesTab: React.FC<{ brandProfile: BrandHubProfile }> = ({ brandProfile }) => {
+const PrioritiesTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string }> = ({ brandProfile, brandId }) => {
     const [recs, setRecs]       = useState<AiPriorityRecommendation[]>([]);
     const [loading, setLoading] = useState(false);
     const [generated, setGenerated] = useState(false);
+    const [prioritiesExecutionId, setPrioritiesExecutionId] = useState<string | null>(null);
 
     const handleGenerate = async () => {
         setLoading(true);
-        const data = await generatePriorityRecommendations(brandProfile, {
+        setPrioritiesExecutionId(null);
+        const metrics = {
             recentPostsCount:     12,
             avgEngagementRate:    3.4,
             activeAdsCampaigns:   2,
             avgRoas:              2.8,
             totalCustomers:       340,
-        });
+        };
+        const data = await generatePriorityRecommendations(brandProfile, metrics);
         setRecs(data);
-        setLoading(false);
         setGenerated(true);
+        const execId = await saveSkillExecution({
+            skillType:         SkillType.MarketingPlanSuggestion,
+            brandId,
+            input:             metrics,
+            output:            { recommendations: data } as unknown as Record<string, unknown>,
+            rawOutput:         data.map(r => r.title).join(', '),
+            confidence:        0.85,
+            brandPolicyPassed: true,
+            requiresApproval:  false,
+            executionTimeMs:   0,
+        });
+        setPrioritiesExecutionId(execId);
+        setLoading(false);
     };
 
     return (
@@ -671,6 +714,17 @@ const PrioritiesTab: React.FC<{ brandProfile: BrandHubProfile }> = ({ brandProfi
                             </div>
                         );
                     })}
+                    {prioritiesExecutionId && (
+                        <div className="flex justify-end pt-1">
+                            <EvaluationButtons
+                                executionId={prioritiesExecutionId}
+                                brandId={brandId}
+                                skillType={SkillType.MarketingPlanSuggestion}
+                                output={recs.map(r => r.title).join(', ')}
+                                compact
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -700,15 +754,32 @@ const MonthlyPlanTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string 
     const [loading, setLoading]   = useState(false);
     const [saving, setSaving]     = useState(false);
     const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
+    const [monthlyExecutionId, setMonthlyExecutionId] = useState<string | null>(null);
 
     const handleGenerate = async () => {
         setLoading(true);
-        const result = await generateMonthlyPlan(brandProfile, {
-            month: new Date(month + '-01').toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' }),
-            goals,
-        });
-        setPlan(result);
-        setLoading(false);
+        setMonthlyExecutionId(null);
+        try {
+            const result = await generateMonthlyPlan(brandProfile, {
+                month: new Date(month + '-01').toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' }),
+                goals,
+            });
+            setPlan(result);
+            const execId = await saveSkillExecution({
+                skillType:         SkillType.CampaignBrief,
+                brandId,
+                input:             { month, goals },
+                output:            result as unknown as Record<string, unknown>,
+                rawOutput:         result.overview ?? '',
+                confidence:        0.85,
+                brandPolicyPassed: true,
+                requiresApproval:  false,
+                executionTimeMs:   0,
+            });
+            setMonthlyExecutionId(execId);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSave = async () => {
@@ -774,6 +845,15 @@ const MonthlyPlanTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string 
                             {saving ? <i className="fas fa-circle-notch fa-spin" /> : <i className="fas fa-save" />}
                             حفظ كخطة
                         </button>
+                    )}
+                    {plan && monthlyExecutionId && (
+                        <EvaluationButtons
+                            executionId={monthlyExecutionId}
+                            brandId={brandId}
+                            skillType={SkillType.CampaignBrief}
+                            output={plan.overview ?? ''}
+                            compact
+                        />
                     )}
                 </div>
             </div>
@@ -910,7 +990,7 @@ export const MarketingPlansPage: React.FC<MarketingPlansPageProps> = ({ addNotif
 
             {/* Tab content */}
             {activeTab === 'plans'      && <PlansTab brandProfile={brandProfile} brandId={brandId} onSendToPublisher={onSendToPublisher} />}
-            {activeTab === 'priorities' && <PrioritiesTab brandProfile={brandProfile} />}
+            {activeTab === 'priorities' && <PrioritiesTab brandProfile={brandProfile} brandId={brandId} />}
             {activeTab === 'monthly'    && <MonthlyPlanTab brandProfile={brandProfile} brandId={brandId} />}
         </div>
     );

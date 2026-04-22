@@ -720,6 +720,43 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                 { label: t.analytics.engagementRate, value: `${averageEngagementRate.toFixed(2)}%`, tone: 'text-brand-primary' },
             ]}
         >
+            {/* ── Mobile Signal Cards (lg:hidden) ─────────────────────────── */}
+            <div className="lg:hidden mb-4">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-light-text-secondary dark:text-dark-text-secondary">الإشارات الرئيسية</p>
+                <div className="grid grid-cols-2 gap-2">
+                    {[
+                        { label: 'Reach', value: liveData.overallStats.impressions.toLocaleString(), icon: 'fa-eye',        color: 'text-blue-500',    bg: 'bg-blue-500/10'    },
+                        { label: 'Engagement', value: liveData.overallStats.engagement.toLocaleString(), icon: 'fa-heart',    color: 'text-rose-500',    bg: 'bg-rose-500/10'    },
+                        { label: 'منشورات', value: liveData.overallStats.postsPublished.toLocaleString(), icon: 'fa-paper-plane', color: 'text-violet-500', bg: 'bg-violet-500/10' },
+                        { label: 'معدل التفاعل', value: `${averageEngagementRate.toFixed(1)}%`, icon: 'fa-chart-line', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                    ].map(s => (
+                        <div key={s.label} className="flex items-center gap-3 rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-3.5">
+                            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${s.bg}`}>
+                                <i className={`fas ${s.icon} text-sm ${s.color}`} />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-base font-bold text-light-text dark:text-dark-text truncate">{s.value}</p>
+                                <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{s.label}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                {/* Mobile highlight: top posts */}
+                {liveData.topPosts.length > 0 && (
+                    <div className="mt-3 rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-4">
+                        <p className="mb-2.5 text-xs font-bold text-light-text dark:text-dark-text">أفضل منشور</p>
+                        <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-light-text dark:text-dark-text line-clamp-2">{liveData.topPosts[0]?.content ?? '—'}</p>
+                                <div className="mt-1.5 flex items-center gap-3 text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                    <span><i className="fas fa-heart me-1" />{liveData.topPosts[0]?.engagement?.toLocaleString() ?? '0'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
                 <ProviderConnectionCallout
                     title="GA4"

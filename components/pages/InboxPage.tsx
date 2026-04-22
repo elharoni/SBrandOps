@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { InboxConversation, NotificationType, PLATFORM_ASSETS, BrandHubProfile, ConversationIntent, ConversationSentiment, SocialPlatform } from '../../types';
+import { InboxConversation, NotificationType, PLATFORM_ASSETS, BrandHubProfile, ConversationIntent, ConversationSentiment, SocialPlatform, SkillType } from '../../types';
 import { persistConversationAnalysis, replyToConversation } from '../../services/inboxService';
 import { analyzeConversation } from '../../services/geminiService';
 import { useLanguage } from '../../context/LanguageContext';
 import { useBrandStore } from '../../stores/brandStore';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
+import { EvaluationButtons } from '../shared/EvaluationButtons';
 
 interface InboxPageProps {
     addNotification: (type: NotificationType, message: string) => void;
@@ -298,6 +299,8 @@ const AIAssistantPanel: React.FC<{
     const { t } = useLanguage();
     const [analysis, setAnalysis] = useState<{ summary: string, intent: ConversationIntent, sentiment: ConversationSentiment, suggestedReplies: string[] } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [brandReply, setBrandReply] = useState<{ text: string; executionId: string } | null>(null);
+    const [isGeneratingBrandReply, setIsGeneratingBrandReply] = useState(false);
 
     useEffect(() => {
         let isCancelled = false;
@@ -326,6 +329,34 @@ const AIAssistantPanel: React.FC<{
         getAnalysis();
         return () => { isCancelled = true; };
     }, [brandId, conversation, brandProfile]);
+
+    // Clear brand reply when switching conversations
+    useEffect(() => { setBrandReply(null); }, [conversation.id]);
+
+    const handleGenerateBrandReply = async () => {
+        setIsGeneratingBrandReply(true);
+        setBrandReply(null);
+        try {
+            const { processMarketingRequest } = await import('../../services/platformBrainService');
+            const messages = conversation.messages.map(m => ({ sender: m.sender as 'customer' | 'agent', text: m.text }));
+            const response = await processMarketingRequest(
+                {
+                    brandId,
+                    requestText: conversation.messages.at(-1)?.text ?? '',
+                    forcedSkill: SkillType.ConversationReply,
+                    context: { messages },
+                },
+                brandProfile,
+            );
+            const reply = response.output.reply as string | undefined;
+            if (reply) setBrandReply({ text: reply, executionId: response.executionId });
+        } catch (err) {
+            console.error('[InboxPage] brand reply failed:', err);
+            addNotification(NotificationType.Error, 'فشل توليد رد البراند.');
+        } finally {
+            setIsGeneratingBrandReply(false);
+        }
+    };
 
     const handleCreateTask = () => {
         const title = `متابعة محادثة مع ${conversation.user.name} بخصوص "${analysis?.intent || 'موضوع عام'}"`;
@@ -426,6 +457,48 @@ const AIAssistantPanel: React.FC<{
                         </div>
                     </div>
 
+                    {/* Brand Voice Reply — عبر Platform Brain */}
+                    <div className="rounded-xl border border-brand-primary/20 bg-brand-primary/5 p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-bold text-brand-secondary flex items-center gap-1.5">
+                                <i className="fas fa-brain text-xs" />
+                                رد بصوت البراند
+                            </p>
+                            <button
+                                onClick={handleGenerateBrandReply}
+                                disabled={isGeneratingBrandReply}
+                                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-brand-primary/15 hover:bg-brand-primary/30 text-brand-secondary rounded-lg transition-colors disabled:opacity-40"
+                            >
+                                <i className={`fas ${isGeneratingBrandReply ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'} text-[10px]`} />
+                                {isGeneratingBrandReply ? 'جارٍ التوليد...' : 'توليد'}
+                            </button>
+                        </div>
+                        {brandReply && (
+                            <div className="space-y-2">
+                                <p className="text-xs leading-relaxed text-light-text dark:text-dark-text bg-light-bg dark:bg-dark-bg rounded-lg p-2.5 border border-light-border dark:border-dark-border">
+                                    {brandReply.text}
+                                </p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <button
+                                        onClick={() => onApplyReply(brandReply.text)}
+                                        className="flex-1 text-xs py-1.5 bg-brand-primary/15 hover:bg-brand-primary/30 text-brand-secondary rounded-lg font-semibold transition-colors"
+                                    >
+                                        <i className="fas fa-reply me-1.5 text-[10px]" />
+                                        تطبيق الرد
+                                    </button>
+                                    <EvaluationButtons
+                                        executionId={brandReply.executionId}
+                                        brandId={brandId}
+                                        skillType={SkillType.ConversationReply}
+                                        output={brandReply.text}
+                                        onUsed={() => onApplyReply(brandReply.text)}
+                                        compact
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Create Task */}
                     <button onClick={handleCreateTask}
                         className="w-full bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border text-light-text dark:text-dark-text font-semibold py-2.5 rounded-xl hover:border-brand-primary hover:text-brand-primary transition-colors text-sm">
@@ -469,6 +542,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
     const [activeFilter, setActiveFilter] = useState<'all' | SocialPlatform>('all');
     const [replyText, setReplyText] = useState('');
     const [inboxView, setInboxView] = useState<'inbox' | 'templates' | 'routing'>('inbox');
+    // Mobile: stack between list and chat views
+    const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+    const [showMobileAI, setShowMobileAI] = useState(false);
     // Local read state (in production would be persisted to DB)
     const [readIds, setReadIds] = useState<Set<string>>(() => new Set(conversations.filter(c => c.isRead).map(c => c.id)));
 
@@ -546,9 +622,106 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
                 ))}
             </div>
 
-            {/* Inbox view */}
+            {/* ── Mobile Inbox Layout (lg:hidden) ─────────────────────────────── */}
             {inboxView === 'inbox' && (
-                <div className="h-[calc(100vh-160px)] flex bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border overflow-hidden">
+                <div className="lg:hidden">
+                    {/* Mobile filter bar — horizontal scroll */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar">
+                        {(['all', ...Object.values(SocialPlatform)] as ('all' | SocialPlatform)[])
+                            .filter(f => f === 'all' || conversations.some(c => c.platform === f))
+                            .map(f => {
+                                const isActive = activeFilter === f;
+                                const count = f === 'all' ? conversations.length : conversations.filter(c => c.platform === f).length;
+                                return (
+                                    <button
+                                        key={f}
+                                        onClick={() => setActiveFilter(f)}
+                                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                                            isActive
+                                                ? 'bg-brand-primary text-white'
+                                                : 'bg-light-bg dark:bg-dark-bg text-light-text-secondary dark:text-dark-text-secondary border border-light-border dark:border-dark-border'
+                                        }`}
+                                    >
+                                        {f !== 'all' && <i className={`${PLATFORM_ASSETS[f as SocialPlatform].icon} text-[10px]`} />}
+                                        {f === 'all' ? 'الكل' : f}
+                                        <span className={`rounded-full px-1.5 text-[9px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-light-border dark:bg-dark-border'}`}>{count}</span>
+                                    </button>
+                                );
+                            })}
+                    </div>
+
+                    {/* Mobile: conversation list */}
+                    {mobileView === 'list' && (
+                        <div className="rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card overflow-hidden">
+                            {filteredConversations.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                                    <i className="fas fa-inbox text-3xl text-light-text-secondary dark:text-dark-text-secondary opacity-40" />
+                                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">لا توجد محادثات</p>
+                                </div>
+                            ) : (
+                                filteredConversations
+                                    .sort((a, b) => {
+                                        const aU = !readIds.has(a.id) ? 0 : 1;
+                                        const bU = !readIds.has(b.id) ? 0 : 1;
+                                        if (aU !== bU) return aU - bU;
+                                        return new Date(b.lastMessageTimestamp).getTime() - new Date(a.lastMessageTimestamp).getTime();
+                                    })
+                                    .map(conv => (
+                                        <ConversationListItem
+                                            key={conv.id}
+                                            conv={{ ...conv, isRead: readIds.has(conv.id) }}
+                                            isActive={false}
+                                            onClick={() => {
+                                                setSelectedConversationId(conv.id);
+                                                setMobileView('chat');
+                                                setShowMobileAI(false);
+                                            }}
+                                            onMarkRead={handleMarkRead}
+                                        />
+                                    ))
+                            )}
+                        </div>
+                    )}
+
+                    {/* Mobile: chat view */}
+                    {mobileView === 'chat' && selectedConversation && (
+                        <div className="flex flex-col rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                            {/* Back + AI toggle */}
+                            <div className="flex items-center gap-3 border-b border-light-border dark:border-dark-border px-3 py-2.5 bg-light-bg dark:bg-dark-bg">
+                                <button
+                                    onClick={() => setMobileView('list')}
+                                    className="flex h-8 w-8 items-center justify-center rounded-xl bg-light-card dark:bg-dark-card text-light-text dark:text-dark-text"
+                                >
+                                    <i className="fas fa-arrow-right" />
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-light-text dark:text-dark-text truncate">{selectedConversation.user.name}</p>
+                                    <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{selectedConversation.platform}</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowMobileAI(v => !v)}
+                                    className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${showMobileAI ? 'bg-brand-primary text-white' : 'bg-light-card dark:bg-dark-card text-light-text-secondary dark:text-dark-text-secondary'}`}
+                                >
+                                    <i className="fas fa-brain text-sm" />
+                                </button>
+                            </div>
+
+                            {/* Chat or AI panel */}
+                            {showMobileAI ? (
+                                <div className="flex-1 overflow-y-auto">
+                                    <AIAssistantPanel brandId={brandId} conversation={selectedConversation} brandProfile={brandProfile} onApplyReply={(text) => { setReplyText(text); setShowMobileAI(false); }} onAddTask={onAddTask} addNotification={addNotification} />
+                                </div>
+                            ) : (
+                                <ChatWindow conversation={selectedConversation} onReply={handleReply} replyText={replyText} onReplyTextChange={setReplyText} />
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Desktop Inbox Layout (hidden lg:flex) ────────────────────────── */}
+            {inboxView === 'inbox' && (
+                <div className="hidden lg:flex h-[calc(100vh-160px)] bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border overflow-hidden">
                     <FilterSidebar conversations={conversations} activeFilter={activeFilter} onFilterChange={setActiveFilter} />
                     <div className="w-80 border-s border-light-border dark:border-dark-border flex-shrink-0 flex flex-col">
                         <div className="p-4 border-b border-light-border dark:border-dark-border">

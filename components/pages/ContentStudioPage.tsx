@@ -16,8 +16,10 @@ import {
     PublisherBrief,
     AIQualityCheckResult,
     HashtagSuggestion,
+    SkillType,
 } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { EvaluationButtons } from '../shared/EvaluationButtons';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -254,6 +256,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
     const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
     const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [captionExecutionId, setCaptionExecutionId] = useState<string | null>(null);
 
     // Sync initial brief into editor
     useEffect(() => {
@@ -297,11 +300,23 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
     const handleGenerateCaption = useCallback(async () => {
         if (!title.trim()) return;
         setIsGeneratingCaption(true);
+        setCaptionExecutionId(null);
         try {
-            const { generatePostCaption } = await import('../../services/geminiService');
-            const results = await generatePostCaption(title, 'Professional', brandProfile);
-            if (results[0]) {
-                setContent(results[0]);
+            const { processMarketingRequest } = await import('../../services/platformBrainService');
+            const response = await processMarketingRequest(
+                {
+                    brandId,
+                    requestText: title,
+                    platform: platforms[0] ?? SocialPlatform.Instagram,
+                    forcedSkill: SkillType.ContentGeneration,
+                    context: { format: 'post' },
+                },
+                brandProfile,
+            );
+            const best = response.output.bestPick as string | undefined;
+            if (best) {
+                setContent(best);
+                setCaptionExecutionId(response.executionId);
                 addNotification(
                     NotificationType.Success,
                     ar ? 'تم توليد الكابشن.' : 'Caption generated.',
@@ -315,7 +330,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
         } finally {
             setIsGeneratingCaption(false);
         }
-    }, [title, brandProfile, addNotification, ar]);
+    }, [title, brandId, brandProfile, platforms, addNotification, ar]);
 
     const handleImprove = useCallback(async () => {
         if (!content.trim()) return;
@@ -744,7 +759,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
                         {/* Textarea */}
                         <textarea
                             value={content}
-                            onChange={e => setContent(e.target.value)}
+                            onChange={e => { setContent(e.target.value); setCaptionExecutionId(null); }}
                             placeholder={
                                 briefContext?.angle
                                     ? (ar
@@ -756,6 +771,23 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
                             }
                             className={`min-h-[280px] w-full resize-none border-0 bg-transparent px-5 py-5 text-sm leading-7 text-white outline-none placeholder:text-dark-text-secondary/50 ${overLimit ? 'ring-1 ring-inset ring-rose-500/40' : ''}`}
                         />
+
+                        {/* Evaluation feedback strip — visible after AI generation */}
+                        {captionExecutionId && content && (
+                            <div className="flex items-center gap-3 border-t border-dark-border px-5 py-2.5 bg-dark-bg/30">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-dark-text-secondary">
+                                    {ar ? 'هل كان مفيداً؟' : 'Was this helpful?'}
+                                </span>
+                                <EvaluationButtons
+                                    executionId={captionExecutionId}
+                                    brandId={brandId}
+                                    skillType={SkillType.ContentGeneration}
+                                    output={content}
+                                    onUsed={() => addNotification(NotificationType.Success, ar ? 'تم تسجيل استخدام المحتوى.' : 'Content usage recorded.')}
+                                    compact
+                                />
+                            </div>
+                        )}
 
                         {/* Brand keyword hints */}
                         {(brandProfile.brandVoice.keywords.length > 0 ||
@@ -1017,19 +1049,31 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
                                                     <p className="line-clamp-4 text-xs leading-5 text-dark-text-secondary">
                                                         {v}
                                                     </p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setContent(v);
-                                                            addNotification(
-                                                                NotificationType.Success,
-                                                                ar ? 'تم تطبيق النسخة.' : 'Variant applied.',
-                                                            );
-                                                        }}
-                                                        className="w-full rounded-lg border border-brand-primary/20 bg-brand-primary/10 py-1.5 text-xs font-semibold text-brand-secondary transition-colors hover:bg-brand-primary/20"
-                                                    >
-                                                        {ar ? 'تطبيق هذه النسخة' : 'Apply this variant'}
-                                                    </button>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setContent(v);
+                                                                setCaptionExecutionId(null);
+                                                                addNotification(
+                                                                    NotificationType.Success,
+                                                                    ar ? 'تم تطبيق النسخة.' : 'Variant applied.',
+                                                                );
+                                                            }}
+                                                            className="flex-1 rounded-lg border border-brand-primary/20 bg-brand-primary/10 py-1.5 text-xs font-semibold text-brand-secondary transition-colors hover:bg-brand-primary/20"
+                                                        >
+                                                            {ar ? 'تطبيق هذه النسخة' : 'Apply this variant'}
+                                                        </button>
+                                                        {captionExecutionId && (
+                                                            <EvaluationButtons
+                                                                executionId={captionExecutionId}
+                                                                brandId={brandId}
+                                                                skillType={SkillType.ContentGeneration}
+                                                                output={v}
+                                                                compact
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                             <button

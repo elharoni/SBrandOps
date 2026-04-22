@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { AccountStatus, NotificationType, PLATFORM_ASSETS, SocialAccount, SocialAsset, SocialPlatform } from '../../types';
+import { AccountStatus, AssetPurpose, NotificationType, PLATFORM_ASSETS, SocialAccount, SocialAsset, SocialPlatform } from '../../types';
 import { fetchAvailableAssets, initiateSocialLogin, connectSelectedAssets } from '../../services/socialAuthService';
 import { disconnectSocialAccount, updateAccountStatus } from '../../services/socialAccountService';
 import { AssetSelectionModal } from '../AssetSelectionModal';
 import { useLanguage } from '../../context/LanguageContext';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
 import { SetupGuideModal, needsSetupGuide } from '../shared/SetupGuideModal';
+import { IntegrationHealthPanel } from '../IntegrationHealthPanel';
 
 interface AccountsPageProps {
     brandId: string;
@@ -314,11 +315,17 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, o
         }
     };
 
-    const handleAssetsConfirmed = async (selectedAssets: SocialAsset[]) => {
+    const handleAssetsConfirmed = async (selectedAssets: SocialAsset[], purposes: AssetPurpose[], market?: string) => {
         if (!currentPlatform || !currentToken) return;
         setLoadingPlatform(currentPlatform);
         try {
-            await connectSelectedAssets(brandId, selectedAssets, currentPlatform, currentToken);
+            await connectSelectedAssets(brandId, selectedAssets, currentPlatform, currentToken, { defaultPurposes: purposes, market });
+            addNotification(
+                NotificationType.Success,
+                ar
+                    ? `تم ربط ${selectedAssets.length} ${selectedAssets.length === 1 ? 'حساب' : 'حسابات'} من ${currentPlatform} بنجاح.`
+                    : `${selectedAssets.length} ${currentPlatform} account${selectedAssets.length !== 1 ? 's' : ''} connected successfully.`,
+            );
             setIsModalOpen(false);
             onRefresh();
         } catch (error) {
@@ -421,6 +428,13 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, o
                         />
                     ))}
                 </div>
+            </PageSection>
+
+            <PageSection
+                title={ar ? 'صحة التكاملات' : 'Integration health'}
+                description={ar ? 'حالة المزامنة، صلاحية التوكن، وأغراض كل أصل مرتبط.' : 'Sync status, token validity, and purposes for each connected asset.'}
+            >
+                <IntegrationHealthPanel brandId={brandId} addNotification={addNotification} />
             </PageSection>
 
             <PageSection

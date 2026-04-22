@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signIn } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
+import { SBrandOpsLogo } from '../SBrandOpsLogo';
 
 interface LoginPageProps {
     onSuccess: () => void;
@@ -68,7 +69,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                         <button
                             onClick={handleResend}
                             disabled={resendCooldown > 0 || resendStatus === 'sending'}
-                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2 mb-3"
+                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center gap-2 mb-3"
                         >
                             {resendStatus === 'sending' ? (
                                 <><i className="fas fa-circle-notch fa-spin text-xs"></i> جاري الإرسال...</>
@@ -96,12 +97,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
         <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-primary mb-4">
-                        <i className="fas fa-layer-group text-white text-2xl"></i>
-                    </div>
-                    <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">SBrandOps</h1>
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary mt-1">منصة إدارة البراندات الشاملة</p>
+                <div className="text-center mb-8 flex flex-col items-center">
+                    <SBrandOpsLogo size="lg" layout="stacked" />
+                    <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2">منصة إدارة البراندات الشاملة</p>
                 </div>
 
                 {/* Card */}
@@ -109,7 +107,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                     <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-6 text-center">تسجيل الدخول</h2>
 
                     {!isSupabaseConfigured && (
-                        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+                        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
                             <div className="flex items-start gap-2">
                                 <i className="fas fa-triangle-exclamation mt-0.5 text-amber-500 text-sm flex-shrink-0"></i>
                                 <div>
@@ -123,7 +121,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                     )}
 
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-center gap-2">
                             <i className="fas fa-exclamation-circle text-red-500 text-sm flex-shrink-0"></i>
                             <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
                         </div>
@@ -143,7 +141,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
                                     required
-                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition text-sm"
+                                    className="w-full pr-10 pl-4 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
                                     placeholder="name@company.com"
                                     dir="ltr"
                                 />
@@ -164,7 +162,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                                     onChange={e => setPassword(e.target.value)}
                                     required
                                     minLength={6}
-                                    className="w-full pr-10 pl-10 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition text-sm"
+                                    className="w-full pr-10 pl-10 py-2.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-light-text dark:text-dark-text placeholder-light-text-secondary dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition text-sm"
                                     placeholder="••••••••"
                                     dir="ltr"
                                 />
@@ -181,7 +179,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                         <button
                             type="submit"
                             disabled={isLoading || !email || !password || !isSupabaseConfigured}
-                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-secondary disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                            className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors text-sm flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
                                 <>

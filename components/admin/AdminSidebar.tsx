@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SystemHealthStatus } from '../../types';
+import { SBrandOpsLogo, SBrandMark } from '../SBrandOpsLogo';
 
 interface NavItem {
     id: string;
@@ -39,10 +40,11 @@ const navGroups: NavGroup[] = [
         title: 'Monitoring',
         titleAr: 'المراقبة',
         items: [
-            { id: 'admin-ai-monitor',    icon: 'fa-brain',     label: 'مراقبة AI' },
-            { id: 'admin-queues',        icon: 'fa-tasks',     label: 'قوائم الانتظار' },
-            { id: 'admin-system-health', icon: 'fa-heartbeat', label: 'حالة النظام' },
-            { id: 'admin-logs',          icon: 'fa-scroll',    label: 'سجلات الأدمن' },
+            { id: 'admin-ai-monitor',       icon: 'fa-brain',     label: 'مراقبة AI' },
+            { id: 'admin-queues',           icon: 'fa-tasks',     label: 'قوائم الانتظار' },
+            { id: 'admin-system-health',    icon: 'fa-heartbeat', label: 'حالة النظام' },
+            { id: 'admin-data-analytics',   icon: 'fa-database',  label: 'تحليل البيانات' },
+            { id: 'admin-logs',             icon: 'fa-scroll',    label: 'سجلات الأدمن' },
         ],
     },
 ];
@@ -120,15 +122,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <div className="px-4 py-4 flex items-center justify-between border-b border-light-border dark:border-dark-border min-h-[64px]">
                 {!collapsed && (
                     <div className="flex items-center gap-2 min-w-0">
-                        <h1 className="text-xl font-bold text-light-text dark:text-dark-text truncate">
-                            SBrand<span className="text-primary">Ops</span>
-                        </h1>
+                        <SBrandOpsLogo size="sm" layout="inline" />
                         <span className="bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">ADMIN</span>
                     </div>
                 )}
                 {collapsed && (
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mx-auto">
-                        <span className="text-primary font-black text-xs">SB</span>
+                    <div className="flex items-center justify-center mx-auto">
+                        <SBrandMark px={28} sw={8.5} dot={4.5} />
                     </div>
                 )}
                 <button

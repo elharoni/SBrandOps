@@ -479,6 +479,37 @@ export const AdsOpsPage: React.FC<AdsOpsPageProps> = ({
                 </div>
             )}
 
+            {/* ── Mobile Alert Strip (lg:hidden) ── */}
+            {alertCount > 0 && (
+                <div className="lg:hidden space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-rose-500 flex items-center gap-1.5">
+                        <i className="fas fa-exclamation-triangle" /> {alertCount} تنبيه يحتاج تدخل
+                    </p>
+                    {buildHealthAlerts(campaigns).slice(0, 3).map((alert, i) => (
+                        <div key={i} className={`flex items-start gap-3 rounded-2xl border p-3.5 ${
+                            alert.severity === 'critical'
+                                ? 'border-rose-500/30 bg-rose-500/8 text-rose-700 dark:text-rose-400'
+                                : alert.severity === 'warning'
+                                    ? 'border-amber-500/30 bg-amber-500/8 text-amber-700 dark:text-amber-400'
+                                    : 'border-blue-500/30 bg-blue-500/8 text-blue-700 dark:text-blue-400'
+                        }`}>
+                            <i className={`fas ${alert.severity === 'critical' ? 'fa-exclamation-circle' : alert.severity === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'} mt-0.5 shrink-0 text-base`} />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold truncate">{alert.campaignName}</p>
+                                <p className="text-xs mt-0.5 opacity-80">{alert.message}</p>
+                                <p className="text-[11px] mt-1 font-medium"><i className="fas fa-arrow-left me-1 rtl:rotate-180" />{alert.action}</p>
+                            </div>
+                            <button
+                                onClick={() => setActiveTab('health')}
+                                className="shrink-0 rounded-xl bg-black/10 dark:bg-white/10 px-3 py-1.5 text-[11px] font-bold active:scale-95 transition-all"
+                            >
+                                تصرف
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             <div className="border-b border-light-border dark:border-dark-border">
                 <nav className="-mb-px flex gap-1 overflow-x-auto">
                     {TABS.map(tab => (

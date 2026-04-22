@@ -165,14 +165,16 @@ export async function assertAccountOwnership(
   return undefined;
 }
 
-// ── getAllowedOrigin ─────────────────────────────────────────────────────────
+// ── getAllowedOrigins ────────────────────────────────────────────────────────
 
 /**
- * Returns the allowed CORS origin from the FRONTEND_ORIGIN env var.
- * Falls back to a restrictive placeholder if not configured.
+ * Returns the set of allowed CORS origins from the FRONTEND_ORIGIN env var.
+ * Supports comma-separated values for multiple allowed origins.
+ * e.g. "https://app.example.com,http://localhost:5173"
  */
-export function getAllowedOrigin(): string {
-  return Deno.env.get('FRONTEND_ORIGIN') ?? '';
+export function getAllowedOrigins(): Set<string> {
+  const raw = Deno.env.get('FRONTEND_ORIGIN') ?? '';
+  return new Set(raw.split(',').map(s => s.trim()).filter(Boolean));
 }
 
 // ── buildCorsHeaders ─────────────────────────────────────────────────────────
@@ -181,19 +183,23 @@ export function getAllowedOrigin(): string {
  * Returns CORS headers.
  *
  * Origin resolution order:
- *  1. FRONTEND_ORIGIN env is set AND matches request origin → echo it back
- *  2. FRONTEND_ORIGIN env is set BUT doesn't match            → return configured value
+ *  1. FRONTEND_ORIGIN is set AND request origin is in the allowed list → echo it back
+ *  2. FRONTEND_ORIGIN is set AND request origin is NOT in the list     → return first allowed origin
  *     (browser will reject it, which is correct security behaviour)
- *  3. FRONTEND_ORIGIN env is NOT set                          → echo request origin
+ *  3. FRONTEND_ORIGIN is NOT set                                        → echo request origin
  *     (permissive mode — fine for dev / early launch; tighten before prod)
- *  4. No request origin at all                                → '*'
+ *  4. No request origin at all                                          → '*'
  */
 export function buildCorsHeaders(requestOrigin?: string | null): Record<string, string> {
-  const configured = getAllowedOrigin();
+  const allowed = getAllowedOrigins();
 
   let origin: string;
-  if (configured) {
-    origin = requestOrigin === configured ? requestOrigin : configured;
+  if (allowed.size > 0) {
+    if (requestOrigin && allowed.has(requestOrigin)) {
+      origin = requestOrigin;
+    } else {
+      origin = [...allowed][0]; // browser will reject — correct security behaviour
+    }
   } else {
     origin = requestOrigin ?? '*';
   }
