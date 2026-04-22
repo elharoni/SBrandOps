@@ -52,14 +52,21 @@ const STEPS = [
 ];
 
 const VisualHero = () => (
-    <div className="relative h-32 flex items-center justify-center">
-        <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-20">
-            {['fa-instagram', 'fa-twitter', 'fa-tiktok', 'fa-facebook', 'fa-linkedin'].map((ic, i) => (
-                <i key={i} className={`fab ${ic} text-4xl text-white`} style={{ animationDelay: `${i * 0.1}s` }} />
-            ))}
+    <div className="relative h-36 flex flex-col items-center justify-center gap-3">
+        <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center animate-pulse">
+            <i className="fas fa-layer-group text-white text-2xl" />
         </div>
-        <div className="relative z-10 w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center animate-pulse">
-            <i className="fas fa-layer-group text-white text-3xl" />
+        <div className="flex gap-4">
+            {[
+                { n: '+1,200', l: 'براند' },
+                { n: '+50K', l: 'منشور' },
+                { n: '98%', l: 'رضا' },
+            ].map((s, i) => (
+                <div key={i} className="text-center">
+                    <div className="text-white font-bold text-base">{s.n}</div>
+                    <div className="text-white/60 text-xs">{s.l}</div>
+                </div>
+            ))}
         </div>
     </div>
 );

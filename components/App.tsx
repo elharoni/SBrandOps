@@ -9,6 +9,7 @@ import { LoginPage } from './auth/LoginPage';
 import { RegisterPage } from './auth/RegisterPage';
 import { ForgotPasswordPage } from './auth/ForgotPasswordPage';
 import { OnboardingTour } from './onboarding/OnboardingTour';
+import { WelcomeModal } from './onboarding/WelcomeModal';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { AdminSidebar } from './admin/AdminSidebar';
@@ -190,6 +191,7 @@ const AppShell: React.FC = () => {
     const ar = language === 'ar';
     const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot'>('login');
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showWelcomeModal, setShowWelcomeModal] = useState(false);
     const [maintenanceMode, setMaintenanceMode] = useState(false);
     const [announcement, setAnnouncement] = useState<{ text: string; type: 'info' | 'warning' | 'success' | 'danger'; enabled: boolean } | null>(null);
     const [announcementDismissed, setAnnouncementDismissed] = useState(false);
@@ -360,6 +362,20 @@ const AppShell: React.FC = () => {
         const key = `onboarding_done_${user.id}`;
         if (!localStorage.getItem(key)) {
             setShowOnboarding(true);
+        }
+    }, [isAuthenticated, user]);
+
+    // Show welcome modal after email verification (detected via hash fragment)
+    useEffect(() => {
+        if (!isAuthenticated || !user) return;
+        const hash = window.location.hash;
+        if (hash.includes('type=signup') || hash.includes('type=email_change')) {
+            const welcomeKey = `welcome_shown_${user.id}`;
+            if (!localStorage.getItem(welcomeKey)) {
+                localStorage.setItem(welcomeKey, '1');
+                setTimeout(() => setShowWelcomeModal(true), 800);
+            }
+            window.history.replaceState(null, '', window.location.pathname);
         }
     }, [isAuthenticated, user]);
 
@@ -966,6 +982,15 @@ const AppShell: React.FC = () => {
                 <div className="app-shell-orb -left-20 top-0 h-72 w-72 bg-brand-primary/20" />
                 <div className="app-shell-orb bottom-[-8rem] right-[-6rem] h-80 w-80 bg-brand-secondary/20" />
             </div>
+
+            {/* Post-verification welcome modal */}
+            {showWelcomeModal && user && (
+                <WelcomeModal
+                    userName={user.user_metadata?.full_name || user.email?.split('@')[0] || ''}
+                    onClose={() => setShowWelcomeModal(false)}
+                    onUpgrade={() => { setShowWelcomeModal(false); /* navigate to billing */ }}
+                />
+            )}
 
             {/* Onboarding Tour */}
             {showOnboarding && user && (
