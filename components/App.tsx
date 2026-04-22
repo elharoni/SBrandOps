@@ -311,6 +311,9 @@ const AppShell: React.FC = () => {
     const [postToEdit, setPostToEdit] = useState<ScheduledPost | null>(null);
     const [publisherBrief, setPublisherBrief] = useState<PublisherBrief | null>(null);
     const [showBrandIntelModal, setShowBrandIntelModal] = useState(false);
+    const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
+    const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
+    const trial = useTrialStatus();
 
     // Combined loading indicator for brand view
     const isLoading = brandsLoading || brandDataLoading;
@@ -975,14 +978,10 @@ const AppShell: React.FC = () => {
     };
     const showBanner = announcement?.enabled && announcement.text && !announcementDismissed;
 
-    // Trial status — shown only to authenticated, non-admin users
-    const trial = useTrialStatus();
-    const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
     const showTrialBanner = isAuthenticated && !isAdmin && !trialBannerDismissed
         && (trial.isExpiringSoon || trial.isExpired);
 
     const emailConfirmed = !!user?.email_confirmed_at;
-    const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
 
     return (
         <div className="relative flex h-screen overflow-hidden bg-light-bg font-sans text-light-text dark:bg-dark-bg dark:text-dark-text">
