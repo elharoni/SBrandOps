@@ -2317,7 +2317,7 @@ ${piecesList}
                 whatWorked:                   { type: Type.STRING },
                 whatToImprove:                { type: Type.STRING },
                 nextCampaignRecommendation:   { type: Type.STRING },
-                creativeScore:                { type: Type.INTEGER },
+                creativeScore:                { type: Type.NUMBER },
             },
             required: ['whatWorked', 'whatToImprove', 'nextCampaignRecommendation', 'creativeScore'],
         },

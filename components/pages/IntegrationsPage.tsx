@@ -1482,7 +1482,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         {COMING_SOON_SECTIONS.commerce.length > 0 && (
                             <div className={`${groupedConnections.commerce.length > 0 || connectableProviders.commerce.length > 0 ? 'mt-6 border-t border-light-border/70 pt-6 dark:border-dark-border/70' : ''}`}>
                                 <div className="grid gap-3 md:grid-cols-3">
-                                    {COMING_SOON_SECTIONS.commerce.map((item) => (
+                                    {(COMING_SOON_SECTIONS.commerce as unknown as any[]).map((item) => (
                                         <ComingSoonTile key={item.id} title={ar ? item.titleAr : item.titleEn} description={ar ? item.descriptionAr : item.descriptionEn} icon={item.icon} tone={item.tone} buttonLabel={ar ? 'قريبًا' : 'Coming soon'} />
                                     ))}
                                 </div>

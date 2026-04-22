@@ -359,7 +359,7 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
         try {
             const { modifyContent } = await import('../../services/geminiService');
             const shortened = await modifyContent(
-                'Make it shorter and more concise',
+                'shorten',
                 content,
                 brandProfile,
             );
