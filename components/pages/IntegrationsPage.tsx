@@ -24,6 +24,7 @@ import {
     type ProviderConnectionInputMap,
 } from '../../services/providerConnectionService';
 import { connectSelectedAssets, fetchAvailableAssets, initiateSocialLogin } from '../../services/socialAuthService';
+import { SetupGuideModal, needsSetupGuide } from '../shared/SetupGuideModal';
 import { disconnectSocialAccount, updateAccountStatus } from '../../services/socialAccountService';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUIStore } from '../../stores/uiStore';
@@ -993,6 +994,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     const [providerFormValues, setProviderFormValues] = useState<Record<string, string>>({});
     const [providerError, setProviderError] = useState<string | null>(null);
     const [providerActionId, setProviderActionId] = useState<string | null>(null);
+    const [setupPlatform, setSetupPlatform] = useState<SocialPlatform | null>(null);
 
     const accountsByPlatform = useMemo(() => {
         const grouped: Partial<Record<SocialPlatform, SocialAccount[]>> = {};
@@ -1137,6 +1139,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     };
 
     const handleConnectPlatform = async (platform: SocialPlatform) => {
+        if (needsSetupGuide(platform)) {
+            setSetupPlatform(platform);
+            return;
+        }
         setLoadingPlatform(platform);
         try {
             const authResponse = await initiateSocialLogin(platform);
@@ -1571,6 +1577,14 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 onClose={() => setPendingDisconnect(null)}
                 onConfirm={handleDisconnectConfirm}
             />
+
+            {setupPlatform && (
+                <SetupGuideModal
+                    platform={setupPlatform}
+                    onClose={() => setSetupPlatform(null)}
+                    ar={ar}
+                />
+            )}
         </>
     );
 };
