@@ -8,11 +8,12 @@ interface AIAssistantProps {
   onClose: () => void;
   onApply: (caption: string) => void;
   brandProfile: BrandHubProfile;
+  brandId?: string;
 }
 
 const toneOptions = ["Professional", "Friendly", "Witty", "Inspirational", "Sales-focused"];
 
-export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, onApply, brandProfile }) => {
+export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, onApply, brandProfile, brandId = '' }) => {
     const [topic, setTopic] = useState('');
     const [tone, setTone] = useState('Friendly');
     const [results, setResults] = useState<string[]>([]);
@@ -51,13 +52,13 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, onApply, bran
 
     const handleApplyAndLog = () => {
         if (selectedOriginal && editedCaption !== selectedOriginal) {
-            logUserFeedback({
+            logUserFeedback(brandId, {
                 type: 'EDIT',
                 originalText: selectedOriginal,
                 editedText: editedCaption,
             });
         } else if (selectedOriginal) {
-            logUserFeedback({ type: 'APPROVAL', originalText: selectedOriginal });
+            logUserFeedback(brandId, { type: 'APPROVAL', originalText: selectedOriginal });
         }
         onApply(editedCaption);
         onClose();

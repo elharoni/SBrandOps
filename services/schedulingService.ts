@@ -1,7 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { callAIProxy, Type } from './aiProxy';
 import { SocialPlatform, ScheduleSuggestion } from '../types';
-
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export interface SchedulingParams {
     platforms: SocialPlatform[];
@@ -37,7 +35,7 @@ export async function getOptimalPostingTimes(params: SchedulingParams): Promise<
     }
 
     prompt += `
-    
+
     الإرشادات:
     1. قدم 3 اقتراحات.
     2. يجب أن تكون الأوقات متنوعة ومناسبة للمنصات والجمهور المذكور مع مراعاة تفضيلات المستخدم إن وجدت.
@@ -48,43 +46,40 @@ export async function getOptimalPostingTimes(params: SchedulingParams): Promise<
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await callAIProxy({
             model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        suggestions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    platform: { type: Type.STRING, description: 'المنصة الاجتماعية المقترحة (مثل Facebook, Instagram).' },
-                                    date: { type: Type.STRING, description: 'التاريخ المقترح بصيغة YYYY-MM-DD.' },
-                                    time: { type: Type.STRING, description: 'الوقت المقترح بصيغة HH:mm (توقيت 24 ساعة).' },
-                                    reasoning: { type: Type.STRING, description: 'سبب مختصر ومنطقي لاختيار هذا الوقت باللغة العربية.' }
-                                },
-                                required: ['platform', 'date', 'time', 'reasoning']
-                            }
+            prompt,
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    suggestions: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                platform: { type: Type.STRING },
+                                date: { type: Type.STRING },
+                                time: { type: Type.STRING },
+                                reasoning: { type: Type.STRING }
+                            },
+                            required: ['platform', 'date', 'time', 'reasoning']
                         }
-                    },
-                    required: ['suggestions']
-                }
-            }
+                    }
+                },
+                required: ['suggestions']
+            },
+            feature: 'scheduling_suggest',
         });
-        
+
         const result = JSON.parse(response.text);
-        
-        if (result && result.suggestions) {
+
+        if (result?.suggestions) {
             return result.suggestions as ScheduleSuggestion[];
-        } else {
-             throw new Error("AI response did not contain 'suggestions'.");
         }
 
+        throw new Error("AI response did not contain 'suggestions'.");
     } catch (error) {
-        console.error("Error getting optimal times from Gemini:", error);
+        console.error("Error getting optimal times:", error);
         throw new Error("Failed to communicate with the AI model or parse its response.");
     }
 }

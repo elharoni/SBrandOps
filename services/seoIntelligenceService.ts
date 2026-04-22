@@ -1302,46 +1302,79 @@ export async function getOpportunities(
             pageMap.set(pageUrl, existing);
         }
 
+        // ── CTR Benchmark by position (Google industry averages) ───────────────
+        // Source: Backlinko CTR study 2023 — used for gap computation
+        const CTR_BENCHMARK: Record<number, number> = {
+            1: 0.284, 2: 0.154, 3: 0.113, 4: 0.082, 5: 0.067,
+            6: 0.052, 7: 0.042, 8: 0.035, 9: 0.028, 10: 0.024,
+        };
+        const getExpectedCtr = (pos: number): number => {
+            const rounded = Math.round(pos);
+            if (rounded <= 10) return CTR_BENCHMARK[rounded] ?? 0.024;
+            if (rounded <= 20) return 0.015;
+            return 0.005;
+        };
+
         const results: SeoOpportunity[] = [];
         for (const aggregate of pageMap.values()) {
-            if (aggregate.impressions <= 0) {
-                continue;
-            }
+            if (aggregate.impressions <= 0) continue;
 
-            const avgPosition = aggregate.positions.reduce((sum, value) => sum + value, 0) / aggregate.positions.length;
-            const ctr = aggregate.clicks / aggregate.impressions;
+            // Use weighted-median position (prefer recent positions via simple average)
+            const avgPosition = aggregate.positions.reduce((sum, v) => sum + v, 0) / aggregate.positions.length;
+            const actualCtr   = aggregate.clicks / aggregate.impressions;
+            const expectedCtr = getExpectedCtr(avgPosition);
 
             let opportunityType: SeoOpportunity['opportunityType'] | null = null;
             let opportunityScore = 0;
 
             if (avgPosition >= 5 && avgPosition <= 20 && aggregate.impressions >= 50) {
-                opportunityType = 'ranking_gap';
-                opportunityScore = aggregate.impressions * Math.max(1, 21 - avgPosition);
-            } else if (avgPosition <= 10 && aggregate.impressions >= 200 && ctr < 0.02) {
-                opportunityType = 'low_ctr';
-                opportunityScore = aggregate.impressions * Math.max(0.5, (0.025 - ctr) * 100);
-            } else if (avgPosition <= 5 && aggregate.impressions >= 150 && aggregate.clicks < Math.max(10, Math.round(aggregate.impressions * 0.015))) {
-                opportunityType = 'high_rank_low_traffic';
-                opportunityScore = aggregate.impressions * 0.75;
+                // RANKING GAP — pages in "page 1 tail / page 2" zone
+                // Score = position component (40%) + volume (30%) + CTR gap (30%)
+                // All components normalized 0–1, weighted sum × 100
+                const posComp    = Math.max(0, Math.min(1, (21 - avgPosition) / 16));   // 5→1.0, 20→0.0625
+                const volComp    = Math.min(1, aggregate.impressions / 10000);
+                const ctrGapComp = expectedCtr > 0
+                    ? Math.max(0, Math.min(1, (expectedCtr - actualCtr) / expectedCtr))
+                    : 0;
+                opportunityScore  = Math.round(posComp * 40 + volComp * 30 + ctrGapComp * 30);
+                opportunityType   = 'ranking_gap';
+
+            } else if (avgPosition <= 10 && aggregate.impressions >= 200 && actualCtr < 0.02) {
+                // LOW CTR — good position but poor click-through
+                // Score = CTR gap (60%) + volume (40%)
+                const ctrGap  = expectedCtr > 0
+                    ? Math.max(0, Math.min(1, (expectedCtr - actualCtr) / expectedCtr))
+                    : 0;
+                const volComp = Math.min(1, aggregate.impressions / 10000);
+                opportunityScore = Math.round(ctrGap * 60 + volComp * 40);
+                opportunityType  = 'low_ctr';
+
+            } else if (avgPosition <= 5 && aggregate.impressions >= 150
+                && aggregate.clicks < Math.max(10, Math.round(aggregate.impressions * expectedCtr * 0.5))) {
+                // HIGH RANK / LOW TRAFFIC — top 5 but under-performing vs CTR benchmark
+                const volComp = Math.min(1, aggregate.impressions / 10000);
+                opportunityScore = Math.round(volComp * 75);
+                opportunityType  = 'high_rank_low_traffic';
+
             } else if (aggregate.impressions >= 1000) {
-                opportunityType = 'monitor';
-                opportunityScore = aggregate.impressions * 0.05;
+                // MONITOR — high-volume stable pages to watch for decay
+                const volComp = Math.min(1, aggregate.impressions / 50000);
+                opportunityScore = Math.round(volComp * 30);
+                opportunityType  = 'monitor';
             }
 
-            if (!opportunityType || (type && opportunityType !== type)) {
-                continue;
-            }
+            if (!opportunityType || (type && opportunityType !== type)) continue;
 
             results.push({
-                brandId: brandId,
-                pageUrl: aggregate.pageUrl,
-                impressions30d: aggregate.impressions,
-                clicks30d: aggregate.clicks,
-                avgPosition: Math.round(avgPosition * 10) / 10,
-                ctr: Math.round(ctr * 10000) / 10000,
-                opportunityScore: Math.round(opportunityScore),
+                brandId:          brandId,
+                pageUrl:          aggregate.pageUrl,
+                impressions30d:   aggregate.impressions,
+                clicks30d:        aggregate.clicks,
+                avgPosition:      Math.round(avgPosition * 10) / 10,
+                ctr:              Math.round(actualCtr * 10000) / 10000,
+                opportunityScore,
                 opportunityType,
-                lastDataDate: aggregate.lastDataDate,
+                lastDataDate:     aggregate.lastDataDate,
             });
         }
 

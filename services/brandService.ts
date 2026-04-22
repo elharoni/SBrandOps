@@ -35,6 +35,24 @@ export async function addBrand(name: string, industry?: string, logoUrl?: string
         throw new Error('يجب تسجيل الدخول أولاً لإضافة براند');
     }
 
+    // ── Brand quota check ──────────────────────────────────────────────────
+    const { data: tenantRow } = await supabase
+        .from('tenants')
+        .select('brands_count, subscription_plans(max_brands)')
+        .eq('owner_id', user.id)
+        .maybeSingle();
+
+    if (tenantRow) {
+        const limit: number | null =
+            (tenantRow.subscription_plans as { max_brands?: number } | null)?.max_brands ?? null;
+        const count: number = tenantRow.brands_count ?? 0;
+        if (limit !== null && count >= limit) {
+            throw new Error(
+                `لقد وصلت للحد الأقصى من البراندات (${limit}). يرجى الترقية للخطة التالية.`
+            );
+        }
+    }
+
     const insertData: Record<string, unknown> = {
         name,
         user_id: user.id,
@@ -53,11 +71,20 @@ export async function addBrand(name: string, industry?: string, logoUrl?: string
         throw new Error(`فشل إنشاء البراند: ${error.message}`);
     }
 
+    // Increment tenant brands_count (fire-and-forget — quota check already happened)
+    void supabase
+        .from('tenants')
+        .update({ brands_count: (tenantRow?.brands_count ?? 0) + 1 })
+        .eq('owner_id', user.id)
+        .then(() => {}, () => {});
+
     return mapBrand(data);
 }
 
 // ── deleteBrand ───────────────────────────────────────────────────────────────
 export async function deleteBrand(brandId: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { error } = await supabase
         .from('brands')
         .delete()
@@ -66,6 +93,12 @@ export async function deleteBrand(brandId: string): Promise<void> {
     if (error) {
         console.error('❌ deleteBrand error:', error.message);
         throw new Error(`فشل حذف البراند: ${error.message}`);
+    }
+
+    // Decrement tenant brands_count (fire-and-forget)
+    if (user) {
+        void supabase.rpc('decrement_tenant_brands_count', { p_owner_id: user.id })
+            .then(() => {}, () => {});
     }
 }
 

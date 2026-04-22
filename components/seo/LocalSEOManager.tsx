@@ -5,6 +5,7 @@ import { addGBPPost, answerGBPQuestion, replyToGBPReview } from '../../services/
 interface LocalSEOManagerProps {
     addNotification: (type: NotificationType, message: string) => void;
     initialData: GBPData;
+    brandId: string;
 }
 
 const InfoCard: React.FC<{ info: GBPData['info'] }> = ({ info }) => (
@@ -28,7 +29,7 @@ const RatingStars: React.FC<{ rating: number }> = ({ rating }) => (
 );
 
 
-export const LocalSEOManager: React.FC<LocalSEOManagerProps> = ({ addNotification, initialData }) => {
+export const LocalSEOManager: React.FC<LocalSEOManagerProps> = ({ addNotification, initialData, brandId }) => {
     const [gbpData, setGbpData] = useState<GBPData | null>(initialData);
     
     // States for forms
@@ -53,18 +54,16 @@ export const LocalSEOManager: React.FC<LocalSEOManagerProps> = ({ addNotificatio
         setGbpData(processedData);
     }, [initialData]);
 
-    // This function can be used to simulate a refresh
-    const refreshData = () => {
-        // In a real app, this would call a service with the brandId.
-        // Here, we just re-process the initialData prop.
-        const processedData: GBPData = {
-            ...initialData,
-            posts: initialData.posts.map(post => ({...post, createdAt: new Date(post.createdAt)})),
-            reviews: initialData.reviews.map(review => ({...review, createdAt: new Date(review.createdAt)})),
-        };
-        setGbpData(processedData);
-        addNotification(NotificationType.Info, "تم تحديث البيانات.");
-    };
+    const refreshData = useCallback(async () => {
+        try {
+            const { getGBPData } = await import('../../services/gbpService');
+            const freshData = await getGBPData(brandId);
+            setGbpData(freshData);
+            addNotification(NotificationType.Info, "تم تحديث بيانات GBP.");
+        } catch {
+            addNotification(NotificationType.Error, "فشل تحديث البيانات.");
+        }
+    }, [brandId, addNotification]);
 
     const handleCreatePost = async () => {
         if (!newPostContent.trim()) {
@@ -73,11 +72,10 @@ export const LocalSEOManager: React.FC<LocalSEOManagerProps> = ({ addNotificatio
         }
         setIsSubmitting('new-post');
         try {
-            // In a real app, brandId would be passed here
-            await addGBPPost("brand-1", { content: newPostContent, cta: newPostCta });
+            await addGBPPost(brandId, { content: newPostContent, cta: newPostCta });
             addNotification(NotificationType.Success, 'تم نشر منشور GBP بنجاح.');
             setNewPostContent('');
-            refreshData(); // Simulate refresh
+            void refreshData();
         } catch (e) {
             addNotification(NotificationType.Error, 'فشل في نشر منشور GBP.');
         } finally {
@@ -90,10 +88,10 @@ export const LocalSEOManager: React.FC<LocalSEOManagerProps> = ({ addNotificatio
         if (!answerText || !answerText.trim()) return;
         setIsSubmitting(questionId);
         try {
-            await answerGBPQuestion("brand-1", questionId, answerText);
+            await answerGBPQuestion(brandId, questionId, answerText);
             addNotification(NotificationType.Success, 'تمت إضافة الإجابة بنجاح.');
             setAnswers(prev => ({...prev, [questionId]: ''}));
-            refreshData();
+            void refreshData();
         } catch (e) {
             addNotification(NotificationType.Error, 'فشل في إضافة الإجابة.');
         } finally {
@@ -106,10 +104,10 @@ export const LocalSEOManager: React.FC<LocalSEOManagerProps> = ({ addNotificatio
         if (!replyText || !replyText.trim()) return;
         setIsSubmitting(reviewId);
         try {
-            await replyToGBPReview("brand-1", reviewId, replyText);
+            await replyToGBPReview(brandId, reviewId, replyText);
             addNotification(NotificationType.Success, 'تمت إضافة الرد بنجاح.');
             setReplies(prev => ({...prev, [reviewId]: ''}));
-            refreshData();
+            void refreshData();
         } catch (e) {
             addNotification(NotificationType.Error, 'فشل في إضافة الرد.');
         } finally {

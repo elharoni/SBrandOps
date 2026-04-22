@@ -3,8 +3,8 @@
 // يُقيّم كل محتوى قبل النشر بـ score من 1-100 بناءً على 3 أبعاد:
 //   DNA Match (40%) + Historical Performance (35%) + Cross-Brand Benchmark (25%)
 
-import { GoogleGenAI, Type } from '@google/genai';
 import { supabase } from './supabaseClient';
+import { callAIProxy, Type } from './aiProxy';
 import { getBrandMemoryContext, formatMemoryForPrompt } from './brandMemoryService';
 import type { BrandHubProfile } from '../types';
 
@@ -35,25 +35,8 @@ export interface StoredContentScore {
   createdAt: string;
 }
 
-// ── Gemini Client ─────────────────────────────────────────────────────────
-
-let _ai: GoogleGenAI | null = null;
-
-function getAI(): GoogleGenAI {
-  if (!_ai) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error('Missing VITE_GEMINI_API_KEY');
-    _ai = new GoogleGenAI({ apiKey });
-  }
-  return _ai;
-}
-
 // ── Core Scoring Function ─────────────────────────────────────────────────
 
-/**
- * scoreContent — الدالة الرئيسية
- * تُقيّم المحتوى على 3 أبعاد وترجع score 1-100 مع تفسير وتحسين مقترح
- */
 export async function scoreContent(
   content: string,
   brandProfile: BrandHubProfile,
@@ -74,7 +57,6 @@ export async function scoreContent(
     };
   }
 
-  // جلب ذاكرة البراند لبُعد الـ Historical Performance
   const memoryEntries = await getBrandMemoryContext(brandId, 8);
   const memoryContext = formatMemoryForPrompt(memoryEntries);
 
@@ -119,44 +101,43 @@ ${memoryContext ? `سجل أداء البراند التاريخي:\n${memoryCon
 الـ score النهائي = (dnaMatch × 0.40) + (historicalPerformance × 0.35) + (crossBrandBenchmark × 0.25)
 `;
 
-  const response = await getAI().models.generateContent({
+  const response = await callAIProxy({
     model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          dnaMatch: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              feedback: { type: Type.STRING },
-            },
-            required: ['score', 'feedback'],
+    prompt,
+    schema: {
+      type: Type.OBJECT,
+      properties: {
+        dnaMatch: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.NUMBER },
+            feedback: { type: Type.STRING },
           },
-          historicalPerformance: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              feedback: { type: Type.STRING },
-            },
-            required: ['score', 'feedback'],
-          },
-          crossBrandBenchmark: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              feedback: { type: Type.STRING },
-            },
-            required: ['score', 'feedback'],
-          },
-          topImprovement: { type: Type.STRING },
-          predictedCtr: { type: Type.STRING },
+          required: ['score', 'feedback'],
         },
-        required: ['dnaMatch', 'historicalPerformance', 'crossBrandBenchmark', 'topImprovement', 'predictedCtr'],
+        historicalPerformance: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.NUMBER },
+            feedback: { type: Type.STRING },
+          },
+          required: ['score', 'feedback'],
+        },
+        crossBrandBenchmark: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.NUMBER },
+            feedback: { type: Type.STRING },
+          },
+          required: ['score', 'feedback'],
+        },
+        topImprovement: { type: Type.STRING },
+        predictedCtr: { type: Type.STRING },
       },
+      required: ['dnaMatch', 'historicalPerformance', 'crossBrandBenchmark', 'topImprovement', 'predictedCtr'],
     },
+    feature: 'content_scoring',
+    brand_id: brandId,
   });
 
   const raw = JSON.parse(response.text);
@@ -177,20 +158,11 @@ ${memoryContext ? `سجل أداء البراند التاريخي:\n${memoryCon
     ? (raw.predictedCtr as 'low' | 'medium' | 'high')
     : totalScore >= 70 ? 'high' : totalScore >= 45 ? 'medium' : 'low';
 
-  return {
-    totalScore,
-    breakdown,
-    topImprovement: raw.topImprovement,
-    predictedCtr,
-    contentId,
-  };
+  return { totalScore, breakdown, topImprovement: raw.topImprovement, predictedCtr, contentId };
 }
 
 // ── Supabase Storage ──────────────────────────────────────────────────────
 
-/**
- * saveContentScore — يحفظ الـ score في Supabase
- */
 export async function saveContentScore(
   brandId: string,
   contentId: string,
@@ -223,9 +195,6 @@ export async function saveContentScore(
   return data?.id ?? null;
 }
 
-/**
- * getContentScore — يجلب آخر score محفوظ للمحتوى
- */
 export async function getContentScore(contentId: string): Promise<StoredContentScore | null> {
   const { data, error } = await supabase
     .from('content_scores')
@@ -249,10 +218,6 @@ export async function getContentScore(contentId: string): Promise<StoredContentS
   };
 }
 
-/**
- * getBrandScoreStats — إحصائيات الـ scoring للبراند كله
- * (للـ Analytics Dashboard)
- */
 export async function getBrandScoreStats(brandId: string): Promise<{
   avgScore: number;
   totalScored: number;
@@ -269,17 +234,15 @@ export async function getBrandScoreStats(brandId: string): Promise<{
   }
 
   const scores = data.map((r: any) => r.total_score as number);
-  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  const avg = Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
 
   return {
     avgScore: avg,
     totalScored: scores.length,
-    highScoreCount: scores.filter(s => s >= 70).length,
-    lowScoreCount: scores.filter(s => s < 50).length,
+    highScoreCount: scores.filter((s: number) => s >= 70).length,
+    lowScoreCount: scores.filter((s: number) => s < 50).length,
   };
 }
-
-// ── Score & Save in one call ──────────────────────────────────────────────
 
 export async function scoreAndSave(
   content: string,

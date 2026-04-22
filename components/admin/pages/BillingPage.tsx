@@ -14,6 +14,7 @@ import { startBillingCheckout } from '../../../services/billingCheckoutService';
 import { manageBillingSubscription } from '../../../services/billingManagementService';
 import { retryBillingWebhook, retryBillingWebhooks } from '../../../services/billingWebhookService';
 import { BillingPaginationMeta, getAdminBillingSnapshot } from '../../../services/billingService';
+import { updateSubscriptionPlan } from '../../../services/tenantService';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface BillingPageProps {
@@ -172,6 +173,146 @@ const PlanCard: React.FC<{ plan: SubscriptionPlanAdmin; cycle: BillingCycle }> =
     );
 };
 
+// ── Plan Edit Modal ───────────────────────────────────────────────────────────
+
+interface PlanEditModalProps {
+    plan: SubscriptionPlanAdmin;
+    onClose: () => void;
+    onSave: (planId: string, updated: SubscriptionPlanAdmin) => Promise<void>;
+}
+
+const PlanEditModal: React.FC<PlanEditModalProps> = ({ plan, onClose, onSave }) => {
+    const [form, setForm] = useState({ ...plan });
+    const [featuresText, setFeaturesText] = useState(plan.features.join('\n'));
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        setForm(prev => ({
+            ...prev,
+            [name]: type === 'number' ? Number(value) : type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+        }));
+    };
+
+    const handleSave = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const updated: SubscriptionPlanAdmin = {
+                ...form,
+                features: featuresText.split('\n').map(f => f.trim()).filter(Boolean),
+            };
+            await onSave(plan.id, updated);
+            onClose();
+        } catch (err: any) {
+            setError(err.message || 'حدث خطأ');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+        <div>
+            <label className="block text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary uppercase tracking-wide mb-1">{label}</label>
+            {children}
+        </div>
+    );
+
+    const inputCls = "w-full px-3 py-2 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl text-sm text-light-text dark:text-dark-text focus:outline-none focus:border-primary";
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-light-card dark:bg-dark-card rounded-2xl border border-light-border dark:border-dark-border w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center px-6 py-4 border-b border-light-border dark:border-dark-border flex-shrink-0">
+                    <h2 className="text-lg font-bold text-light-text dark:text-dark-text">تعديل خطة: {plan.name}</h2>
+                    <button onClick={onClose} className="text-light-text-secondary hover:text-danger transition-colors">
+                        <i className="fas fa-times" />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field label="اسم الخطة">
+                            <input name="name" value={form.name} onChange={handleChange} className={inputCls} />
+                        </Field>
+                        <Field label="الشعار (Badge)">
+                            <input name="badge" value={form.badge || ''} onChange={handleChange} placeholder="مثال: Recommended" className={inputCls} />
+                        </Field>
+                    </div>
+
+                    <Field label="وصف مختصر (Tagline)">
+                        <input name="tagline" value={form.tagline || ''} onChange={handleChange} className={inputCls} />
+                    </Field>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field label="السعر الشهري ($)">
+                            <input name="monthlyPrice" type="number" value={form.monthlyPrice} onChange={handleChange} min={0} className={inputCls} />
+                        </Field>
+                        <Field label="السعر السنوي ($)">
+                            <input name="yearlyPrice" type="number" value={form.yearlyPrice} onChange={handleChange} min={0} className={inputCls} />
+                        </Field>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                        <Field label="عدد البراندات">
+                            <input name="brandLimit" type="number" value={form.brandLimit} onChange={handleChange} min={1} className={inputCls} />
+                        </Field>
+                        <Field label="عدد المستخدمين">
+                            <input name="userLimit" type="number" value={form.userLimit} onChange={handleChange} min={1} className={inputCls} />
+                        </Field>
+                        <Field label="أيام التجربة">
+                            <input name="trialDays" type="number" value={form.trialDays} onChange={handleChange} min={0} className={inputCls} />
+                        </Field>
+                    </div>
+
+                    <Field label="حد رموز AI الشهرية">
+                        <input name="aiTokenLimit" type="number" value={form.aiTokenLimit} onChange={handleChange} min={0} className={inputCls} />
+                    </Field>
+
+                    <Field label="المميزات (سطر لكل ميزة)">
+                        <textarea
+                            value={featuresText}
+                            onChange={e => setFeaturesText(e.target.value)}
+                            rows={5}
+                            className={inputCls + ' resize-none'}
+                            placeholder="ميزة 1&#10;ميزة 2&#10;ميزة 3"
+                        />
+                    </Field>
+
+                    <div className="flex items-center gap-3 p-3 bg-light-bg dark:bg-dark-bg rounded-xl">
+                        <input
+                            type="checkbox"
+                            id="highlighted"
+                            name="highlighted"
+                            checked={form.highlighted || false}
+                            onChange={e => setForm(prev => ({ ...prev, highlighted: e.target.checked }))}
+                            className="w-4 h-4 rounded text-primary"
+                        />
+                        <label htmlFor="highlighted" className="text-sm font-semibold text-light-text dark:text-dark-text cursor-pointer">
+                            تمييز هذه الخطة (Recommended)
+                        </label>
+                    </div>
+
+                    {error && <p className="text-sm text-danger bg-danger/10 rounded-xl px-3 py-2">{error}</p>}
+                </div>
+
+                <div className="flex gap-3 p-6 border-t border-light-border dark:border-dark-border flex-shrink-0">
+                    <button onClick={onClose}
+                        className="flex-1 py-2.5 rounded-xl border border-light-border dark:border-dark-border text-light-text-secondary hover:bg-light-bg dark:hover:bg-dark-bg transition-colors text-sm font-semibold">
+                        إلغاء
+                    </button>
+                    <button onClick={handleSave} disabled={loading}
+                        className="flex-1 py-2.5 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 transition-colors disabled:opacity-60 text-sm flex items-center justify-center gap-2">
+                        {loading && <i className="fas fa-spinner fa-spin" />}
+                        {loading ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const DataTableShell: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
     <section className="rounded-[1.75rem] border border-light-border bg-light-card p-6 dark:border-dark-border dark:bg-dark-card">
         <div className="mb-5">
@@ -293,6 +434,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
     const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
     const [checkoutMessage, setCheckoutMessage] = useState<string | null>(null);
+    const [editingPlan, setEditingPlan] = useState<SubscriptionPlanAdmin | null>(null);
+    const [localPlans, setLocalPlans] = useState<SubscriptionPlanAdmin[]>([]);
     const [pendingRowAction, setPendingRowAction] = useState<string | null>(null);
     const [pendingWebhookId, setPendingWebhookId] = useState<string | null>(null);
     const [pendingBulkRetry, setPendingBulkRetry] = useState(false);
@@ -561,7 +704,13 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     }, [loadBillingData]);
 
     const effectiveOverview = dataState.overview ?? overview;
-    const effectivePlans = dataState.plans.length ? dataState.plans : plans;
+    const basePlans = dataState.plans.length ? dataState.plans : plans;
+    const effectivePlans = localPlans.length ? localPlans : basePlans;
+
+    // Sync localPlans when remote plans change
+    React.useEffect(() => {
+        if (basePlans.length) setLocalPlans(basePlans);
+    }, [basePlans]);
     const effectiveSubscriptions = dataState.subscriptions;
     const effectiveInvoices = dataState.invoices;
     const effectiveWebhookEvents = dataState.webhookEvents;
@@ -719,6 +868,24 @@ export const BillingPage: React.FC<BillingPageProps> = ({
         }
     }, [addNotification, copy.failedRetryBatch, loadBillingData, onRefreshBilling]);
 
+    const handleSavePlan = async (planId: string, updated: SubscriptionPlanAdmin) => {
+        await updateSubscriptionPlan(planId, {
+            name: updated.name,
+            tagline: updated.tagline,
+            badge: updated.badge,
+            highlighted: updated.highlighted,
+            price_monthly: updated.monthlyPrice,
+            price_yearly: updated.yearlyPrice,
+            trial_days: updated.trialDays,
+            max_brands: updated.brandLimit,
+            max_users: updated.userLimit,
+            ai_tokens_monthly: updated.aiTokenLimit,
+            features: updated.features,
+        });
+        setLocalPlans(prev => prev.map(p => p.id === planId ? updated : p));
+        addNotification(NotificationType.Success, `تم تحديث خطة ${updated.name} بنجاح`);
+    };
+
     if (isLoading && !effectivePlans.length && !effectiveSubscriptions.length && !effectiveInvoices.length && !effectiveWebhookEvents.length && !effectiveAuditLogs.length) {
         return <BillingPageSkeleton />;
     }
@@ -764,21 +931,40 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                 ))}
             </div>
 
+            {/* ── Plans Header ── */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-xl font-bold text-light-text dark:text-dark-text">خطط الأسعار</h2>
+                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-1">
+                        تحكم في الأسعار والمميزات المعروضة على الموقع مباشرةً.
+                    </p>
+                </div>
+            </div>
+
             <section className="grid gap-5 xl:grid-cols-3">
                 {effectivePlans.map(plan => (
                     <div key={plan.id} className="space-y-3">
                         <PlanCard plan={plan} cycle={billingCycle} />
-                        <button
-                            onClick={() => handlePlanAction(plan.id)}
-                            disabled={pendingPlanId === plan.id || plan.id === 'enterprise'}
-                            className="w-full rounded-2xl bg-brand-primary px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {plan.id === 'enterprise'
-                                ? copy.customSalesFlow
-                                : pendingPlanId === plan.id
-                                    ? copy.preparingCheckout
-                                    : copy.startPlan(plan.name)}
-                        </button>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => setEditingPlan(plan)}
+                                className="flex items-center justify-center gap-2 rounded-2xl border border-light-border dark:border-dark-border px-4 py-2.5 text-sm font-semibold text-light-text dark:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg transition-colors"
+                            >
+                                <i className="fas fa-pen text-xs text-primary" />
+                                تعديل الخطة
+                            </button>
+                            <button
+                                onClick={() => handlePlanAction(plan.id)}
+                                disabled={pendingPlanId === plan.id || plan.id === 'enterprise'}
+                                className="rounded-2xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 transition-colors hover:bg-brand-primary/90"
+                            >
+                                {plan.id === 'enterprise'
+                                    ? copy.customSalesFlow
+                                    : pendingPlanId === plan.id
+                                        ? copy.preparingCheckout
+                                        : copy.startPlan(plan.name)}
+                            </button>
+                        </div>
                     </div>
                 ))}
             </section>
@@ -1154,6 +1340,14 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     </div>
                 )}
             </DataTableShell>
+
+            {editingPlan && (
+                <PlanEditModal
+                    plan={editingPlan}
+                    onClose={() => setEditingPlan(null)}
+                    onSave={handleSavePlan}
+                />
+            )}
         </div>
     );
 };

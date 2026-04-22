@@ -5,7 +5,23 @@
       "Bash(grep -n \"tenant_id\\\\|plan_id\\\\|max_brands\" migrations/001*.sql migrations/002*.sql migrations/003*.sql)",
       "Bash(grep -n \"CREATE TABLE.*tenant\" migrations/*.sql)",
       "Bash(node -e \"const tw = require\\('./tailwind.config.js'\\); console.log\\('Tailwind config loaded OK, colors count:', Object.keys\\(tw.default?.theme?.extend?.colors || {}\\).length\\)\")",
-      "Bash(grep -n \"const ai = new GoogleGenAI\\\\|const _ai:\\\\|getAI\\(\\)\" /c/Users/aboda/Downloads/sbrandops---v1.0541/services/*.ts)"
+      "Bash(grep -n \"const ai = new GoogleGenAI\\\\|const _ai:\\\\|getAI\\(\\)\" /c/Users/aboda/Downloads/sbrandops---v1.0541/services/*.ts)",
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -r \"VITE_.*KEY\\\\|VITE_.*API\\\\|VITE_.*SECRET\" c:/Users/aboda/Downloads/sbrandops---v1.0541/.env*)",
+      "Bash(head -20 ls c:/Users/aboda/Downloads/sbrandops---v1.0541/.env*)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(ls -1 /c/Users/aboda/Downloads/sbrandops---v1.0541/services/*.ts)",
+      "Bash(ls /c/Users/aboda/Downloads/sbrandops---v1.0541/components/pages/*.tsx)",
+      "Bash(ls -la /c/Users/aboda/Downloads/sbrandops---v1.0541/*.md)",
+      "Bash(node -e ':*)",
+      "Bash(node fix_seov2.js)",
+      "Bash(mv \"c:/Users/aboda/Downloads/sbrandops---v1.0541/fix_seov2.js\" \"c:/Users/aboda/Downloads/sbrandops---v1.0541/fix_seov2.cjs\")",
+      "Bash(node fix_seov2.cjs)",
+      "Bash(node patch_sync.cjs)",
+      "Read(//tmp/**)",
+      "PowerShell([System.BitConverter]::ToString\\([System.Security.Cryptography.RandomNumberGenerator]::GetBytes\\(32\\)\\).Replace\\('-',''\\).ToLower\\(\\))",
+      "PowerShell($rng = [System.Security.Cryptography.RandomNumberGenerator]::Create\\(\\); $bytes = New-Object byte[] 32; $rng.GetBytes\\($bytes\\); [System.BitConverter]::ToString\\($bytes\\).Replace\\('-',''\\).ToLower\\(\\))",
+      "PowerShell($serviceKey = \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4emNmZG1qd2dnaWttcWVzd3ZtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDg3NDUxMywiZXhwIjoyMDkwNDUwNTEzfQ.kyfguZOx1-_YmgNbq1PkDtftqxtvcsJuFCOk7oIuE8A\"; Invoke-RestMethod -Uri \"https://wxzcfdmjwggikmqeswvm.supabase.co/functions/v1/backfill-encrypt-tokens\" -Method POST -Headers @{ \"Authorization\" = \"Bearer $serviceKey\"; \"Content-Type\" = \"application/json\" } -Body \"{}\" 2>&1)"
     ]
   }
 }

@@ -5,11 +5,36 @@
  * Shows current plan, usage metrics, and upgrade options.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { usePlanLimits } from '../../hooks/usePlanLimits';
 import { PRICING_PLANS } from '../../config/pricingPlans';
 import { useLanguage } from '../../context/LanguageContext';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
+import { supabase } from '../../services/supabaseClient';
+
+function useMonthlyAIUsage() {
+    const [used, setUsed] = useState(0);
+    useEffect(() => {
+        const start = new Date();
+        start.setUTCDate(1); start.setUTCHours(0, 0, 0, 0);
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (!user) return;
+            supabase
+                .from('ai_usage_logs')
+                .select('input_tokens, output_tokens')
+                .eq('user_id', user.id)
+                .gte('created_at', start.toISOString())
+                .then(({ data }) => {
+                    const total = (data ?? []).reduce(
+                        (s, r) => s + (r.input_tokens ?? 0) + (r.output_tokens ?? 0), 0
+                    );
+                    setUsed(total);
+                });
+        });
+    }, []);
+    return used;
+}
 
 interface UserBillingPageProps {
     brandCount: number;
@@ -44,6 +69,7 @@ export const UserBillingPage: React.FC<UserBillingPageProps> = ({ brandCount, us
     const { language } = useLanguage();
     const ar = language === 'ar';
     const { planId, planName, limits, isLoading } = usePlanLimits();
+    const aiTokensUsed = useMonthlyAIUsage();
 
     const currentPlan = PRICING_PLANS.find(p => p.id === planId);
     const upgradePlans = PRICING_PLANS.filter(p => {
@@ -94,7 +120,7 @@ export const UserBillingPage: React.FC<UserBillingPageProps> = ({ brandCount, us
 
                         <div className="flex flex-col gap-2 md:items-end">
                             <a
-                                href="/pricing"
+                                href="/app/billing"
                                 className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white shadow-primary-glow hover:opacity-90 transition-opacity"
                             >
                                 <i className="fas fa-arrow-up text-xs" />
@@ -134,7 +160,7 @@ export const UserBillingPage: React.FC<UserBillingPageProps> = ({ brandCount, us
                         label={ar ? 'أعضاء الفريق' : 'Team members'}
                     />
                     <UsageBar
-                        used={0}
+                        used={aiTokensUsed}
                         max={limits.aiTokensMonthly}
                         label={ar ? 'رصيد الذكاء الاصطناعي (شهري)' : 'AI credits (monthly)'}
                     />
@@ -176,7 +202,7 @@ export const UserBillingPage: React.FC<UserBillingPageProps> = ({ brandCount, us
                                     ))}
                                 </ul>
                                 <a
-                                    href="/pricing"
+                                    href="/app/billing"
                                     className="mt-auto flex items-center justify-center gap-2 rounded-2xl bg-brand-primary/10 px-4 py-2.5 text-sm font-semibold text-brand-primary hover:bg-brand-primary hover:text-white transition-colors"
                                 >
                                     {plan.ctaLabel}

@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Brand } from '../types';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import { usePlanLimits } from '../hooks/usePlanLimits';
 
 interface HeaderProps {
     unreadCount: number;
@@ -127,6 +129,9 @@ export const Header: React.FC<HeaderProps> = React.memo(({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const pageMeta = useMemo(() => getPageMeta(activePageId, ar), [activePageId, ar]);
+    const { planName, planId, limits, brandUsagePercent } = usePlanLimits();
+    const brandPct = brandUsagePercent(brands.length);
+    const isNearLimit = brandPct !== null && brandPct >= 80;
 
     useEffect(() => {
         const handler = (event: MouseEvent) => {
@@ -244,6 +249,21 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Plan pill — always visible, pulses amber when near brand limit */}
+                    <Link
+                        to="/app/billing"
+                        className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
+                            isNearLimit
+                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 animate-pulse'
+                                : 'bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20'
+                        }`}
+                        title={limits.maxBrands !== null ? `${brands.length} / ${limits.maxBrands} ${ar ? 'براند' : 'brands'}` : ''}
+                    >
+                        <i className="fas fa-bolt text-[9px]" />
+                        {planName}
+                        {isNearLimit && <i className="fas fa-exclamation text-[9px]" />}
+                    </Link>
+
                     <button
                         onClick={toggleTheme}
                         className="flex h-10 w-10 items-center justify-center rounded-xl text-light-text-secondary transition-colors hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text"

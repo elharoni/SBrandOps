@@ -601,7 +601,7 @@ export interface PublisherBrief {
     id: string;
     brandId?: string;
     watchlistId?: string;
-    source: 'social-search' | 'content-ops';
+    source: 'social-search' | 'content-ops' | 'marketing-plans';
     title: string;
     query?: string;
     objective: string;
@@ -647,6 +647,13 @@ export interface TechnicalSEOAuditResult {
     overallScore: number;
     url: string;
     auditedAt: Date;
+    /** Lighthouse category scores 0-100 */
+    scores?: {
+        performance: number;
+        seo: number;
+        bestPractices: number;
+        accessibility: number;
+    };
     crawling: { totalUrls: number, status200: number, status301: number, status404: number, issues: AuditIssue[] };
     performance: { vitals: CoreWebVitals, issues: AuditIssue[] };
     structuredData: { typesFound: string[], issues: AuditIssue[] };
@@ -829,12 +836,23 @@ export interface AdminUser {
 export interface Tenant {
     id: string;
     name: string;
+    billingEmail?: string;
     status: 'active' | 'trial' | 'past_due' | 'suspended' | 'cancelled' | 'inactive';
     plan: string;
+    planName?: string;
     usersCount: number;
     brandsCount: number;
     aiTokenUsage: number;
     aiTokenLimit: number;
+    userLimit?: number | null;
+    brandLimit?: number | null;
+    // Per-tenant custom overrides (override plan defaults)
+    customBrandLimit?: number | null;
+    customUserLimit?: number | null;
+    customAiTokenLimit?: number | null;
+    createdAt?: string;
+    trialEndsAt?: string | null;
+    notes?: string | null;
 }
 
 export interface AdminDashboardStats {
@@ -999,6 +1017,11 @@ export interface GeneralSettings {
     maintenanceMode: boolean;
     defaultLanguage: 'en' | 'ar';
     supportEmail: string;
+    logoUrl: string;
+    supportWebsite: string;
+    announcementEnabled: boolean;
+    announcementText: string;
+    announcementType: 'info' | 'warning' | 'success' | 'danger';
 }
 
 export interface SecuritySettings {
@@ -1010,6 +1033,29 @@ export interface SecuritySettings {
     require2FAForAdmins: boolean;
 }
 
+export type AIProvider = 'gemini' | 'openai' | 'anthropic' | 'stability' | 'replicate';
+
+export interface AIProviderKey {
+    id: string;
+    provider: AIProvider;
+    name: string;
+    keyMasked: string;
+    isActive: boolean;
+    createdAt: string;
+    lastTestedAt: string | null;
+    testStatus: 'ok' | 'failed' | 'untested';
+}
+
+export interface AdminLog {
+    id: string;
+    adminName: string;
+    adminEmail: string;
+    action: string;
+    entityType: string;
+    entityId: string | null;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
+}
 
 // ============================================================
 // CRM Module Types — Customer Hub

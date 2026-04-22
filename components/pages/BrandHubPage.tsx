@@ -98,7 +98,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
                             <i className="fas fa-magic text-brand-pink" /> إعداد ذكي لهوية البراند
                         </h2>
-                        <button onClick={onClose} className="text-dark-text-secondary hover:text-white"><i className="fas fa-times" /></button>
+                        <button onClick={onClose} aria-label="إغلاق" className="text-dark-text-secondary hover:text-white"><i className="fas fa-times" /></button>
                     </div>
                     <div className="flex items-center gap-2">
                         {STEPS.map((s, i) => (

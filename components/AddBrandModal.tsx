@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 import { QuotaWarning } from './shared/PaywallGate';
 
@@ -74,12 +75,12 @@ export const AddBrandModal: React.FC<AddBrandModalProps> = ({ onClose, onCreate,
                                 {isLoading ? 'جاري الإنشاء...' : 'إنشاء'}
                             </button>
                         ) : (
-                            <a
-                                href="/pricing"
+                            <Link
+                                to="/app/billing"
                                 className="bg-brand-primary text-white font-bold py-2 px-6 rounded-lg hover:bg-brand-secondary text-center"
                             >
                                 ترقية الباقة
-                            </a>
+                            </Link>
                         )}
                     </div>
                 </form>

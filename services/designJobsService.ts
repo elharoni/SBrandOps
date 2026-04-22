@@ -115,13 +115,11 @@ export async function runDesignJob(
         await updateDesignJob(job.id, { prompt: basePrompt, enhanced_prompt: enhancedPrompt });
         onProgress?.('جاري توليد التصاميم بـ Imagen 4.0...');
 
-        // 3. Generate variants (parallel calls to Imagen 4.0)
-        const count      = workflow.variantsCount || 3;
+        // 3. Generate variants using count parameter
+        const count       = workflow.variantsCount || 3;
         const aspectRatio = job.format.aspectRatio;
-        const imagePromises = Array.from({ length: count }, () =>
-            generateImageFromPrompt(enhancedPrompt, aspectRatio)
-        );
-        const dataUrls = await Promise.all(imagePromises);
+        // generateImageFromPrompt now returns string[] — pass count directly
+        const dataUrls = await generateImageFromPrompt(enhancedPrompt, aspectRatio, 'google', count);
 
         onProgress?.('جاري رفع الصور على المكتبة...');
 

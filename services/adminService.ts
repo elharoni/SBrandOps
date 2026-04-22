@@ -7,6 +7,7 @@ import {
     AdminDashboardStats, AdminUser, AdminUserRole,
     AIMetric, QueueJob, AdminPermission, AIInsight,
     SystemHealthStatus, ActivityLog, GeneralSettings, SecuritySettings,
+    AdminLog,
 } from '../types';
 
 // ── Dashboard Stats ───────────────────────────────────────────────────────────
@@ -62,22 +63,23 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 // if the admin panel needs a full cross-tenant account directory beyond team_members.
 
 export async function getAdminUsers(): Promise<AdminUser[]> {
-    // Fallback: read from team_members with admin roles across all brands
     const { data, error } = await supabase
-        .from('team_members')
-        .select('*, brands(name)')
-        .in('role', ['Owner', 'Admin'])
-        .order('invited_at', { ascending: false })
-        .limit(100);
+        .from('admin_users')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
 
-    if (error) return [];
+    if (error) {
+        console.warn('[adminService] getAdminUsers RLS error — run migration 035:', error.message);
+        return [];
+    }
     return (data || []).map((row: any) => ({
         id: row.id,
-        name: row.name || row.invited_email?.split('@')[0] || 'Unknown',
-        email: row.invited_email || '',
-        role: row.role === 'Owner' ? AdminUserRole.ADMIN : AdminUserRole.MODERATOR,
-        tenantName: row.brands?.name || 'Unknown Brand',
-        lastLogin: row.last_active_at || row.invited_at,
+        name: row.name || row.email?.split('@')[0] || 'Unknown',
+        email: row.email || '',
+        role: (row.role as AdminUserRole) || AdminUserRole.SUPPORT,
+        tenantName: row.tenant_name || 'System',
+        lastLogin: row.updated_at || row.created_at,
         twoFactorEnabled: false,
     }));
 }
@@ -195,10 +197,8 @@ export async function getSystemHealth(): Promise<SystemHealthStatus[]> {
 
     results.push({
         service: 'AI Provider (Gemini)',
-        status: import.meta.env.VITE_GEMINI_API_KEY ? 'ok' : 'degraded',
-        details: import.meta.env.VITE_GEMINI_API_KEY
-            ? 'API key configured'
-            : 'VITE_GEMINI_API_KEY not set',
+        status: 'ok',
+        details: 'API key managed server-side via Admin > AI Keys',
     });
 
     return results;
@@ -229,21 +229,198 @@ export async function getLatestActivities(): Promise<ActivityLog[]> {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export async function getGeneralSettings(): Promise<GeneralSettings> {
+    const { data } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', [
+            'appName', 'maintenanceMode', 'defaultLanguage', 'supportEmail',
+            'logoUrl', 'supportWebsite', 'announcementEnabled', 'announcementText', 'announcementType',
+        ]);
+
+    const map: Record<string, any> = {};
+    (data || []).forEach((row: any) => { map[row.key] = row.value; });
+
     return {
-        appName: 'SBrandOps',
-        maintenanceMode: false,
-        defaultLanguage: 'ar',
-        supportEmail: 'support@sbrandops.com',
+        appName: map.appName ?? 'SBrandOps',
+        maintenanceMode: map.maintenanceMode === 'true' || map.maintenanceMode === true,
+        defaultLanguage: map.defaultLanguage ?? 'ar',
+        supportEmail: map.supportEmail ?? 'support@sbrandops.com',
+        logoUrl: map.logoUrl ?? '',
+        supportWebsite: map.supportWebsite ?? '',
+        announcementEnabled: map.announcementEnabled === 'true',
+        announcementText: map.announcementText ?? '',
+        announcementType: (map.announcementType as GeneralSettings['announcementType']) ?? 'info',
     };
 }
 
+export async function updateGeneralSettings(settings: GeneralSettings): Promise<void> {
+    const entries = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value: String(value),
+        updated_at: new Date().toISOString(),
+    }));
+
+    await Promise.all(entries.map(entry =>
+        supabase.from('system_settings').upsert(entry, { onConflict: 'key' })
+    ));
+}
+
 export async function getSecuritySettings(): Promise<SecuritySettings> {
+    const { data } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', ['passwordMinLength', 'passwordRequiresUppercase', 'passwordRequiresNumber', 'passwordRequiresSymbol', 'sessionTimeout', 'require2FAForAdmins']);
+
+    const map: Record<string, any> = {};
+    (data || []).forEach((row: any) => { map[row.key] = row.value; });
+
     return {
-        passwordMinLength: 8,
-        passwordRequiresUppercase: true,
-        passwordRequiresNumber: true,
-        passwordRequiresSymbol: false,
-        sessionTimeout: 60,
-        require2FAForAdmins: false,
+        passwordMinLength: Number(map.passwordMinLength ?? 8),
+        passwordRequiresUppercase: map.passwordRequiresUppercase !== 'false',
+        passwordRequiresNumber: map.passwordRequiresNumber !== 'false',
+        passwordRequiresSymbol: map.passwordRequiresSymbol === 'true',
+        sessionTimeout: Number(map.sessionTimeout ?? 60),
+        require2FAForAdmins: map.require2FAForAdmins === 'true',
     };
+}
+
+export async function updateSecuritySettings(settings: SecuritySettings): Promise<void> {
+    const entries = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value: String(value),
+        updated_at: new Date().toISOString(),
+    }));
+
+    await Promise.all(entries.map(entry =>
+        supabase.from('system_settings').upsert(entry, { onConflict: 'key' })
+    ));
+}
+
+// ── Auto-register current admin into admin_users if missing ──────────────────
+
+export async function ensureCurrentAdminInTable(): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return;
+
+    const { data: existing } = await supabase
+        .from('admin_users')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle();
+
+    if (existing) return; // already registered
+
+    const role = (
+        user.user_metadata?.role === 'SUPER_ADMIN' ||
+        user.app_metadata?.role === 'super_admin'
+    ) ? AdminUserRole.SUPER_ADMIN : AdminUserRole.ADMIN;
+
+    await supabase.from('admin_users').insert({
+        email: user.email,
+        role,
+        tenant_name: 'System',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    });
+}
+
+// ── Admin User CRUD ───────────────────────────────────────────────────────────
+
+export async function createAdminUser(
+    email: string,
+    role: AdminUserRole,
+    tenantName: string
+): Promise<void> {
+    const { error } = await supabase
+        .from('admin_users')
+        .insert({
+            email,
+            role,
+            tenant_name: tenantName,
+            created_at: new Date().toISOString(),
+        });
+
+    if (error) throw new Error(error.message);
+}
+
+export async function updateAdminUserRole(
+    userId: string,
+    role: AdminUserRole
+): Promise<void> {
+    const { error } = await supabase
+        .from('admin_users')
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+    if (error) throw new Error(error.message);
+}
+
+export async function deleteAdminUser(userId: string): Promise<void> {
+    const { error } = await supabase
+        .from('admin_users')
+        .delete()
+        .eq('id', userId);
+
+    if (error) throw new Error(error.message);
+}
+
+// ── Role Permissions ──────────────────────────────────────────────────────────
+
+export async function getRolePermissions(): Promise<Record<string, string[]>> {
+    const { data } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'rolePermissions')
+        .maybeSingle();
+
+    if (!data?.value) return {};
+    try { return JSON.parse(data.value); } catch { return {}; }
+}
+
+export async function saveRolePermissions(mapping: Record<string, string[]>): Promise<void> {
+    await supabase
+        .from('system_settings')
+        .upsert({ key: 'rolePermissions', value: JSON.stringify(mapping), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+}
+
+// ── Admin Logs ────────────────────────────────────────────────────────────────
+
+export async function getAdminLogs(): Promise<AdminLog[]> {
+    const { data, error } = await supabase
+        .from('admin_audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => ({
+        id: row.id,
+        adminName: row.admin_name || 'System',
+        adminEmail: row.admin_email || '',
+        action: row.action,
+        entityType: row.entity_type || '',
+        entityId: row.entity_id ?? null,
+        metadata: row.metadata ?? null,
+        createdAt: row.created_at,
+    }));
+}
+
+export async function writeAdminLog(
+    action: string,
+    entityType: string,
+    entityId?: string,
+    metadata?: Record<string, unknown>
+): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    await supabase.from('admin_audit_logs').insert({
+        admin_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin',
+        admin_email: user?.email || '',
+        action,
+        entity_type: entityType,
+        entity_id: entityId ?? null,
+        metadata: metadata ?? null,
+        created_at: new Date().toISOString(),
+    });
 }

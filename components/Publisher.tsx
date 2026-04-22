@@ -55,10 +55,10 @@ const RailCard: React.FC<{
     description?: string;
     children: React.ReactNode;
 }> = ({ title, description, children }) => (
-    <section className="surface-panel rounded-[1.6rem] !border-0 p-5 shadow-[var(--shadow-ambient)]">
-        <div className="mb-5">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-secondary">{title}</p>
-            {description && <p className="mt-1.5 text-xs font-medium leading-5 text-light-text-secondary dark:text-dark-text-secondary">{description}</p>}
+    <section className="surface-panel rounded-2xl p-5 shadow-[var(--shadow-ambient)]">
+        <div className="mb-4">
+            <p className="text-[11px] font-black uppercase tracking-widest text-brand-secondary">{title}</p>
+            {description && <p className="mt-1 text-xs font-medium leading-5 text-light-text-secondary dark:text-dark-text-secondary">{description}</p>}
         </div>
         {children}
     </section>
@@ -81,9 +81,9 @@ const PlatformChipSelector: React.FC<{
                     key={platform}
                     type="button"
                     onClick={() => onToggle(platform)}
-                    className={`group relative overflow-hidden rounded-[1.25rem] px-4 py-3 text-left transition-all active:scale-95 ${
+                    className={`group relative overflow-hidden rounded-2xl px-4 py-3 text-left transition-all active:scale-95 ${
                         isSelected
-                            ? 'surface-panel !border-0 shadow-[var(--shadow-primary)]'
+                            ? 'surface-panel shadow-[var(--shadow-primary)]'
                             : 'surface-panel-soft opacity-70 hover:opacity-100 hover:-translate-y-0.5 hover:shadow-[var(--shadow-ambient)]'
                     }`}
                 >
@@ -596,7 +596,7 @@ export const Publisher: React.FC<PublisherProps> = ({
     return (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_370px]">
             <div className="space-y-6">
-                <section className="surface-panel overflow-hidden rounded-[2.5rem] !border-0 shadow-[var(--shadow-ambient)]">
+                <section className="surface-panel overflow-hidden rounded-3xl shadow-[var(--shadow-ambient)]">
                     <div className="border-b border-light-border/50 dark:border-dark-border/50 px-8 py-6">
                         <div className="flex flex-wrap items-start justify-between gap-4">
                             <div>
@@ -621,7 +621,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                         </div>
 
                         {publisherBrief && (
-                            <div className="surface-panel-soft mt-5 rounded-[1.5rem] bg-gradient-to-r from-brand-primary/10 via-transparent to-transparent p-5 shadow-inner">
+                            <div className="surface-panel-soft mt-5 rounded-2xl bg-gradient-to-r from-brand-primary/10 via-transparent to-transparent p-5 shadow-inner">
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div className="max-w-3xl">
                                         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-secondary">{copy.briefBannerTitle}</p>
@@ -654,7 +654,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                                 value={post.content}
                                 onChange={(event) => dispatch({ type: 'UPDATE_FIELD', payload: { field: 'content', value: event.target.value } })}
                                 placeholder={t.publisher.writePostPlaceholder}
-                                className="min-h-[240px] w-full rounded-[1.5rem] border-0 bg-light-bg px-6 py-5 text-base leading-relaxed text-light-text shadow-inner outline-none transition-colors placeholder:text-light-text-secondary/60 focus:ring-2 focus:ring-brand-primary/30 dark:bg-dark-bg dark:text-dark-text dark:placeholder:text-dark-text-secondary/60"
+                                className="min-h-[240px] w-full rounded-2xl border-0 bg-light-bg px-6 py-5 text-base leading-relaxed text-light-text shadow-inner outline-none transition-colors placeholder:text-light-text-secondary/60 focus:ring-2 focus:ring-brand-primary/30 dark:bg-dark-bg dark:text-dark-text dark:placeholder:text-dark-text-secondary/60"
                             />
                             <div className="flex flex-wrap items-center gap-2">
                                 {isSuggestingHashtags && <span className="text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary">{t.publisher.suggestingHashtags}</span>}
@@ -664,7 +664,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                             </div>
                         </section>
 
-                        <section className="rounded-[1.7rem] border border-dark-border bg-[#0e0b1e] p-4">
+                        <section className="rounded-2xl border border-dark-border bg-dark-bg p-4">
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-secondary">{copy.mediaStage}</p>
@@ -673,7 +673,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                                 {post.media.length > 0 && <button type="button" onClick={() => dispatch({ type: 'CLEAR_ALL_MEDIA' })} className="text-xs font-semibold text-rose-300 transition-colors hover:text-rose-200">{t.publisher.clearAll}</button>}
                             </div>
 
-                            <div className={`rounded-[1.5rem] border-2 border-dashed p-4 transition-all ${isDraggingOver ? 'border-brand-primary bg-brand-primary/8 shadow-[0_0_0_6px_rgba(87,92,255,0.08)]' : 'border-dark-border bg-dark-bg/70'}`} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
+                            <div className={`rounded-2xl border-2 border-dashed p-4 transition-all ${isDraggingOver ? 'border-brand-primary bg-brand-primary/8 shadow-[0_0_0_6px_rgba(87,92,255,0.08)]' : 'border-dark-border bg-dark-bg/70'}`} onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave}>
                                 {post.media.length === 0 ? (
                                     <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
                                         <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-brand-primary/12 text-brand-primary"><i className="fas fa-cloud-arrow-up text-2xl" /></div>
@@ -688,7 +688,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                                     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
                                         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                                             {post.media.map((item, index) => (
-                                                <div key={item.id} className={`group relative aspect-square overflow-hidden rounded-[1.15rem] border border-dark-border bg-black transition-all ${dragOverIndex === index ? 'ring-2 ring-brand-primary' : ''}`} draggable onDragStart={() => { dragItem.current = index; }} onDragEnter={() => { if (dragItem.current !== null) { dragOverItem.current = index; setDragOverIndex(index); } }} onDragEnd={handleDragEnd}>
+                                                <div key={item.id} className={`group relative aspect-square overflow-hidden rounded-xl border border-dark-border bg-black transition-all ${dragOverIndex === index ? 'ring-2 ring-brand-primary' : ''}`} draggable onDragStart={() => { dragItem.current = index; }} onDragEnter={() => { if (dragItem.current !== null) { dragOverItem.current = index; setDragOverIndex(index); } }} onDragEnd={handleDragEnd}>
                                                     {item.type === 'video' ? <video src={item.url} className="h-full w-full object-cover" /> : <img src={item.url} alt="Media item" className="h-full w-full object-cover" />}
                                                     <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                                                         <button type="button" onClick={(event) => { event.stopPropagation(); setMediaToEdit(item); }} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25"><i className="fas fa-pen text-xs" /></button>
@@ -698,8 +698,8 @@ export const Publisher: React.FC<PublisherProps> = ({
                                             ))}
                                         </div>
                                         <div className="grid gap-3">
-                                            <button type="button" onClick={() => fileInputRef.current?.click()} className="flex min-h-[96px] flex-col items-center justify-center rounded-[1.2rem] border border-dark-border bg-dark-card px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:border-brand-primary"><i className="fas fa-folder-plus mb-2 text-lg text-brand-secondary" />{copy.uploadAssets}</button>
-                                            <button type="button" onClick={() => setShowImageGenerator(true)} className="flex min-h-[96px] flex-col items-center justify-center rounded-[1.2rem] border border-dark-border bg-dark-card px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:border-brand-primary"><i className="fas fa-sparkles mb-2 text-lg text-brand-secondary" />{copy.aiImage}</button>
+                                            <button type="button" onClick={() => fileInputRef.current?.click()} className="flex min-h-[96px] flex-col items-center justify-center rounded-xl border border-dark-border bg-dark-card px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:border-brand-primary"><i className="fas fa-folder-plus mb-2 text-lg text-brand-secondary" />{copy.uploadAssets}</button>
+                                            <button type="button" onClick={() => setShowImageGenerator(true)} className="flex min-h-[96px] flex-col items-center justify-center rounded-xl border border-dark-border bg-dark-card px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:border-brand-primary"><i className="fas fa-sparkles mb-2 text-lg text-brand-secondary" />{copy.aiImage}</button>
                                         </div>
                                     </div>
                                 )}
@@ -726,7 +726,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                         </section>
 
                         {(post.platforms.includes(SocialPlatform.Instagram) || showLocationInput) && (
-                            <section className="rounded-[1.4rem] border border-dark-border bg-dark-bg/60 p-4">
+                            <section className="rounded-2xl border border-dark-border bg-dark-bg/60 p-4">
                                 <div className="mb-4">
                                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-secondary">{copy.channelSettings}</p>
                                     <p className="mt-1 text-sm text-dark-text-secondary">{copy.channelSettingsHint}</p>
@@ -762,7 +762,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                     </div>
                 </section>
 
-                <section className="rounded-[1.8rem] border border-dark-border/80 bg-dark-card/90 p-5 shadow-[0_30px_90px_-55px_rgba(0,0,0,0.85)]">
+                <section className="surface-panel rounded-3xl p-5 shadow-[var(--shadow-ambient)]">
                     <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-secondary">{copy.previewTitle}</p>
@@ -772,7 +772,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                     </div>
 
                     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-                        <div className="overflow-hidden rounded-[1.4rem] border border-dark-border bg-[#0d0a1c] p-3">
+                        <div className="overflow-hidden rounded-2xl border border-dark-border bg-dark-bg p-3">
                             <PostPreview
                                 content={post.content}
                                 platforms={post.platforms}
@@ -786,14 +786,14 @@ export const Publisher: React.FC<PublisherProps> = ({
                         </div>
                         <div className="space-y-3">
                             {previewFit.length === 0 ? (
-                                <div className="rounded-[1.3rem] border border-dashed border-dark-border bg-dark-bg/60 p-4 text-sm leading-6 text-dark-text-secondary">
+                                <div className="rounded-2xl border border-dashed border-dark-border bg-dark-bg/60 p-4 text-sm leading-6 text-dark-text-secondary">
                                     {ar ? 'اختر منصة واحدة على الأقل لقياس التوافق والمعاينة.' : 'Select at least one channel to evaluate fit and preview.'}
                                 </div>
                             ) : (
                                 previewFit.map((item) => {
                                     const asset = PLATFORM_ASSETS[item.platform];
                                     return (
-                                        <div key={item.platform} className="rounded-[1.25rem] border border-dark-border bg-dark-bg/60 p-4">
+                                        <div key={item.platform} className="rounded-2xl border border-dark-border bg-dark-bg/60 p-4">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div className="flex items-center gap-3">
                                                     <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5" style={{ backgroundColor: `${asset.hexColor}18`, color: asset.hexColor }}>
@@ -856,18 +856,21 @@ export const Publisher: React.FC<PublisherProps> = ({
 
                 <RailCard title={copy.readinessTitle} description={copy.readinessDesc}>
                     <div className="space-y-4">
-                        <div className="flex items-end justify-between gap-3 rounded-[1.2rem] border border-white/5 bg-dark-bg/70 p-4">
-                            <div>
-                                <p className="text-3xl font-bold text-white">{readinessScore}%</p>
-                                <p className={`mt-1 text-sm font-medium ${readinessTone}`}>{readinessScore >= 100 ? copy.ready : copy.needsAction}</p>
+                        <div className="rounded-xl border border-dark-border bg-dark-bg/70 p-4">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <p className="text-2xl font-bold text-white">{readinessScore}%</p>
+                                <span className={`text-sm font-semibold ${readinessTone}`}>{readinessScore >= 100 ? copy.ready : copy.needsAction}</span>
                             </div>
-                            <div className="h-14 w-14 rounded-full border border-white/5 bg-dark-card p-1">
-                                <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-brand-primary/30 to-transparent text-lg font-bold text-white">{Math.round(readinessScore / 10)}</div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-dark-card">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-500 ${readinessScore >= 100 ? 'bg-emerald-400' : readinessScore >= 50 ? 'bg-amber-400' : 'bg-rose-400'}`}
+                                    style={{ width: `${readinessScore}%` }}
+                                />
                             </div>
                         </div>
                         <div className="space-y-2">
                             {readinessItems.map((item) => (
-                                <div key={item.label} className="rounded-[1rem] border border-dark-border bg-dark-bg/60 p-3">
+                                <div key={item.label} className="rounded-xl border border-dark-border bg-dark-bg/60 p-3">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-semibold text-white">{item.label}</p>
@@ -884,22 +887,22 @@ export const Publisher: React.FC<PublisherProps> = ({
                 </RailCard>
 
                 <RailCard title={copy.brandContext} description={copy.brandContextDesc}>
-                    <div className="space-y-3 text-sm">
-                        <div className="rounded-[1rem] border border-dark-border bg-dark-bg/60 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-dark-text-secondary">{ar ? 'النبرة' : 'Tone'}</p>
-                            <p className="mt-2 font-semibold text-white">{brandTone}</p>
+                    <div className="overflow-hidden rounded-xl border border-dark-border bg-dark-bg/60 text-sm divide-y divide-dark-border">
+                        <div className="px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-widest text-dark-text-secondary">{ar ? 'النبرة' : 'Tone'}</p>
+                            <p className="mt-1 font-semibold text-white">{brandTone}</p>
                         </div>
-                        <div className="rounded-[1rem] border border-dark-border bg-dark-bg/60 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-dark-text-secondary">{copy.audience}</p>
-                            <p className="mt-2 font-semibold text-white">{primaryAudience}</p>
+                        <div className="px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-widest text-dark-text-secondary">{copy.audience}</p>
+                            <p className="mt-1 font-semibold text-white">{primaryAudience}</p>
                         </div>
-                        <div className="rounded-[1rem] border border-dark-border bg-dark-bg/60 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-dark-text-secondary">{copy.voiceKeywords}</p>
-                            <p className="mt-2 leading-6 text-white">{voiceKeywords}</p>
+                        <div className="px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-widest text-dark-text-secondary">{copy.voiceKeywords}</p>
+                            <p className="mt-1 leading-6 text-white">{voiceKeywords}</p>
                         </div>
-                        <div className="rounded-[1rem] border border-dark-border bg-dark-bg/60 p-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-dark-text-secondary">{copy.prohibitedWords}</p>
-                            <p className="mt-2 leading-6 text-white">{avoidedWords}</p>
+                        <div className="px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-widest text-dark-text-secondary">{copy.prohibitedWords}</p>
+                            <p className="mt-1 leading-6 text-white">{avoidedWords}</p>
                         </div>
                     </div>
                 </RailCard>
@@ -910,20 +913,20 @@ export const Publisher: React.FC<PublisherProps> = ({
                             type="button"
                             onClick={handleGenerateBriefVariants}
                             disabled={!publisherBrief || isGeneratingBriefVariants}
-                            className="w-full rounded-[1.2rem] border border-dark-border bg-dark-bg px-4 py-3 text-sm font-semibold text-white transition-colors hover:border-brand-primary hover:bg-dark-card disabled:cursor-not-allowed disabled:opacity-60"
+                            className="w-full rounded-xl border border-dark-border bg-dark-bg px-4 py-3 text-sm font-semibold text-white transition-colors hover:border-brand-primary hover:bg-dark-card disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <i className={`fas ${isGeneratingBriefVariants ? 'fa-spinner fa-spin' : 'fa-sparkles'} me-2 text-brand-secondary`} />
                             {isGeneratingBriefVariants ? copy.generatingVariants : copy.generateVariants}
                         </button>
 
                         {!publisherBrief && (
-                            <div className="rounded-[1rem] border border-dashed border-dark-border bg-dark-bg/50 p-4 text-sm leading-6 text-dark-text-secondary">
+                            <div className="rounded-xl border border-dashed border-dark-border bg-dark-bg/50 p-4 text-sm leading-6 text-dark-text-secondary">
                                 {ar ? 'أرسل brief من تحليل المنافسين أو من Content Ops حتى تولد نسخًا مبنية على السياق.' : 'Send a brief from competitor analysis or Content Ops to generate context-aware variants.'}
                             </div>
                         )}
 
                         {briefVariants.map((variant, index) => (
-                            <div key={`${variant.platform}-${index}`} className="rounded-[1.15rem] border border-dark-border bg-dark-bg/60 p-4">
+                            <div key={`${variant.platform}-${index}`} className="rounded-xl border border-dark-border bg-dark-bg/60 p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
                                         <p className="text-sm font-semibold text-white">{variant.platform}</p>
@@ -945,6 +948,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                         onClose={() => setShowAIAssistant(false)}
                         onApply={(caption) => dispatch({ type: 'UPDATE_FIELD', payload: { field: 'content', value: caption } })}
                         brandProfile={brandProfile}
+                        brandId={brandId}
                     />
                 </Suspense>
             )}
@@ -979,7 +983,7 @@ export const Publisher: React.FC<PublisherProps> = ({
 
             {showPublishStatus && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-3xl rounded-[1.8rem] border border-dark-border bg-[#100d21] p-5 shadow-[0_40px_120px_-60px_rgba(0,0,0,1)]">
+                    <div className="w-full max-w-3xl rounded-3xl border border-dark-border bg-dark-bg p-5 shadow-[0_40px_120px_-60px_rgba(0,0,0,1)]">
                         <PlatformStatusDisplay
                             statuses={publishStatuses}
                             onRetry={handleRetryPlatform}
@@ -996,6 +1000,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                     <AIImageGeneratorModal
                         onClose={() => setShowImageGenerator(false)}
                         onAddImage={(mediaItem) => dispatch({ type: 'ADD_MEDIA', payload: [mediaItem] })}
+                        brandId={brandId}
                     />
                 </Suspense>
             )}

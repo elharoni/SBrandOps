@@ -16,6 +16,7 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BillingPlanId, PRICING_PLANS } from '../../config/pricingPlans';
 
 const PLAN_ORDER: BillingPlanId[] = ['starter', 'growth', 'agency', 'enterprise'];
@@ -70,13 +71,13 @@ export function PaywallGate({
                     {' '}وما فوق
                 </p>
             </div>
-            <a
-                href="/pricing"
+            <Link
+                to="/app/billing"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary-container text-on-primary text-sm font-medium hover:opacity-90 transition-opacity"
             >
                 <span className="material-symbols-outlined text-base">upgrade</span>
                 ترقية الباقة
-            </a>
+            </Link>
         </div>
     );
 }
@@ -111,9 +112,9 @@ export function QuotaWarning({ currentCount, maxCount, entityName }: QuotaWarnin
                 {isAtLimit
                     ? `وصلت للحد الأقصى (${maxCount} ${entityName}). `
                     : `${currentCount} من ${maxCount} ${entityName} مستخدم. `}
-                <a href="/pricing" className="underline font-medium">
+                <Link to="/app/billing" className="underline font-medium">
                     ترقية الباقة
-                </a>
+                </Link>
             </span>
         </div>
     );

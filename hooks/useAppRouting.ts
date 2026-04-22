@@ -24,6 +24,7 @@ interface UseAppRoutingOptions {
     activeBrandPage: string;
     activeAdminPage: string;
     isAuthenticated: boolean;
+    isAdmin: boolean;
     authPage: AuthPage;
     setActiveBrandPage: (page: string) => void;
     setActiveAdminPage: (page: string) => void;
@@ -36,6 +37,7 @@ export function useAppRouting({
     activeBrandPage,
     activeAdminPage,
     isAuthenticated,
+    isAdmin,
     authPage,
     setActiveBrandPage,
     setActiveAdminPage,
@@ -91,6 +93,11 @@ export function useAppRouting({
         }
 
         if (isAdminPath(path)) {
+            if (!isAdmin) {
+                // Not authorized — redirect to brand workspace
+                navigate('/app', { replace: true });
+                return;
+            }
             if (viewMode !== 'admin') setViewMode('admin');
             const page = pathToAdminPage(path);
             if (page !== activeAdminPage) setActiveAdminPage(page);

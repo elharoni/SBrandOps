@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildCorsHeaders } from '../_shared/auth.ts';
 
 type BillingCycle = 'monthly' | 'yearly';
 type CheckoutMode = 'checkout' | 'updated' | 'already_active';
@@ -22,15 +23,6 @@ const paddleApiHeaders = {
   'Paddle-Version': '1',
 };
 
-function json(body: unknown, status = 200, headers?: HeadersInit) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-  });
-}
 
 function getPriceId(planId: string, cycle: BillingCycle) {
   const suffix = cycle === 'yearly' ? 'YEARLY' : 'MONTHLY';
@@ -248,22 +240,34 @@ async function updateExistingSubscription(
 
 Deno.serve(async req => {
   const correlationId = crypto.randomUUID();
+  const corsHeaders = buildCorsHeaders(req.headers.get('Origin'));
+
+  function json(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId, ...corsHeaders },
+    });
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     if (req.method !== 'POST') {
-      return json({ error: 'Method not allowed' }, 405, { 'X-Correlation-Id': correlationId });
+      return json({ error: 'Method not allowed' }, 405);
     }
 
     const user = await getAuthenticatedUser(req);
     const payload = await req.json() as CheckoutPayload;
 
     if (!payload.plan_id || !payload.billing_cycle) {
-      return json({ error: 'plan_id and billing_cycle are required' }, 400, { 'X-Correlation-Id': correlationId });
+      return json({ error: 'plan_id and billing_cycle are required' }, 400);
     }
 
     const priceId = getPriceId(payload.plan_id, payload.billing_cycle);
     if (!priceId) {
-      return json({ error: 'Missing Paddle price ID for selected plan' }, 400, { 'X-Correlation-Id': correlationId });
+      return json({ error: 'Missing Paddle price ID for selected plan' }, 400);
     }
 
     const tenant = await getOrCreateTenant(user, payload);
@@ -281,7 +285,7 @@ Deno.serve(async req => {
         transactionId: null,
         tenantId: tenant.id,
         message: 'Selected plan is already active for this tenant',
-      }, 200, { 'X-Correlation-Id': correlationId });
+      }, 200);
     }
 
     const result = currentSubscription?.paddle_subscription_id
@@ -305,7 +309,7 @@ Deno.serve(async req => {
     return json({
       ...result,
       tenantId: tenant.id,
-    }, 200, { 'X-Correlation-Id': correlationId });
+    }, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Checkout error';
 
@@ -315,6 +319,6 @@ Deno.serve(async req => {
       error: message,
     }));
 
-    return json({ error: message }, 500, { 'X-Correlation-Id': correlationId });
+    return json({ error: message }, 500);
   }
 });

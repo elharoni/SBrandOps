@@ -25,6 +25,7 @@ const CONNECTION_SECTION_BY_PROVIDER: Record<Provider, IntegrationSectionId> = {
     wordpress: 'commerce',
     slack: 'automation',
     zapier: 'automation',
+    n8n: 'automation',
     google_drive: 'files',
     figma: 'files',
 };

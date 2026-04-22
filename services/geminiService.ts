@@ -1,28 +1,65 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { supabase } from './supabaseClient';
 import { BrandHubProfile, PostPerformance, AIPostAnalysis, IdeaTestPlan, AdCreative, CampaignGoal, BrandVoiceAnalysis, HashtagSuggestion, BrandConsistencyEvaluation, SocialSearchAnalysisResult, AIContentIdea, SocialPlatform, OperationalError, AIErrorAnalysis, AnalyticsData, AIAnalyticsInsights, BrainstormedIdea, InboxConversation, ConversationIntent, ConversationSentiment, BrandProfileAnalysis, AIQualityCheckResult, ContentGoal, AdPlatform, AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan, PlanObjectiveType, SeoKeyword, SeoArticle } from '../types';
 
-let ai: GoogleGenAI | null = null;
+// Local schema type constants — mirrors the values from @google/genai Type enum
+const Type = {
+    OBJECT: 'OBJECT',
+    STRING: 'STRING',
+    NUMBER: 'NUMBER',
+    ARRAY: 'ARRAY',
+    BOOLEAN: 'BOOLEAN',
+} as const;
 
-function getAI(): GoogleGenAI {
-  if (!ai) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('Missing Gemini API key. AI features are disabled. Please set VITE_GEMINI_API_KEY in your .env file.');
-    }
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
+// No-op kept for backward compatibility (AI client is now server-side)
+export function resetAIClient(): void { /* key is managed server-side */ }
+
+// ── Server-side AI proxy call ─────────────────────────────────────────────────
+
+type ProxyTextParams = {
+    model: string;
+    prompt?: string;
+    contents?: unknown;
+    schema?: unknown;
+    feature?: string;
+    brand_id?: string | null;
+};
+
+type ProxyTextResponse = {
+    text: string;
+    usageMetadata: { promptTokenCount?: number; candidatesTokenCount?: number };
+};
+
+async function callAIProxy(params: ProxyTextParams): Promise<ProxyTextResponse> {
+    const { data, error } = await supabase.functions.invoke('ai-proxy', { body: params });
+    if (error) throw new Error(error.message ?? 'AI proxy error');
+    if (!data) throw new Error('Empty response from AI proxy');
+    return data as ProxyTextResponse;
+}
+
+async function callAIImageProxy(params: {
+    model: string;
+    prompt: string;
+    count: number;
+    aspect_ratio: string;
+}): Promise<string[]> {
+    const { data, error } = await supabase.functions.invoke('ai-proxy', {
+        body: { mode: 'image', ...params },
+    });
+    if (error) throw new Error(error.message ?? 'AI image proxy error');
+    return (data as { images: string[] })?.images ?? [];
 }
 
 // --- Image Generation ---
 export type AIImageProvider = 'google' | 'pollinations';
 
 export async function generateImageFromPrompt(
-    prompt: string, 
+    prompt: string,
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' = '1:1',
-    provider: AIImageProvider = 'google'
-): Promise<string> {
+    provider: AIImageProvider = 'google',
+    count: number = 1
+): Promise<string[]> {
+    const clampedCount = Math.min(Math.max(1, count), 4);
     try {
         if (provider === 'pollinations') {
             let width = 1024;
@@ -31,33 +68,26 @@ export async function generateImageFromPrompt(
             if (aspectRatio === '9:16') { width = 576; height = 1024; }
             if (aspectRatio === '4:3') { width = 1024; height = 768; }
             if (aspectRatio === '3:4') { width = 768; height = 1024; }
-            
-            const seed = Math.floor(Math.random() * 1000000);
+
             const encodedPrompt = encodeURIComponent(prompt);
-            const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
-            
-            // Pre-fetch to ensure the image generates successfully
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("Failed to generate image with Pollinations");
-            
-            return url;
+            const urls = await Promise.all(
+                Array.from({ length: clampedCount }, async () => {
+                    const seed = Math.floor(Math.random() * 1000000);
+                    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error("Failed to generate image with Pollinations");
+                    return url;
+                })
+            );
+            return urls;
         }
 
-        const response = await getAI().models.generateImages({
+        return await callAIImageProxy({
             model: 'imagen-4.0-generate-001',
-            prompt: prompt,
-            config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/jpeg',
-                aspectRatio: aspectRatio,
-            },
+            prompt,
+            count: clampedCount,
+            aspect_ratio: aspectRatio,
         });
-
-        const base64ImageBytes = response.generatedImages?.[0]?.image?.imageBytes;
-        if (base64ImageBytes) {
-            return `data:image/jpeg;base64,${base64ImageBytes}`;
-        }
-        throw new Error("No image generated.");
     } catch (error) {
         console.error("Image generation failed:", error);
         throw error;
@@ -87,22 +117,20 @@ export async function analyzeConversation(conversation: InboxConversation, brand
 
     أعد النتائج بصيغة JSON فقط.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    summary: { type: Type.STRING },
-                    intent: { type: Type.STRING, enum: Object.values(ConversationIntent) },
-                    sentiment: { type: Type.STRING, enum: ['positive', 'neutral', 'negative'] },
-                    suggestedReplies: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['summary', 'intent', 'sentiment', 'suggestedReplies']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                summary: { type: Type.STRING },
+                intent: { type: Type.STRING, enum: Object.values(ConversationIntent) },
+                sentiment: { type: Type.STRING, enum: ['positive', 'neutral', 'negative'] },
+                suggestedReplies: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['summary', 'intent', 'sentiment', 'suggestedReplies']
+        },
+        feature: 'inbox_analyze',
     });
     return JSON.parse(response.text);
 }
@@ -113,7 +141,7 @@ export async function analyzeConversation(conversation: InboxConversation, brand
 export async function generatePostCaption(topic: string, tone: string, brandProfile: BrandHubProfile): Promise<string[]> {
     const prompt = `
     Based on the brand profile below, generate 3 unique and engaging social media captions for the topic "${topic}" with a "${tone}" tone.
-    
+
     Brand Profile:
     - Brand Name: ${brandProfile.brandName}
     - Industry: ${brandProfile.industry}
@@ -126,22 +154,20 @@ export async function generatePostCaption(topic: string, tone: string, brandProf
     Return the captions in a JSON array of strings.
     `;
 
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    captions: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
-                    }
-                },
-                required: ['captions']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                captions: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            },
+            required: ['captions']
+        },
+        feature: 'content_gen',
     });
 
     const result = JSON.parse(response.text);
@@ -152,7 +178,7 @@ export async function generatePostCaption(topic: string, tone: string, brandProf
 export async function analyzeCaptionForBrandVoice(caption: string, brandProfile: BrandHubProfile): Promise<BrandVoiceAnalysis> {
     const prompt = `
     Analyze the following social media caption for its alignment with the provided brand voice profile.
-    
+
     Caption to Analyze: "${caption}"
 
     Brand Voice Profile:
@@ -168,25 +194,23 @@ export async function analyzeCaptionForBrandVoice(caption: string, brandProfile:
 
     Return a JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    score: { type: Type.NUMBER, description: "A score from 0-100 for brand voice alignment." },
-                    feedback: { type: Type.STRING, description: "Brief feedback explaining the score." },
-                    suggestions: {
-                        type: Type.ARRAY,
-                        description: "An array of 2-3 actionable suggestions for improvement.",
-                        items: { type: Type.STRING }
-                    }
-                },
-                required: ['score', 'feedback', 'suggestions']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                score: { type: Type.NUMBER, description: "A score from 0-100 for brand voice alignment." },
+                feedback: { type: Type.STRING, description: "Brief feedback explaining the score." },
+                suggestions: {
+                    type: Type.ARRAY,
+                    description: "An array of 2-3 actionable suggestions for improvement.",
+                    items: { type: Type.STRING }
+                }
+            },
+            required: ['score', 'feedback', 'suggestions']
+        },
+        feature: 'caption_voice_check',
     });
     return JSON.parse(response.text);
 }
@@ -199,29 +223,27 @@ export async function suggestHashtags(caption: string, platforms: SocialPlatform
     Caption: "${caption}"
     Return a JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: 'application/json',
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    hashtagGroups: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                category: { type: Type.STRING },
-                                hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                            },
-                             required: ['category', 'hashtags']
-                        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                hashtagGroups: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            category: { type: Type.STRING },
+                            hashtags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                         required: ['category', 'hashtags']
                     }
-                },
-                required: ['hashtagGroups']
-            }
-        }
+                }
+            },
+            required: ['hashtagGroups']
+        },
+        feature: 'hashtag_suggest',
     });
     return JSON.parse(response.text).hashtagGroups;
 }
@@ -231,7 +253,7 @@ export async function suggestHashtags(caption: string, platforms: SocialPlatform
 export async function analyzePostWithAI(post: PostPerformance, brandProfile: BrandHubProfile): Promise<AIPostAnalysis> {
     const prompt = `
     Analyze the performance of the following social media post based on the brand's profile.
-    
+
     Post Content: "${post.content}"
     Engagement Score: ${post.engagement}
 
@@ -248,22 +270,20 @@ export async function analyzePostWithAI(post: PostPerformance, brandProfile: Bra
 
     Return as a JSON object.
     `;
-    const response = await getAI().models.generateContent({
-        model: "gemini-2.5-pro", 
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    brandFitScore: { type: Type.NUMBER },
-                    strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['brandFitScore', 'strengths', 'weaknesses', 'recommendations']
-            }
-        }
+    const response = await callAIProxy({
+        model: "gemini-2.5-pro",
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                brandFitScore: { type: Type.NUMBER },
+                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['brandFitScore', 'strengths', 'weaknesses', 'recommendations']
+        },
+        feature: 'caption_analyze',
     });
     return JSON.parse(response.text);
 }
@@ -284,24 +304,22 @@ export async function generateAnalyticsInsights(data: AnalyticsData): Promise<AI
     1. Write a brief, high-level summary of the overall performance.
     2. Identify one key positive or negative trend from the data.
     3. Provide three concise, actionable recommendations to improve performance next month.
-    
+
     Return as a JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    summary: { type: Type.STRING },
-                    trends: { type: Type.STRING },
-                    recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['summary', 'trends', 'recommendations']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                summary: { type: Type.STRING },
+                trends: { type: Type.STRING },
+                recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['summary', 'trends', 'recommendations']
+        },
+        feature: 'analytics_insights',
     });
     return JSON.parse(response.text);
 }
@@ -330,22 +348,20 @@ export async function analyzeBrandProfile(brandProfile: BrandHubProfile): Promis
 
     Return the analysis as a JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    overallScore: { type: Type.NUMBER },
-                    strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['overallScore', 'strengths', 'weaknesses', 'recommendations']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                overallScore: { type: Type.NUMBER },
+                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['overallScore', 'strengths', 'weaknesses', 'recommendations']
+        },
+        feature: 'brand_analyze',
     });
     return JSON.parse(response.text);
 }
@@ -367,42 +383,40 @@ export async function generateInitialBrandProfile(description: string, brandName
 
     Return only the JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    industry: { type: Type.STRING },
-                    values: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    keySellingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    brandVoice: {
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                industry: { type: Type.STRING },
+                values: { type: Type.ARRAY, items: { type: Type.STRING } },
+                keySellingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                brandVoice: {
+                    type: Type.OBJECT,
+                    properties: {
+                        toneDescription: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        keywords: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    },
+                     required: ['toneDescription', 'keywords']
+                },
+                brandAudiences: {
+                    type: Type.ARRAY,
+                    items: {
                         type: Type.OBJECT,
                         properties: {
-                            toneDescription: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            keywords: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            personaName: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            keyEmotions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            painPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
                         },
-                         required: ['toneDescription', 'keywords']
-                    },
-                    brandAudiences: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                personaName: { type: Type.STRING },
-                                description: { type: Type.STRING },
-                                keyEmotions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                painPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
-                            },
-                            required: ['personaName', 'description', 'keyEmotions', 'painPoints']
-                        }
+                        required: ['personaName', 'description', 'keyEmotions', 'painPoints']
                     }
-                },
-                required: ['industry', 'values', 'keySellingPoints', 'brandVoice', 'brandAudiences']
-            }
-        }
+                }
+            },
+            required: ['industry', 'values', 'keySellingPoints', 'brandVoice', 'brandAudiences']
+        },
+        feature: 'brand_gen',
     });
     return JSON.parse(response.text);
 }
@@ -425,21 +439,19 @@ export async function evaluateContentConsistency(content: string, brandProfile: 
 
     Return as a JSON object.
     `;
-     const response = await getAI().models.generateContent({
+     const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    score: { type: Type.NUMBER },
-                    feedback: { type: Type.STRING },
-                    recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['score', 'feedback', 'recommendations']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                score: { type: Type.NUMBER },
+                feedback: { type: Type.STRING },
+                recommendations: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['score', 'feedback', 'recommendations']
+        },
+        feature: 'content_consistency',
     });
     return JSON.parse(response.text);
 }
@@ -448,14 +460,14 @@ export async function evaluateContentConsistency(content: string, brandProfile: 
 // --- Ads ---
 
 export async function generateAdCreative(
-    platform: AdPlatform, 
-    goal: CampaignGoal, 
-    productInfo: string, 
+    platform: AdPlatform,
+    goal: CampaignGoal,
+    productInfo: string,
     brandProfile: BrandHubProfile,
     targetAudience: string
 ): Promise<Pick<AdCreative, 'headline' | 'primaryText'>[]> {
     let platformInstructions = "";
-    
+
     if (platform === AdPlatform.TikTok) {
         platformInstructions = `
         Generate content for TikTok.
@@ -470,7 +482,6 @@ export async function generateAdCreative(
         Focus on high-intent keywords.
         `;
     } else {
-        // Meta
         platformInstructions = `
         Generate content for Meta (Facebook/Instagram) Ads.
         - 'headline' field: A catchy headline (max 40 chars).
@@ -480,7 +491,7 @@ export async function generateAdCreative(
 
     const prompt = `
     Generate 3 distinct ad creative options for a "${platform}" campaign.
-    
+
     Campaign Goal: "${goal}"
     Product/Service: "${productInfo}"
     Target Audience Profile: "${targetAudience}"
@@ -492,29 +503,27 @@ export async function generateAdCreative(
 
     Return a JSON object with a "creatives" array containing objects with "headline" and "primaryText".
     `;
-     const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    creatives: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                headline: { type: Type.STRING },
-                                primaryText: { type: Type.STRING }
-                            },
-                             required: ['headline', 'primaryText']
-                        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                creatives: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            headline: { type: Type.STRING },
+                            primaryText: { type: Type.STRING }
+                        },
+                         required: ['headline', 'primaryText']
                     }
-                },
-                required: ['creatives']
-            }
-        }
+                }
+            },
+            required: ['creatives']
+        },
+        feature: 'ad_creative_gen',
     });
     return JSON.parse(response.text).creatives;
 }
@@ -530,29 +539,27 @@ export async function generateTargetingSuggestions(
 
     const prompt = `
     Act as a senior media buyer. Suggest 10 highly relevant ${term} for targeting on ${platform}.
-    
+
     Product: "${productDescription}"
     Brand Industry: ${brandProfile.industry}
-    
+
     Return a JSON array of strings.
     `;
 
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    suggestions: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
-                    }
-                },
-                required: ['suggestions']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                suggestions: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            },
+            required: ['suggestions']
+        },
+        feature: 'ad_targeting_suggest',
     });
     return JSON.parse(response.text).suggestions;
 }
@@ -576,34 +583,32 @@ export async function generateIdeaTestPlan(idea: string, audience: string, brand
 
     Return as a JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    aiSummary: { type: Type.STRING },
-                    recommendedPlatforms: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                platform: { type: Type.STRING },
-                                format: { type: Type.STRING },
-                                justification: { type: Type.STRING }
-                            },
-                             required: ['platform', 'format', 'justification']
-                        }
-                    },
-                    keyTalkingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    suggestedCTA: { type: Type.STRING },
-                    successMetrics: { type: Type.ARRAY, items: { type: Type.STRING } }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                aiSummary: { type: Type.STRING },
+                recommendedPlatforms: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            platform: { type: Type.STRING },
+                            format: { type: Type.STRING },
+                            justification: { type: Type.STRING }
+                        },
+                         required: ['platform', 'format', 'justification']
+                    }
                 },
-                required: ['aiSummary', 'recommendedPlatforms', 'keyTalkingPoints', 'suggestedCTA', 'successMetrics']
-            }
-        }
+                keyTalkingPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                suggestedCTA: { type: Type.STRING },
+                successMetrics: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['aiSummary', 'recommendedPlatforms', 'keyTalkingPoints', 'suggestedCTA', 'successMetrics']
+        },
+        feature: 'idea_test_plan',
     });
     return JSON.parse(response.text);
 }
@@ -613,28 +618,25 @@ export async function expandOnTopic(topic: string, mainIdea: string): Promise<st
     Given the main content idea "${mainIdea}", expand on the sub-topic "${topic}" by generating 3 related, more specific sub-points or ideas.
     Return a JSON array of strings.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    subTopics: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
-                    }
-                },
-                 required: ['subTopics']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                subTopics: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            },
+             required: ['subTopics']
+        },
+        feature: 'idea_expand',
     });
     return JSON.parse(response.text).subTopics;
 }
 
 export async function brainstormContentIdeas(topic: string, brandProfile: BrandHubProfile): Promise<BrainstormedIdea[]> {
-    // Mocked response for a specific query to fulfill user request
     if (topic === "summer campaign") {
         return Promise.resolve([
             {
@@ -674,39 +676,37 @@ export async function brainstormContentIdeas(topic: string, brandProfile: BrandH
             }
         ]);
     }
-    
+
     const prompt = `
     Brainstorm 5 creative content ideas about "${topic}" for the brand "${brandProfile.brandName}".
     For each idea, provide a title, a short description, a suggested platform, a format (e.g., Reel, Carousel, Story), and a creative angle (e.g., "Educational", "Humorous", "Behind-the-scenes").
     Consider seasonal events, trending topics, and the brand's voice.
     Return a JSON array.
     `;
-     const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    ideas: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                title: { type: Type.STRING },
-                                description: { type: Type.STRING },
-                                platform: { type: Type.STRING, enum: Object.values(SocialPlatform) },
-                                format: { type: Type.STRING },
-                                angle: { type: Type.STRING }
-                            },
-                             required: ['title', 'description', 'platform', 'format', 'angle']
-                        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                ideas: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            platform: { type: Type.STRING, enum: Object.values(SocialPlatform) },
+                            format: { type: Type.STRING },
+                            angle: { type: Type.STRING }
+                        },
+                         required: ['title', 'description', 'platform', 'format', 'angle']
                     }
-                },
-                required: ['ideas']
-            }
-        }
+                }
+            },
+            required: ['ideas']
+        },
+        feature: 'idea_brainstorm',
     });
     return JSON.parse(response.text).ideas;
 }
@@ -715,16 +715,13 @@ export async function brainstormContentIdeas(topic: string, brandProfile: BrandH
 // --- Social Search & Error Center ---
 
 export async function analyzeSocialSearchQuery(query: string): Promise<SocialSearchAnalysisResult> {
-    // This is a complex simulation of a social listening tool.
-    // In a real scenario, this would likely call a dedicated social listening API
-    // and then use Gemini to summarize the results.
     console.log(`Analyzing social search for: ${query}`);
     await new Promise(res => setTimeout(res, 2000));
 
     const normalizedQuery = query.trim();
     const compactQuery = normalizedQuery.replace(/\s+/g, ' ').trim();
     const keywordRoot = compactQuery.split(' ')[0] || 'brand';
-    const competitorBase = keywordRoot.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '') || 'brand';
+    const competitorBase = keywordRoot.replace(/[^a-zA-Z0-9؀-ۿ]/g, '') || 'brand';
     const mockResult: SocialSearchAnalysisResult = {
         aiSummary: `Search signals for "${compactQuery}" are strongest on Instagram and LinkedIn, with conversations leaning positive around quality, positioning, and buyer confidence. The clearest opportunity is to publish proof-based content that differentiates your offer from fast-growing competitors.`,
         sentiment: { positive: 68, neutral: 22, negative: 10 },
@@ -796,31 +793,29 @@ export async function analyzeOperationalErrors(errors: OperationalError[]): Prom
 
     Return as a JSON object.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    summary: { type: Type.STRING },
-                    rootCause: { type: Type.STRING },
-                    recommendations: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                priority: { type: Type.NUMBER },
-                                text: { type: Type.STRING }
-                            },
-                             required: ['priority', 'text']
-                        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                summary: { type: Type.STRING },
+                rootCause: { type: Type.STRING },
+                recommendations: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            priority: { type: Type.NUMBER },
+                            text: { type: Type.STRING }
+                        },
+                         required: ['priority', 'text']
                     }
-                },
-                required: ['summary', 'rootCause', 'recommendations']
-            }
-        }
+                }
+            },
+            required: ['summary', 'rootCause', 'recommendations']
+        },
+        feature: 'error_analyze',
     });
     return JSON.parse(response.text);
 }
@@ -833,39 +828,37 @@ export async function generateAIContentIdeas(strategy: 'Seasonal' | 'Trending' |
     Consider seasonal events, trending topics, and the brand's voice.
     Return a JSON array of BrainstormedIdea objects.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    ideas: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                title: { type: Type.STRING },
-                                description: { type: Type.STRING },
-                                platform: { type: Type.STRING, enum: Object.values(SocialPlatform) },
-                                format: { type: Type.STRING },
-                                angle: { type: Type.STRING }
-                            },
-                             required: ['title', 'description', 'platform', 'format', 'angle']
-                        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                ideas: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            title: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            platform: { type: Type.STRING, enum: Object.values(SocialPlatform) },
+                            format: { type: Type.STRING },
+                            angle: { type: Type.STRING }
+                        },
+                         required: ['title', 'description', 'platform', 'format', 'angle']
                     }
-                },
-                required: ['ideas']
-            }
-        }
+                }
+            },
+            required: ['ideas']
+        },
+        feature: 'content_ideas',
     });
     return (JSON.parse(response.text).ideas || []) as BrainstormedIdea[];
 }
 
 export async function modifyContent(
     modificationType: 'improve' | 'shorten' | 'expand' | 'fix_grammar' | 'make_punchy' | 'add_emojis' | 'generate-cta' | 'add_hashtags' | 'translate' | 'custom',
-    content: string, 
+    content: string,
     brandProfile: BrandHubProfile,
     additionalParams?: { targetLanguage?: string, customInstruction?: string }
 ): Promise<string> {
@@ -886,30 +879,28 @@ export async function modifyContent(
     const prompt = `
     Role: Social Media Editor for brand "${brandProfile.brandName}".
     Task: ${instruction}
-    
+
     Original Content:
     "${content}"
 
-    Brand Voice Guidelines: 
+    Brand Voice Guidelines:
     - Tone: ${brandProfile.brandVoice.toneDescription.join(', ')}
     - Do not use: ${brandProfile.brandVoice.negativeKeywords.join(', ')}
 
     Return ONLY the modified content as a single JSON string value in a property called "modifiedContent".
     `;
 
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    modifiedContent: { type: Type.STRING }
-                },
-                required: ['modifiedContent']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                modifiedContent: { type: Type.STRING }
+            },
+            required: ['modifiedContent']
+        },
+        feature: 'content_modify',
     });
 
     return JSON.parse(response.text).modifiedContent;
@@ -927,22 +918,20 @@ export async function generateContentVariations(content: string, brandProfile: B
     Return the 3 variations in a JSON array of strings in a property called "variations".
     `;
 
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    variations: {
-                        type: Type.ARRAY,
-                        items: { type: Type.STRING }
-                    }
-                },
-                required: ['variations']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                variations: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            },
+            required: ['variations']
+        },
+        feature: 'content_variations',
     });
     return JSON.parse(response.text).variations || [];
 }
@@ -956,48 +945,46 @@ export async function reformatContent(format: 'Ad Copy' | 'Video Script' | 'Thre
     const prompt = `
     You are an expert content strategist for the brand "${brandProfile.brandName}".
     Your task is to reformat the following content into a "${format}".
-    
+
     Original Content:
     "${content}"
-    
+
     Instruction: ${formatInstruction}
 
     Return ONLY the reformatted content as a single JSON string value in a property called "reformattedContent".
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    reformattedContent: { type: Type.STRING }
-                },
-                required: ['reformattedContent']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                reformattedContent: { type: Type.STRING }
+            },
+            required: ['reformattedContent']
+        },
+        feature: 'content_reformat',
     });
 
     return JSON.parse(response.text).reformattedContent;
 }
 
 export async function generateStructuredContent(
-    goal: ContentGoal, 
-    topic: string, 
+    goal: ContentGoal,
+    topic: string,
     brandProfile: BrandHubProfile,
     platform: SocialPlatform = SocialPlatform.Instagram,
     tone: string = 'Professional'
 ): Promise<{ title: string; content: string }> {
     const prompt = `
     You are an expert social media content creator for the brand "${brandProfile.brandName}".
-    
+
     Task: Create a social media post.
     Platform: ${platform}
     Topic: "${topic}"
     Goal: "${goal}"
     Tone Instruction: "${tone}"
-    
+
     Brand Voice Guidelines:
     - Keywords: ${brandProfile.brandVoice.keywords.join(', ')}
     - Brand Tone: ${brandProfile.brandVoice.toneDescription.join(', ')} (Prioritize the "Tone Instruction" above if they conflict)
@@ -1007,20 +994,18 @@ export async function generateStructuredContent(
 
     Return the result as a JSON object with two keys: "title" and "content".
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    title: { type: Type.STRING },
-                    content: { type: Type.STRING },
-                },
-                required: ['title', 'content']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                content: { type: Type.STRING },
+            },
+            required: ['title', 'content']
+        },
+        feature: 'content_structured_gen',
     });
     return JSON.parse(response.text);
 }
@@ -1041,19 +1026,17 @@ export async function improveContentWithAI(content: string, brandProfile: BrandH
     Return ONLY the improved content as a single JSON string value.
     `;
 
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    improvedContent: { type: Type.STRING }
-                },
-                required: ['improvedContent']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                improvedContent: { type: Type.STRING }
+            },
+            required: ['improvedContent']
+        },
+        feature: 'content_improve',
     });
 
     const result = JSON.parse(response.text);
@@ -1082,57 +1065,54 @@ export async function performAIQualityCheck(content: string, brandProfile: Brand
 
     Return a single JSON object with the specified structure.
     `;
-    const response = await getAI().models.generateContent({
+    const response = await callAIProxy({
         model: "gemini-2.5-pro",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    grammar: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
-                    toneOfVoice: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
-                    brandFit: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
-                    cta: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
-                },
-                required: ['grammar', 'toneOfVoice', 'brandFit', 'cta']
-            }
-        }
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                grammar: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
+                toneOfVoice: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
+                brandFit: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
+                cta: { type: Type.OBJECT, properties: { score: { type: Type.NUMBER }, feedback: { type: Type.STRING } }, required: ['score', 'feedback'] },
+            },
+            required: ['grammar', 'toneOfVoice', 'brandFit', 'cta']
+        },
+        feature: 'content_quality_check',
     });
     return JSON.parse(response.text);
 }
 
 export async function analyzeImageForContent(base64Image: string): Promise<{ description: string; altText: string; tags: string[] }> {
-    const imagePart = {
-        inlineData: {
-            data: base64Image,
-            mimeType: 'image/jpeg'
-        }
-    };
-    const textPart = {
-        text: `Analyze this image and provide the following in Arabic:
+    const contents = [
+        {
+            parts: [
+                { inlineData: { data: base64Image, mimeType: 'image/jpeg' } },
+                {
+                    text: `Analyze this image and provide the following in Arabic:
         1. A captivating one-sentence social media description.
         2. A descriptive SEO-friendly alt text.
         3. An array of 5-7 relevant tags.
-        
-        Return as a JSON object.`
-    };
 
-    const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [imagePart, textPart] },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    description: { type: Type.STRING },
-                    altText: { type: Type.STRING },
-                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ['description', 'altText', 'tags']
-            }
+        Return as a JSON object.`
+                }
+            ]
         }
+    ];
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        contents,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                description: { type: Type.STRING },
+                altText: { type: Type.STRING },
+                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['description', 'altText', 'tags']
+        },
+        feature: 'image_analyze',
     });
 
     return JSON.parse(response.text);
@@ -1140,9 +1120,6 @@ export async function analyzeImageForContent(base64Image: string): Promise<{ des
 
 // ── AI Strategy Engine ────────────────────────────────────────────────────────
 
-/**
- * STRAT-1: Generate a full AI content plan from brand + inputs.
- */
 export async function generateContentPlan(
     brandProfile: BrandHubProfile,
     params: {
@@ -1175,54 +1152,69 @@ export async function generateContentPlan(
 أنشئ خطة المحتوى وأعد JSON فقط.
 `;
     try {
-        const response = await getAI().models.generateContent({
+        const response = await callAIProxy({
             model: 'gemini-2.5-pro',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        overview:             { type: Type.STRING },
-                        totalPosts:           { type: Type.NUMBER },
-                        weeklyFocus:          { type: Type.ARRAY, items: { type: Type.STRING } },
-                        platformDistribution: { type: Type.OBJECT, properties: {}, additionalProperties: { type: Type.NUMBER } },
-                        budgetSuggestion:     { type: Type.OBJECT, properties: {}, additionalProperties: { type: Type.NUMBER } },
-                        items: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    id:             { type: Type.STRING },
-                                    dayNumber:      { type: Type.NUMBER },
-                                    platform:       { type: Type.STRING },
-                                    postType:       { type: Type.STRING },
-                                    topic:          { type: Type.STRING },
-                                    caption:        { type: Type.STRING },
-                                    hashtags:       { type: Type.ARRAY, items: { type: Type.STRING } },
-                                    suggestedTime:  { type: Type.STRING },
-                                    objective:      { type: Type.STRING },
-                                    estimatedReach: { type: Type.STRING },
-                                },
-                                required: ['id', 'dayNumber', 'platform', 'postType', 'topic', 'caption', 'hashtags', 'suggestedTime', 'objective'],
-                            },
+            prompt,
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    overview:    { type: Type.STRING },
+                    totalPosts:  { type: Type.NUMBER },
+                    weeklyFocus: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    platformDistribution: {
+                        type: Type.OBJECT,
+                        properties: {
+                            Facebook:  { type: Type.NUMBER },
+                            Instagram: { type: Type.NUMBER },
+                            X:         { type: Type.NUMBER },
+                            LinkedIn:  { type: Type.NUMBER },
+                            TikTok:    { type: Type.NUMBER },
+                            Pinterest: { type: Type.NUMBER },
                         },
                     },
-                    required: ['overview', 'totalPosts', 'weeklyFocus', 'platformDistribution', 'items'],
+                    budgetSuggestion: {
+                        type: Type.OBJECT,
+                        properties: {
+                            Facebook:  { type: Type.NUMBER },
+                            Instagram: { type: Type.NUMBER },
+                            X:         { type: Type.NUMBER },
+                            LinkedIn:  { type: Type.NUMBER },
+                            TikTok:    { type: Type.NUMBER },
+                            Pinterest: { type: Type.NUMBER },
+                        },
+                    },
+                    items: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                id:             { type: Type.STRING },
+                                dayNumber:      { type: Type.NUMBER },
+                                platform:       { type: Type.STRING },
+                                postType:       { type: Type.STRING },
+                                topic:          { type: Type.STRING },
+                                caption:        { type: Type.STRING },
+                                hashtags:       { type: Type.ARRAY, items: { type: Type.STRING } },
+                                suggestedTime:  { type: Type.STRING },
+                                objective:      { type: Type.STRING },
+                                estimatedReach: { type: Type.STRING },
+                            },
+                            required: ['id', 'dayNumber', 'platform', 'postType', 'topic', 'caption', 'hashtags', 'suggestedTime', 'objective'],
+                        },
+                    },
                 },
+                required: ['overview', 'totalPosts', 'weeklyFocus', 'platformDistribution', 'items'],
             },
+            feature: 'content_plan_gen',
         });
         const parsed = JSON.parse(response.text) as AiContentPlan;
         return { ...parsed, generatedAt: new Date().toISOString() };
     } catch (err) {
         console.error('generateContentPlan failed:', err);
-        return { overview: 'فشل التوليد. تحقق من مفتاح Gemini وحاول مجدداً.', totalPosts: 0, weeklyFocus: [], platformDistribution: {}, items: [], generatedAt: new Date().toISOString() };
+        throw err;
     }
 }
 
-/**
- * STRAT-2: Generate top-5 weekly priority recommendations.
- */
 export async function generatePriorityRecommendations(
     brandProfile: BrandHubProfile,
     context: { recentPostsCount?: number; avgEngagementRate?: number; activeAdsCampaigns?: number; avgRoas?: number; totalCustomers?: number; }
@@ -1234,29 +1226,27 @@ export async function generatePriorityRecommendations(
 أعد مصفوفة JSON من 5 توصيات فقط.
 `;
     try {
-        const response = await getAI().models.generateContent({
+        const response = await callAIProxy({
             model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            id:              { type: Type.STRING },
-                            rank:            { type: Type.NUMBER },
-                            title:           { type: Type.STRING },
-                            description:     { type: Type.STRING },
-                            actionLabel:     { type: Type.STRING },
-                            category:        { type: Type.STRING },
-                            estimatedImpact: { type: Type.STRING },
-                            urgency:         { type: Type.STRING },
-                        },
-                        required: ['id', 'rank', 'title', 'description', 'actionLabel', 'category', 'estimatedImpact', 'urgency'],
+            prompt,
+            schema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        id:              { type: Type.STRING },
+                        rank:            { type: Type.NUMBER },
+                        title:           { type: Type.STRING },
+                        description:     { type: Type.STRING },
+                        actionLabel:     { type: Type.STRING },
+                        category:        { type: Type.STRING },
+                        estimatedImpact: { type: Type.STRING },
+                        urgency:         { type: Type.STRING },
                     },
+                    required: ['id', 'rank', 'title', 'description', 'actionLabel', 'category', 'estimatedImpact', 'urgency'],
                 },
             },
+            feature: 'priority_recs',
         });
         return JSON.parse(response.text) as AiPriorityRecommendation[];
     } catch (err) {
@@ -1273,9 +1263,6 @@ const MOCK_PRIORITY_RECS: AiPriorityRecommendation[] = [
     { id: 'rec-5', rank: 5, title: 'Stories يومية لرفع الظهور', description: 'Poll أو Question Sticker يومياً يرفع معدل الظهور في الخوارزمية.', actionLabel: 'جدول Stories', category: 'engagement', estimatedImpact: '+20% Reach', urgency: 'low' },
 ];
 
-/**
- * STRAT-3: Generate a 30-day operational plan.
- */
 export async function generateMonthlyPlan(
     brandProfile: BrandHubProfile,
     params: { month: string; goals: { reach?: number; leads?: number; revenue?: number } }
@@ -1293,46 +1280,44 @@ export async function generateMonthlyPlan(
 أعد JSON فقط.
 `;
     try {
-        const response = await getAI().models.generateContent({
+        const response = await callAIProxy({
             model: 'gemini-2.5-pro',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        month:    { type: Type.STRING },
-                        goals:    { type: Type.OBJECT, properties: { reach: { type: Type.NUMBER }, leads: { type: Type.NUMBER }, revenue: { type: Type.NUMBER } } },
-                        overview: { type: Type.STRING },
-                        weeks: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    weekNumber: { type: Type.NUMBER },
-                                    focus:      { type: Type.STRING },
-                                    tasks: {
-                                        type: Type.ARRAY,
-                                        items: {
-                                            type: Type.OBJECT,
-                                            properties: {
-                                                title:    { type: Type.STRING },
-                                                category: { type: Type.STRING },
-                                                dueDay:   { type: Type.NUMBER },
-                                                platform: { type: Type.STRING },
-                                            },
-                                            required: ['title', 'category', 'dueDay'],
+            prompt,
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    month:    { type: Type.STRING },
+                    goals:    { type: Type.OBJECT, properties: { reach: { type: Type.NUMBER }, leads: { type: Type.NUMBER }, revenue: { type: Type.NUMBER } } },
+                    overview: { type: Type.STRING },
+                    weeks: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                weekNumber: { type: Type.NUMBER },
+                                focus:      { type: Type.STRING },
+                                tasks: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            title:    { type: Type.STRING },
+                                            category: { type: Type.STRING },
+                                            dueDay:   { type: Type.NUMBER },
+                                            platform: { type: Type.STRING },
                                         },
+                                        required: ['title', 'category', 'dueDay'],
                                     },
                                 },
-                                required: ['weekNumber', 'focus', 'tasks'],
                             },
+                            required: ['weekNumber', 'focus', 'tasks'],
                         },
-                        kpis: { type: Type.ARRAY, items: { type: Type.STRING } },
                     },
-                    required: ['month', 'overview', 'weeks', 'kpis'],
+                    kpis: { type: Type.ARRAY, items: { type: Type.STRING } },
                 },
+                required: ['month', 'overview', 'weeks', 'kpis'],
             },
+            feature: 'monthly_plan_gen',
         });
         const parsed = JSON.parse(response.text) as AiMonthlyPlan;
         return { ...parsed, generatedAt: new Date().toISOString() };
@@ -1344,9 +1329,6 @@ export async function generateMonthlyPlan(
 
 // ── SEO Ops AI Functions ──────────────────────────────────────────────────────
 
-/**
- * SEO-1: Generate keyword research list for a topic/niche.
- */
 export async function generateKeywordResearch(
     topic: string,
     brandProfile: BrandHubProfile
@@ -1363,27 +1345,25 @@ export async function generateKeywordResearch(
 أعد JSON فقط.
 `;
     try {
-        const response = await getAI().models.generateContent({
+        const response = await callAIProxy({
             model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            keyword:       { type: Type.STRING },
-                            searchIntent:  { type: Type.STRING },
-                            difficulty:    { type: Type.STRING },
-                            priorityScore: { type: Type.NUMBER },
-                            monthlyVolume: { type: Type.STRING },
-                            notes:         { type: Type.STRING },
-                        },
-                        required: ['keyword', 'searchIntent', 'difficulty', 'priorityScore', 'monthlyVolume'],
+            prompt,
+            schema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        keyword:       { type: Type.STRING },
+                        searchIntent:  { type: Type.STRING },
+                        difficulty:    { type: Type.STRING },
+                        priorityScore: { type: Type.NUMBER },
+                        monthlyVolume: { type: Type.STRING },
+                        notes:         { type: Type.STRING },
                     },
+                    required: ['keyword', 'searchIntent', 'difficulty', 'priorityScore', 'monthlyVolume'],
                 },
             },
+            feature: 'seo_keyword_research',
         });
         return JSON.parse(response.text);
     } catch (err) {
@@ -1392,9 +1372,6 @@ export async function generateKeywordResearch(
     }
 }
 
-/**
- * SEO-2: Generate a full SEO article for a keyword.
- */
 export async function generateSeoArticle(
     keyword: string,
     brandProfile: BrandHubProfile
@@ -1422,35 +1399,33 @@ export async function generateSeoArticle(
 أعد JSON فقط.
 `;
     try {
-        const response = await getAI().models.generateContent({
+        const response = await callAIProxy({
             model: 'gemini-2.5-pro',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        h1:              { type: Type.STRING },
-                        h2s:             { type: Type.ARRAY, items: { type: Type.STRING } },
-                        intro:           { type: Type.STRING },
-                        body:            { type: Type.STRING },
-                        faq: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    question: { type: Type.STRING },
-                                    answer:   { type: Type.STRING },
-                                },
-                                required: ['question', 'answer'],
+            prompt,
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    h1:              { type: Type.STRING },
+                    h2s:             { type: Type.ARRAY, items: { type: Type.STRING } },
+                    intro:           { type: Type.STRING },
+                    body:            { type: Type.STRING },
+                    faq: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                question: { type: Type.STRING },
+                                answer:   { type: Type.STRING },
                             },
+                            required: ['question', 'answer'],
                         },
-                        metaTitle:       { type: Type.STRING },
-                        metaDescription: { type: Type.STRING },
                     },
-                    required: ['h1', 'h2s', 'intro', 'body', 'faq', 'metaTitle', 'metaDescription'],
+                    metaTitle:       { type: Type.STRING },
+                    metaDescription: { type: Type.STRING },
                 },
+                required: ['h1', 'h2s', 'intro', 'body', 'faq', 'metaTitle', 'metaDescription'],
             },
+            feature: 'seo_article_gen',
         });
         return JSON.parse(response.text);
     } catch (err) {
@@ -1459,15 +1434,148 @@ export async function generateSeoArticle(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// --- Design Ops: Arabic Prompt Enhancer (gemini-2.5-flash) ---
-// ─────────────────────────────────────────────────────────────────────────────
+// ── SEO-3: Generate content brief from real page data ─────────────────────────
 
-/**
- * يأخذ prompt (عربي أو مختلط) ويعيد:
- * - enhancedPrompt: prompt إنجليزي احترافي لـ Imagen 4.0
- * - arabicTextSuggestions: اقتراحات نص عربي لوضعه فوق الصورة
- */
+export interface SeoPageBriefInput {
+    pageUrl: string;
+    currentTitle?: string | null;
+    currentMeta?: string | null;
+    currentH1?: string | null;
+    targetKeyword: string;
+    secondaryKeywords?: string[];
+    currentPosition?: number | null;
+    impressions30d?: number;
+    clicks30d?: number;
+    ctr30d?: number;
+    issues?: string[];
+    brandProfile: BrandHubProfile;
+}
+
+export interface SeoPageBriefOutput {
+    suggestedTitle: string;
+    suggestedMeta: string;
+    suggestedH1: string;
+    h2Suggestions: Array<{ text: string; angle: string; keyword?: string }>;
+    faqSuggestions: Array<{ question: string; answer_hint: string }>;
+    internalLinksSuggestions: Array<{ anchor: string; reason: string }>;
+    contentGaps: string[];
+    keywordUsageNotes: string;
+    wordCountTarget: number;
+    schemaType: string;
+}
+
+export async function generateSeoContentBriefFromPage(
+    input: SeoPageBriefInput
+): Promise<SeoPageBriefOutput> {
+    const {
+        pageUrl, currentTitle, currentMeta, currentH1,
+        targetKeyword, secondaryKeywords = [],
+        currentPosition, impressions30d = 0, clicks30d = 0, ctr30d = 0,
+        issues = [], brandProfile,
+    } = input;
+
+    const performanceContext = currentPosition
+        ? `الصفحة تحتل حالياً الموضع ${currentPosition.toFixed(1)} في نتائج البحث بـ ${impressions30d.toLocaleString()} ظهور و${clicks30d.toLocaleString()} نقرة شهرياً (CTR: ${(ctr30d * 100).toFixed(2)}%).`
+        : `لا توجد بيانات أداء متاحة للصفحة بعد.`;
+
+    const issuesContext = issues.length > 0
+        ? `المشاكل المكتشفة في الصفحة:\n${issues.map(i => `  - ${i}`).join('\n')}`
+        : 'لا توجد مشاكل تقنية مكتشفة.';
+
+    const prompt = `
+أنت خبير SEO استراتيجي. أنشئ content brief متكامل لتحسين صفحة موجودة فعلاً.
+
+## بيانات الصفحة الحالية (حقيقية من audit):
+- URL: ${pageUrl}
+- العنوان الحالي: ${currentTitle ?? 'مفقود'}
+- Meta Description الحالي: ${currentMeta ?? 'مفقود'}
+- H1 الحالي: ${currentH1 ?? 'مفقود'}
+
+## أداء الصفحة في محركات البحث:
+${performanceContext}
+
+## المشاكل المكتشفة:
+${issuesContext}
+
+## الكلمة المفتاحية الأساسية: "${targetKeyword}"
+## الكلمات المساعدة: ${secondaryKeywords.length > 0 ? secondaryKeywords.join(', ') : 'لا توجد'}
+
+## سياق البراند:
+- اسم البراند: ${brandProfile.brandName}
+- المجال: ${brandProfile.industry}
+- الجمهور: ${(brandProfile as any).targetAudience ?? 'غير محدد'}
+- النبرة: ${brandProfile.brandVoice?.toneDescription?.join(', ') ?? 'احترافية'}
+
+## المهمة:
+أنشئ content brief يعالج المشاكل المكتشفة ويحسن أداء الصفحة. ركّز على:
+1. عنوان محسّن يتضمن الكلمة المفتاحية بشكل طبيعي (≤60 حرف)
+2. وصف meta يشجع على النقر (≤160 حرف)
+3. H2s تغطي نية البحث بالكامل
+4. FAQs مبنية على الأسئلة الشائعة في هذا المجال
+5. فرص للربط الداخلي
+6. الثغرات المحتوائية التي يجب سدّها
+
+أعد JSON فقط.
+`;
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                suggestedTitle:    { type: Type.STRING },
+                suggestedMeta:     { type: Type.STRING },
+                suggestedH1:       { type: Type.STRING },
+                h2Suggestions: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            text:    { type: Type.STRING },
+                            angle:   { type: Type.STRING },
+                            keyword: { type: Type.STRING },
+                        },
+                        required: ['text', 'angle'],
+                    },
+                },
+                faqSuggestions: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            question:    { type: Type.STRING },
+                            answer_hint: { type: Type.STRING },
+                        },
+                        required: ['question', 'answer_hint'],
+                    },
+                },
+                internalLinksSuggestions: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            anchor: { type: Type.STRING },
+                            reason: { type: Type.STRING },
+                        },
+                        required: ['anchor', 'reason'],
+                    },
+                },
+                contentGaps:       { type: Type.ARRAY, items: { type: Type.STRING } },
+                keywordUsageNotes: { type: Type.STRING },
+                wordCountTarget:   { type: Type.NUMBER },
+                schemaType:        { type: Type.STRING },
+            },
+            required: ['suggestedTitle', 'suggestedMeta', 'suggestedH1', 'h2Suggestions', 'faqSuggestions', 'contentGaps', 'keywordUsageNotes'],
+        },
+        feature: 'seo_content_brief',
+    });
+
+    return JSON.parse(response.text) as SeoPageBriefOutput;
+}
+
+// ── Design Ops ────────────────────────────────────────────────────────────────
+
 export async function enhanceArabicDesignPrompt(
     rawPrompt: string,
     brandName?: string,
@@ -1477,9 +1585,7 @@ export async function enhanceArabicDesignPrompt(
         ? `أنت خبير تصميم جرافيك متخصص في المحتوى العربي لبراند اسمه "${brandName}"${brandColors ? ` بألوان: ${brandColors}` : ''}.`
         : 'أنت خبير تصميم جرافيك متخصص في المحتوى العربي والتسويق الرقمي.';
 
-    const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `${systemContext}
+    const prompt = `${systemContext}
 
 المهمة: تحسين وترجمة الـ prompt التالي لتوليد صورة احترافية بـ Imagen AI.
 
@@ -1490,7 +1596,12 @@ export async function enhanceArabicDesignPrompt(
 {
   "enhancedPrompt": "prompt إنجليزي احترافي محسّن لـ Imagen — يصف الصورة بدقة، الألوان، الأسلوب البصري، والتكوين. لا تذكر نص عربي داخل الصورة لأن Imagen لا يدعم العربية.",
   "arabicTextSuggestions": ["اقتراح نص عربي 1 يمكن إضافته فوق الصورة", "اقتراح 2", "اقتراح 3"]
-}`,
+}`;
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt,
+        feature: 'design_prompt_enhance',
     });
 
     try {
@@ -1501,27 +1612,26 @@ export async function enhanceArabicDesignPrompt(
             arabicTextSuggestions: json.arabicTextSuggestions || [],
         };
     } catch {
-        // Fallback: إرجاع الـ prompt الأصلي لو فشل الـ parse
         return { enhancedPrompt: rawPrompt, arabicTextSuggestions: [] };
     }
 }
 
-/**
- * يولّد اقتراحات prompt لموضوع معين — مناسب لـ "Quick Inspiration" في Design Ops
- */
 export async function generateDesignPromptIdeas(
     topic: string,
     brandName?: string
 ): Promise<string[]> {
-    const response = await getAI().models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `أنت مساعد تصميم إبداعي${brandName ? ` لبراند "${brandName}"` : ''}.
+    const prompt = `أنت مساعد تصميم إبداعي${brandName ? ` لبراند "${brandName}"` : ''}.
 
 اقترح 4 أفكار تصميم مختلفة لهذا الموضوع: "${topic}"
 كل فكرة تكون جملة أو جملتين بالعربي تصف التصميم المقترح.
 
 رد بـ JSON فقط:
-{"ideas": ["فكرة 1", "فكرة 2", "فكرة 3", "فكرة 4"]}`,
+{"ideas": ["فكرة 1", "فكرة 2", "فكرة 3", "فكرة 4"]}`;
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt,
+        feature: 'design_prompt_ideas',
     });
 
     try {

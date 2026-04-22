@@ -82,12 +82,6 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
         valuesFallback: ar ? 'أضف قيم البراند لتقوية التوجيه.' : 'Add brand values to strengthen guidance.',
     };
 
-    const workflowSteps = [
-        { title: copy.stepOneTitle, description: copy.stepOneDescription },
-        { title: copy.stepTwoTitle, description: copy.stepTwoDescription },
-        { title: copy.stepThreeTitle, description: copy.stepThreeDescription },
-    ];
-
     const loadBriefs = useCallback(async () => {
         if (!props.brandId) {
             setSavedBriefs([]);
@@ -107,10 +101,6 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
         void loadBriefs();
     }, [loadBriefs]);
 
-    const primaryAudience = props.brandProfile.brandAudiences[0]?.personaName || copy.audienceFallback;
-    const toneSummary = props.brandProfile.brandVoice.toneDescription.slice(0, 2).join(' • ') || copy.voiceFallback;
-    const guidingValues = props.brandProfile.values.slice(0, 3);
-
     const stats = useMemo(() => ([
         {
             label: copy.modeLabel,
@@ -118,19 +108,11 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
             tone: 'text-brand-primary',
         },
         {
-            label: copy.brandLabel,
-            value: props.brandProfile.brandName || '—',
-        },
-        {
-            label: copy.keywordsLabel,
-            value: `${props.brandProfile.brandVoice.keywords.length}`,
-        },
-        {
             label: copy.briefLabel,
             value: props.publisherBrief ? copy.connectedBrief : copy.noBrief,
             tone: props.publisherBrief ? 'text-emerald-400' : undefined,
         },
-    ]), [copy.briefLabel, copy.brandLabel, copy.connectedBrief, copy.editMode, copy.keywordsLabel, copy.modeLabel, copy.newPost, copy.noBrief, props.brandProfile.brandName, props.brandProfile.brandVoice.keywords.length, props.postToEdit, props.publisherBrief]);
+    ]), [copy.briefLabel, copy.connectedBrief, copy.editMode, copy.modeLabel, copy.newPost, copy.noBrief, props.postToEdit, props.publisherBrief]);
 
     return (
         <PageScaffold
@@ -139,52 +121,6 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
             description={copy.description}
             stats={stats}
         >
-            <PageSection title={copy.workflowTitle} description={copy.workflowDescription} className="overflow-hidden">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_360px]">
-                    <div className="grid gap-3 md:grid-cols-3">
-                        {workflowSteps.map((step, index) => (
-                            <div key={step.title} className="surface-panel-soft rounded-[1.5rem] p-4">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-primary/12 text-sm font-bold text-brand-primary">
-                                    {index + 1}
-                                </div>
-                                <h3 className="mt-4 text-sm font-semibold text-light-text dark:text-dark-text">{step.title}</h3>
-                                <p className="mt-2 text-xs leading-6 text-light-text-secondary dark:text-dark-text-secondary">{step.description}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="surface-panel-soft rounded-[1.5rem] p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary">{copy.contextTitle}</p>
-                        <p className="mt-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">{copy.contextDescription}</p>
-
-                        <div className="mt-4 space-y-3">
-                            <div className="rounded-[1.15rem] border border-light-border/80 bg-white/70 px-4 py-3 dark:border-dark-border dark:bg-dark-bg/40">
-                                <p className="text-[11px] uppercase tracking-[0.16em] text-light-text-secondary dark:text-dark-text-secondary">{copy.voiceTitle}</p>
-                                <p className="mt-2 text-sm font-semibold text-light-text dark:text-dark-text">{toneSummary}</p>
-                            </div>
-                            <div className="rounded-[1.15rem] border border-light-border/80 bg-white/70 px-4 py-3 dark:border-dark-border dark:bg-dark-bg/40">
-                                <p className="text-[11px] uppercase tracking-[0.16em] text-light-text-secondary dark:text-dark-text-secondary">{copy.audienceTitle}</p>
-                                <p className="mt-2 text-sm font-semibold text-light-text dark:text-dark-text">{primaryAudience}</p>
-                            </div>
-                            <div className="rounded-[1.15rem] border border-light-border/80 bg-white/70 px-4 py-3 dark:border-dark-border dark:bg-dark-bg/40">
-                                <p className="text-[11px] uppercase tracking-[0.16em] text-light-text-secondary dark:text-dark-text-secondary">{copy.valuesTitle}</p>
-                                {guidingValues.length > 0 ? (
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {guidingValues.map((value) => (
-                                            <span key={value} className="rounded-full bg-light-bg px-2.5 py-1 text-xs text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary">
-                                                {value}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="mt-2 text-sm text-light-text-secondary dark:text-dark-text-secondary">{copy.valuesFallback}</p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </PageSection>
-
             <PageSection
                 title={copy.libraryTitle}
                 description={copy.libraryDescription}

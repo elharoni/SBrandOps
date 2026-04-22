@@ -154,6 +154,14 @@ export interface ZapierConnectionInput {
     sharedSecret?: string;
 }
 
+export interface N8NConnectionInput {
+    baseUrl: string;
+    webhookUrl?: string;
+    workflowName?: string;
+    apiKey?: string;
+    sharedSecret?: string;
+}
+
 export interface GoogleDriveConnectionInput {
     accessToken: string;
     folderId?: string;
@@ -174,6 +182,7 @@ export type ProviderConnectionInputMap = {
     wordpress: WordPressConnectionInput;
     slack: SlackConnectionInput;
     zapier: ZapierConnectionInput;
+    n8n: N8NConnectionInput;
     google_drive: GoogleDriveConnectionInput;
     figma: FigmaConnectionInput;
 };
@@ -278,6 +287,12 @@ function normalizeWebsiteUrl(value: string, label: string): string {
     const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
     const url = new URL(withScheme);
     return `${url.origin}${url.pathname === '/' ? '/' : url.pathname.replace(/\/+$/, '/')}`;
+}
+
+function normalizeWebhookUrl(value: string, label: string): string {
+    const trimmed = trimRequired(value, label);
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    return new URL(withScheme).toString();
 }
 
 function getFunctionsBaseUrl(): string | null {
@@ -834,7 +849,7 @@ async function persistZapierConnection(
     input: ZapierConnectionInput,
 ): Promise<ProviderConnectionResult> {
     const webhookUrl = trimRequired(input.webhookUrl, 'Zapier webhook URL');
-    const normalizedWebhookUrl = normalizeWebsiteUrl(webhookUrl, 'Zapier webhook URL');
+    const normalizedWebhookUrl = normalizeWebhookUrl(webhookUrl, 'Zapier webhook URL');
     const host = new URL(normalizedWebhookUrl).hostname;
     const workflowName = input.workflowName?.trim() || 'Zapier workflow';
     const linkedAssets = [workflowName, host];
@@ -849,6 +864,42 @@ async function persistZapierConnection(
         metadata: buildStandardProviderMetadata(brandId, 'zapier', {
             inbound_webhook_url: normalizedWebhookUrl,
             shared_secret: input.sharedSecret?.trim() || null,
+            linked_assets: linkedAssets,
+        }),
+    });
+
+    return {
+        connection,
+        linkedAssetLabels: linkedAssets,
+        assetCounts: {},
+    };
+}
+
+async function persistN8nConnection(
+    brandId: string,
+    input: N8NConnectionInput,
+): Promise<ProviderConnectionResult> {
+    const baseUrl = normalizeWebsiteUrl(input.baseUrl, 'n8n base URL').replace(/\/$/, '');
+    const webhookUrl = input.webhookUrl?.trim()
+        ? normalizeWebhookUrl(input.webhookUrl, 'n8n webhook URL')
+        : null;
+    const host = new URL(baseUrl).hostname;
+    const workflowName = input.workflowName?.trim() || 'n8n workflow';
+    const linkedAssets = [workflowName, host];
+
+    const connection = await upsertBrandConnectionByProvider(brandId, 'n8n', {
+        external_account_id: host,
+        external_account_name: workflowName,
+        access_token: input.apiKey?.trim() || null,
+        status: 'connected',
+        sync_health: 'healthy',
+        last_error: null,
+        last_sync_at: new Date().toISOString(),
+        metadata: buildStandardProviderMetadata(brandId, 'n8n', {
+            base_url: baseUrl,
+            inbound_webhook_url: webhookUrl,
+            shared_secret: input.sharedSecret?.trim() || null,
+            api_access_enabled: Boolean(input.apiKey?.trim()),
             linked_assets: linkedAssets,
         }),
     });
@@ -967,6 +1018,8 @@ export async function connectProvider<TProvider extends ConnectableBrandProvider
             return persistSlackConnection(brandId, input as ProviderConnectionInputMap['slack']);
         case 'zapier':
             return persistZapierConnection(brandId, input as ProviderConnectionInputMap['zapier']);
+        case 'n8n':
+            return persistN8nConnection(brandId, input as ProviderConnectionInputMap['n8n']);
         case 'google_drive':
             return persistGoogleDriveConnection(brandId, input as ProviderConnectionInputMap['google_drive']);
         case 'figma':
@@ -1023,6 +1076,14 @@ function buildRefreshInput(connection: BrandConnection): ProviderConnectionInput
                 workflowName: connection.external_account_name ?? undefined,
                 sharedSecret: readMetadataString(connection, 'shared_secret'),
             };
+        case 'n8n':
+            return {
+                baseUrl: trimRequired(readMetadataString(connection, 'base_url') ?? '', 'n8n base URL'),
+                webhookUrl: readMetadataString(connection, 'inbound_webhook_url') || undefined,
+                workflowName: connection.external_account_name ?? undefined,
+                apiKey: connection.access_token || undefined,
+                sharedSecret: readMetadataString(connection, 'shared_secret') || undefined,
+            };
         case 'google_drive':
             return {
                 accessToken: trimRequired(connection.access_token ?? '', 'Google Drive access token'),
@@ -1052,6 +1113,7 @@ export async function refreshProviderConnection(
         || connection.provider === 'wordpress'
         || connection.provider === 'slack'
         || connection.provider === 'zapier'
+        || connection.provider === 'n8n'
         || connection.provider === 'google_drive'
         || connection.provider === 'figma'
     )) {

@@ -41,7 +41,7 @@ export async function loadFacebookSDK(appId: string): Promise<void> {
                     appId: appId,
                     cookie: true,
                     xfbml: true,
-                    version: 'v21.0' // Latest version
+                    version: 'v23.0'
                 });
 
                 sdkLoaded = true;

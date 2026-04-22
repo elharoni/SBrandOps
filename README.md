@@ -54,10 +54,10 @@
 
 ### المتطلبات الأساسية
 
-- Node.js 18+ ✅
-- حساب Supabase ✅
-- Gemini API Key ✅
-- (اختياري) Facebook App ID للنشر على Facebook/Instagram
+- Node.js 20+
+- حساب Supabase (مشروع جاهز)
+- Supabase CLI (`npm i -g supabase`)
+- (اختياري) حسابات المنصات الاجتماعية للنشر
 
 ### التثبيت
 
@@ -69,21 +69,40 @@ cd sbrandops---v1.0541
 # 2. تثبيت المكتبات
 npm install
 
-# 3. إعداد المتغيرات البيئية
+# 3. إعداد المتغيرات البيئية للواجهة الأمامية
 cp .env.example .env
-# ثم عدّل .env وأضف القيم الحقيقية
+# أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY فقط
 
-# 4. تشغيل التطبيق
+# 4. تشغيل التطبيق محلياً
 npm run dev
 ```
 
 ### إعداد قاعدة البيانات
 
-1. افتح [Supabase Dashboard](https://app.supabase.com)
-2. اذهب إلى SQL Editor
-3. نفّذ الملفات بالترتيب:
-   - `setup_full.sql`
-   - `migrations/001_enhanced_schema.sql`
+```bash
+# ربط المشروع بـ Supabase
+npx supabase link --project-ref <project-ref>
+
+# تطبيق جميع الـ migrations دفعة واحدة
+npx supabase db push
+```
+
+### إعداد الـ Edge Functions (متغيرات السيرفر)
+
+في Supabase Dashboard → Settings → Edge Functions → Secrets، أضف:
+
+| المتغير | الوصف |
+|---------|-------|
+| `GEMINI_API_KEY` | مفتاح Gemini AI (سري — لا يُكشف للعميل) |
+| `OAUTH_ENCRYPTION_KEY` | 64-حرف hex لتشفير OAuth tokens |
+| `WEBHOOK_SECRET` | سر مشترك للـ webhooks |
+| `PADDLE_WEBHOOK_SECRET` | سر HMAC للـ Paddle |
+| `AI_DAILY_TOKEN_LIMIT` | (اختياري) حد يومي للتوكنز، افتراضي 100000 |
+
+```bash
+# نشر جميع الـ Edge Functions
+npm run supabase:functions:deploy
+```
 
 ### إنشاء Storage Bucket
 
@@ -184,10 +203,12 @@ const interval = startAutoPublisher(1); // كل دقيقة
 
 ## 🔐 الأمان
 
-- ✅ Row Level Security (RLS) على جميع الجداول
-- ✅ مصادقة OAuth آمنة
-- ✅ تشفير الاتصالات
-- ⚠️ في الإنتاج: شفّر Access Tokens
+- ✅ Row Level Security (RLS) على جميع الجداول — كل مستخدم يرى بياناته فقط
+- ✅ OAuth tokens مشفّرة بـ AES-256-GCM في قاعدة البيانات
+- ✅ JWT verification على جميع الـ Edge Functions
+- ✅ مفاتيح Gemini AI على السيرفر فقط — لا تُكشف للمتصفح
+- ✅ HMAC signature verification على جميع الـ webhooks
+- ✅ CORS مقيّد بـ domain محدد
 
 ## 🤝 المساهمة
 

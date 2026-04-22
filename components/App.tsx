@@ -32,6 +32,7 @@ import { usePageBrandProfile } from '../hooks/page/usePageBrandProfile';
 import { useDesignData } from '../hooks/useDesignData';
 import { useAdminData }  from '../hooks/useAdminData';
 import { useAppRouting } from '../hooks/useAppRouting';
+import { useTrialStatus } from '../hooks/useTrialStatus';
 import { SystemData } from '../services/systemService';
 import { isPublicPath, pathToPublicPage } from '../config/routes';
 import { hasLiveProviderConnection } from './pages/integrationsModel';
@@ -46,6 +47,7 @@ import { addMarketingPlan } from '../services/marketingPlansService';
 import { inviteUser, updateUserRole, deleteUser, revokeSession, generateApiKey, deleteApiKey } from '../services/systemService';
 import { createScheduledPost, updateScheduledPost, deleteScheduledPost } from '../services/postsService';
 import { setSentryUser, setSentryBrandContext, captureError } from '../services/sentryService';
+import { getGeneralSettings } from '../services/adminService';
 
 import {
     Brand, SocialAccount, ScheduledPost, NotificationType,
@@ -78,6 +80,8 @@ const QueuesPage = lazy(() => import('./admin/pages/QueuesPage').then(m => ({ de
 const AdminSettingsPage = lazy(() => import('./admin/pages/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
 const SystemHealthPage = lazy(() => import('./admin/pages/SystemHealthPage').then(m => ({ default: m.SystemHealthPage })));
 const CommandPalette = lazy(() => import('./admin/shared/ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
+const AIProviderKeysPage = lazy(() => import('./admin/pages/AIProviderKeysPage').then(m => ({ default: m.AIProviderKeysPage })));
+const AdminLogsPage = lazy(() => import('./admin/pages/AdminLogsPage').then(m => ({ default: m.AdminLogsPage })));
 const TeamManagementPage = lazy(() => import('./pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
 const UserBillingPage = lazy(() => import('./pages/UserBillingPage').then(m => ({ default: m.UserBillingPage })));
 const CrmDashboardPage = lazy(() => import('./pages/crm/CrmDashboardPage').then(m => ({ default: m.CrmDashboardPage })));
@@ -86,6 +90,9 @@ const CrmPipelinePage = lazy(() => import('./pages/crm/CrmPipelinePage').then(m 
 const CrmTicketsPage = lazy(() => import('./pages/crm/CrmTicketsPage').then(m => ({ default: m.CrmTicketsPage })));
 const MarketingSite  = lazy(() => import('./marketing/MarketingSite'));
 const DesignOpsPage  = lazy(() => import('./pages/DesignOpsPage').then(m => ({ default: m.DesignOpsPage })));
+const VideoStudioPage = lazy(() => import('./pages/VideoStudioPage').then(m => ({ default: m.VideoStudioPage })));
+const ContentStudioPage = lazy(() => import('./pages/ContentStudioPage').then(m => ({ default: m.ContentStudioPage })));
+const AssetLibraryPage = lazy(() => import('./pages/AssetLibraryPage').then(m => ({ default: m.AssetLibraryPage })));
 
 const buildFallbackBrandProfile = (brandName = ''): BrandHubProfile => ({
     brandName,
@@ -181,7 +188,18 @@ const AppShell: React.FC = () => {
     const { language } = useLanguage();
     const ar = language === 'ar';
     const [authPage, setAuthPage] = useState<'login' | 'register' | 'forgot'>('login');
+    const [maintenanceMode, setMaintenanceMode] = useState(false);
+    const [announcement, setAnnouncement] = useState<{ text: string; type: 'info' | 'warning' | 'success' | 'danger'; enabled: boolean } | null>(null);
+    const [announcementDismissed, setAnnouncementDismissed] = useState(false);
     const isPublicRoute = isPublicPath(location.pathname);
+    // Admin access: check user_metadata or app_metadata role
+    const isAdmin = !!(
+        user?.user_metadata?.is_admin ||
+        user?.app_metadata?.role === 'admin' ||
+        user?.app_metadata?.role === 'super_admin' ||
+        user?.user_metadata?.role === 'ADMIN' ||
+        user?.user_metadata?.role === 'SUPER_ADMIN'
+    );
     const currentPublicPage = pathToPublicPage(location.pathname) as
         | 'home'
         | 'about'
@@ -227,6 +245,7 @@ const AppShell: React.FC = () => {
         activeBrandPage,
         activeAdminPage,
         isAuthenticated,
+        isAdmin,
         authPage,
         setActiveBrandPage,
         setActiveAdminPage,
@@ -333,6 +352,15 @@ const AppShell: React.FC = () => {
         }
     }, [viewMode, isAuthenticated, fetchAdminData]);
 
+    // Fetch system settings (maintenance mode + announcement) on login
+    useEffect(() => {
+        if (!isAuthenticated) return;
+        getGeneralSettings().then(s => {
+            setMaintenanceMode(s.maintenanceMode);
+            setAnnouncement({ text: s.announcementText, type: s.announcementType, enabled: s.announcementEnabled });
+        }).catch(() => {});
+    }, [isAuthenticated]);
+
     // Load Facebook SDK on mount
     useEffect(() => {
         const fbAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
@@ -389,6 +417,26 @@ const AppShell: React.FC = () => {
         );
     }
     // â”€â”€ End Auth Guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    // Maintenance Mode check (non-admin users only)
+    if (maintenanceMode && !isAdmin) {
+        return (
+            <div className='min-h-screen flex flex-col items-center justify-center bg-light-bg dark:bg-dark-bg px-6 text-center'>
+                <div className='max-w-md'>
+                    <div className='w-20 h-20 rounded-2xl bg-warning/20 flex items-center justify-center mx-auto mb-6'>
+                        <i className='fas fa-tools text-warning text-3xl'></i>
+                    </div>
+                    <h1 className='text-3xl font-bold text-light-text dark:text-dark-text mb-3'>النظام تحت الصيانة</h1>
+                    <p className='text-light-text-secondary dark:text-dark-text-secondary mb-6'>
+                        نعمل على تحسين التطبيق. سنعود قريباً. شكراً لصبرك.
+                    </p>
+                    <button onClick={signOut} className='px-5 py-2.5 rounded-lg border border-light-border dark:border-dark-border text-light-text-secondary hover:text-danger transition-colors text-sm'>
+                        <i className='fas fa-sign-out-alt me-2'></i>تسجيل الخروج
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // â”€â”€ Brand Event Handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -482,10 +530,6 @@ const AppShell: React.FC = () => {
     };
 
     const handleSendToPublisher = (contentPiece: ContentPiece) => {
-        if (contentPiece.status !== ContentStatus.Approved) {
-            addNotification(NotificationType.Warning, 'Only approved content can be sent to the publisher.');
-            return;
-        }
         setPublisherBrief(null);
         const postForPublisher: ScheduledPost = {
             id: '',
@@ -715,7 +759,48 @@ const AppShell: React.FC = () => {
                             await addMarketingPlan(activeBrand.id, planData);
                             fetchDataForBrand(activeBrand);
                         }}
+                        onSendToPublisher={handleLoadPublisherBrief}
                     />
+                );
+            case 'ai-video':
+                return (
+                    <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
+                        <VideoStudioPage
+                            addNotification={addNotification}
+                            brandId={activeBrand.id}
+                            onNavigate={setActiveBrandPage}
+                        />
+                    </Suspense>
+                );
+            case 'content-studio':
+                return (
+                    <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
+                        <ContentStudioPage
+                            brandProfile={resolvedBrandProfile}
+                            brandId={activeBrand.id}
+                            addNotification={addNotification}
+                            onSendToPublisher={handleLoadPublisherBrief}
+                            onNavigate={setActiveBrandPage}
+                            initialBrief={publisherBrief}
+                        />
+                    </Suspense>
+                );
+            case 'asset-library':
+                return (
+                    <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
+                        <AssetLibraryPage
+                            brandId={activeBrand.id}
+                            addNotification={addNotification}
+                            onSendToPublisher={(mediaItem) => {
+                                setPostToEdit({
+                                    id: '', content: '', platforms: [],
+                                    media: [mediaItem], status: PostStatus.Draft, scheduledAt: null,
+                                });
+                                setPublisherBrief(null);
+                                setActiveBrandPage('social-ops/publisher');
+                            }}
+                        />
+                    </Suspense>
                 );
             case 'seo-ops':
                 return (
@@ -821,8 +906,8 @@ const AppShell: React.FC = () => {
 
         switch (activeAdminPage) {
             case 'admin-dashboard': return <AdminDashboardPage stats={adminStats} activityLogs={activityLogs} />;
-            case 'admin-users': return <AdminUsersPage users={adminUsers} isLoading={isPageLoading} />;
-            case 'admin-tenants': return <TenantsPage tenants={tenants} isLoading={isPageLoading} />;
+            case 'admin-users': return <AdminUsersPage users={adminUsers} isLoading={isPageLoading} addNotification={addNotification} onRefresh={fetchAdminData} />;
+            case 'admin-tenants': return <TenantsPage tenants={tenants} isLoading={isPageLoading} plans={subscriptionPlans} addNotification={addNotification} onRefresh={fetchAdminData} />;
             case 'admin-billing':
                 return (
                     <BillingPage
@@ -840,10 +925,26 @@ const AppShell: React.FC = () => {
             case 'admin-ai-monitor': return <AIMonitorPage metrics={aiMetrics} isLoading={isPageLoading} />;
             case 'admin-queues': return <QueuesPage jobs={queueJobs} isLoading={isPageLoading} />;
             case 'admin-system-health': return <SystemHealthPage healthData={systemHealth} isLoading={isPageLoading} />;
-            case 'admin-settings': return <AdminSettingsPage permissions={adminPermissions} generalSettings={generalSettings} securitySettings={securitySettings} isLoading={isPageLoading} />;
+            case 'admin-settings': return <AdminSettingsPage permissions={adminPermissions} generalSettings={generalSettings} securitySettings={securitySettings} isLoading={isPageLoading} addNotification={addNotification} />;
+            case 'admin-ai-keys': return <AIProviderKeysPage />;
+            case 'admin-logs': return <AdminLogsPage />;
             default: return <div>Admin page not found: {activeAdminPage}</div>;
         }
     };
+
+    const announcementColors: Record<string, string> = {
+        info:    'bg-blue-500/15 border-blue-500/30 text-blue-300',
+        warning: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
+        success: 'bg-green-500/15 border-green-500/30 text-green-300',
+        danger:  'bg-red-500/15 border-red-500/30 text-red-300',
+    };
+    const showBanner = announcement?.enabled && announcement.text && !announcementDismissed;
+
+    // Trial status — shown only to authenticated, non-admin users
+    const trial = useTrialStatus();
+    const [trialBannerDismissed, setTrialBannerDismissed] = useState(false);
+    const showTrialBanner = isAuthenticated && !isAdmin && !trialBannerDismissed
+        && (trial.isExpiringSoon || trial.isExpired);
 
     return (
         <div className="relative flex h-screen overflow-hidden bg-light-bg font-sans text-light-text dark:bg-dark-bg dark:text-dark-text">
@@ -851,6 +952,45 @@ const AppShell: React.FC = () => {
                 <div className="app-shell-orb -left-20 top-0 h-72 w-72 bg-brand-primary/20" />
                 <div className="app-shell-orb bottom-[-8rem] right-[-6rem] h-80 w-80 bg-brand-secondary/20" />
             </div>
+            {/* Announcement Banner */}
+            {showBanner && announcement && (
+                <div className={`fixed top-0 inset-x-0 z-[100] flex items-center justify-between px-4 py-2 border-b text-sm font-medium ${announcementColors[announcement.type] || announcementColors.info}`}>
+                    <div className="flex items-center gap-2">
+                        <i className="fas fa-bullhorn text-xs opacity-70"></i>
+                        <span>{announcement.text}</span>
+                    </div>
+                    <button onClick={() => setAnnouncementDismissed(true)} className="opacity-60 hover:opacity-100 transition-opacity ms-4 flex-shrink-0">
+                        <i className="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+            )}
+
+            {/* Trial expiry banner */}
+            {showTrialBanner && (
+                <div className={`fixed top-0 inset-x-0 z-[100] flex items-center justify-between gap-3 px-4 py-2 border-b text-sm font-medium ${
+                    trial.isExpired
+                        ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                        : 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                }`}>
+                    <div className="flex items-center gap-2">
+                        <i className={`fas ${trial.isExpired ? 'fa-lock' : 'fa-hourglass-half'} text-xs opacity-80`} />
+                        <span>
+                            {trial.isExpired
+                                ? (ar ? 'انتهت فترة التجربة المجانية. قم بالترقية للاستمرار.' : 'Your free trial has ended. Upgrade to continue.')
+                                : (ar ? `تبقّى ${trial.daysLeft} ${trial.daysLeft === 1 ? 'يوم' : 'أيام'} على انتهاء التجربة المجانية.` : `${trial.daysLeft} day${trial.daysLeft === 1 ? '' : 's'} left in your free trial.`)}
+                        </span>
+                        <a
+                            href="/app/billing"
+                            className="ms-1 font-bold underline underline-offset-2 hover:no-underline"
+                        >
+                            {ar ? 'ترقية الآن' : 'Upgrade now'}
+                        </a>
+                    </div>
+                    <button onClick={() => setTrialBannerDismissed(true)} className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0" aria-label="Dismiss">
+                        <i className="fas fa-times text-xs" />
+                    </button>
+                </div>
+            )}
             {viewMode === 'brand' ? (
                 <>
                     <Sidebar
@@ -878,15 +1018,25 @@ const AppShell: React.FC = () => {
                             activePageId={activeBrandPage}
                         />
                         <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6">
-                            <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل الصفحة...' : 'Loading page...'} />}>
-                                {renderBrandPage()}
-                            </Suspense>
+                            <ErrorBoundary key={activeBrandPage}>
+                                <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل الصفحة...' : 'Loading page...'} />}>
+                                    {renderBrandPage()}
+                                </Suspense>
+                            </ErrorBoundary>
                         </div>
                     </main>
                 </>
             ) : (
                 <>
-                    <AdminSidebar activePage={activeAdminPage} onNavigate={setActiveAdminPage} />
+                    <AdminSidebar
+                        activePage={activeAdminPage}
+                        onNavigate={setActiveAdminPage}
+                        onSwitchToBrand={() => setViewMode('brand')}
+                        onSignOut={signOut}
+                        userName={user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                        userEmail={user?.email}
+                        systemHealth={systemHealth}
+                    />
                     <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
                         <AdminHeader
                             onSwitchToBrand={() => setViewMode('brand')}
@@ -895,9 +1045,11 @@ const AppShell: React.FC = () => {
                             onToggleCommandPalette={() => setCommandPaletteOpen(true)}
                         />
                         <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6">
-                            <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل لوحة الإدارة...' : 'Loading admin page...'} />}>
-                                {renderAdminPage()}
-                            </Suspense>
+                            <ErrorBoundary key={activeAdminPage}>
+                                <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل لوحة الإدارة...' : 'Loading admin page...'} />}>
+                                    {renderAdminPage()}
+                                </Suspense>
+                            </ErrorBoundary>
                         </div>
                     </main>
                 </>

@@ -35,12 +35,11 @@ export default defineConfig(({ mode }) => {
           manualChunks(id) {
             if (!id.includes('node_modules')) return undefined;
 
-            if (id.includes('react') || id.includes('scheduler')) return 'react-vendor';
             if (id.includes('react-router')) return 'router-vendor';
+            if (id.includes('react-') || id.includes('scheduler')) return 'react-vendor';
             if (id.includes('@supabase')) return 'supabase-vendor';
             if (id.includes('@tanstack/react-query')) return 'query-vendor';
             if (id.includes('recharts')) return 'charts-vendor';
-            if (id.includes('@google/genai')) return 'ai-vendor';
 
             return 'vendor';
           },

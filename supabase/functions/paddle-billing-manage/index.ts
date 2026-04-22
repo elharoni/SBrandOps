@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildCorsHeaders } from '../_shared/auth.ts';
 
 type BillingCycle = 'monthly' | 'yearly';
 type ManageAction = 'overview' | 'portal' | 'pause' | 'cancel' | 'resume' | 'change_billing_cycle';
@@ -30,15 +31,6 @@ const paddleApiHeaders = {
   'Paddle-Version': '1',
 };
 
-function json(body: unknown, status = 200, headers?: HeadersInit) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-  });
-}
 
 function getPriceId(planId: string, cycle: BillingCycle) {
   const suffix = cycle === 'yearly' ? 'YEARLY' : 'MONTHLY';
@@ -497,17 +489,29 @@ function buildSubscriptionSnapshot(
 
 Deno.serve(async req => {
   const correlationId = crypto.randomUUID();
+  const corsHeaders = buildCorsHeaders(req.headers.get('Origin'));
+
+  function json(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId, ...corsHeaders },
+    });
+  }
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     if (req.method !== 'POST') {
-      return json({ error: 'Method not allowed' }, 405, { 'X-Correlation-Id': correlationId });
+      return json({ error: 'Method not allowed' }, 405);
     }
 
     const user = await getAuthenticatedUser(req);
     const payload = await req.json() as ManagePayload;
 
     if ((!payload.brand_id && !payload.tenant_id) || !payload.action) {
-      return json({ error: 'brand_id or tenant_id and action are required' }, 400, { 'X-Correlation-Id': correlationId });
+      return json({ error: 'brand_id or tenant_id and action are required' }, 400);
     }
 
     const { tenant, brand, scope } = await resolveAccessContext(user, payload);
@@ -525,7 +529,7 @@ Deno.serve(async req => {
           updatePaymentMethod: null,
         }),
         paymentHistory: [],
-      }, 200, { 'X-Correlation-Id': correlationId });
+      }, 200);
     }
 
     const currentSubscription = await getCurrentSubscription(tenant.id);
@@ -533,7 +537,7 @@ Deno.serve(async req => {
     const planRow = currentSubscription?.subscription_plans ?? await getPlanRow(currentPlanId);
 
     if (payload.action !== 'overview' && !currentSubscription?.paddle_subscription_id) {
-      return json({ error: 'No active Paddle subscription found for this tenant' }, 400, { 'X-Correlation-Id': correlationId });
+      return json({ error: 'No active Paddle subscription found for this tenant' }, 400);
     }
 
     let portalLinks: PortalLinks = {
@@ -555,11 +559,11 @@ Deno.serve(async req => {
 
     if (payload.action === 'pause') {
       if (currentSubscription?.status === 'paused' || hasScheduledPause) {
-        return json({ error: 'Subscription is already paused or scheduled to pause' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Subscription is already paused or scheduled to pause' }, 400);
       }
 
       if (hasScheduledCancel) {
-        return json({ error: 'Remove the scheduled cancellation before pausing this subscription' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Remove the scheduled cancellation before pausing this subscription' }, 400);
       }
 
       const entity = await paddleRequest(`/subscriptions/${currentSubscription!.paddle_subscription_id}/pause`, {
@@ -577,11 +581,11 @@ Deno.serve(async req => {
 
     if (payload.action === 'cancel') {
       if (hasScheduledCancel) {
-        return json({ error: 'Subscription is already scheduled to cancel' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Subscription is already scheduled to cancel' }, 400);
       }
 
       if (hasScheduledPause) {
-        return json({ error: 'Remove the scheduled pause before canceling this subscription' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Remove the scheduled pause before canceling this subscription' }, 400);
       }
 
       const entity = await paddleRequest(`/subscriptions/${currentSubscription!.paddle_subscription_id}/cancel`, {
@@ -618,22 +622,22 @@ Deno.serve(async req => {
 
         await updateLocalSubscriptionRow(currentSubscription, entity, currentPlanId);
       } else {
-        return json({ error: 'Subscription is not paused or scheduled for a change' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Subscription is not paused or scheduled for a change' }, 400);
       }
     }
 
     if (payload.action === 'change_billing_cycle') {
       if (!payload.billing_cycle) {
-        return json({ error: 'billing_cycle is required for change_billing_cycle' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'billing_cycle is required for change_billing_cycle' }, 400);
       }
 
       if (payload.billing_cycle === currentSubscription?.billing_cycle) {
-        return json({ error: 'Selected billing cycle is already active' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Selected billing cycle is already active' }, 400);
       }
 
       const priceId = getPriceId(currentPlanId, payload.billing_cycle);
       if (!priceId) {
-        return json({ error: 'Missing Paddle price ID for requested billing cycle' }, 400, { 'X-Correlation-Id': correlationId });
+        return json({ error: 'Missing Paddle price ID for requested billing cycle' }, 400);
       }
 
       const entity = await paddleRequest(`/subscriptions/${currentSubscription!.paddle_subscription_id}`, {
@@ -713,7 +717,7 @@ Deno.serve(async req => {
       updatePaymentMethodUrl: portalLinks.updatePaymentMethod,
       subscription,
       paymentHistory,
-    }, 200, { 'X-Correlation-Id': correlationId });
+    }, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Billing management error';
 
@@ -723,6 +727,6 @@ Deno.serve(async req => {
       error: message,
     }));
 
-    return json({ error: message }, 500, { 'X-Correlation-Id': correlationId });
+    return json({ error: message }, 500);
   }
 });

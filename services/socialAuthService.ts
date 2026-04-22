@@ -51,7 +51,7 @@ export async function initiateSocialLogin(platform: SocialPlatform): Promise<Aut
                     expiresIn: response.authResponse.expiresIn,
                     platform,
                 });
-            }, { scope: scopes, auth_type: 'rerequest' });
+            }, { scope: scopes });
         });
     }
 

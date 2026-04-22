@@ -116,6 +116,7 @@ const PROVIDER_META: Record<Provider, {
     wordpress: { icon: 'fab fa-wordpress', iconTone: 'bg-sky-500/10 text-sky-500', labelAr: 'WordPress', labelEn: 'WordPress', descriptionAr: 'اتصال WordPress لنشر المحتوى أو مزامنة الموقع.', descriptionEn: 'WordPress connection for publishing or site sync.', route: 'seo-ops' },
     slack: { icon: 'fab fa-slack', iconTone: 'bg-violet-500/10 text-violet-500', labelAr: 'Slack', labelEn: 'Slack', descriptionAr: 'ربط تنبيهات الفريق وسير الموافقات بقنوات Slack.', descriptionEn: 'Connect team alerts and approval flows to Slack channels.', route: 'workflow' },
     zapier: { icon: 'fas fa-bolt', iconTone: 'bg-orange-500/10 text-orange-500', labelAr: 'Zapier', labelEn: 'Zapier', descriptionAr: 'Webhook تشغيلي لربط SBrandOps بالتدفقات الخارجية.', descriptionEn: 'Operational webhook connection for external Zapier flows.', route: 'workflow' },
+    n8n: { icon: 'fas fa-network-wired', iconTone: 'bg-rose-500/10 text-rose-500', labelAr: 'n8n', labelEn: 'n8n', descriptionAr: 'ربط Webhooks وتدفقات n8n التشغيلية مع SBrandOps.', descriptionEn: 'Connect n8n webhooks and operational workflows to SBrandOps.', route: 'workflow' },
     google_drive: { icon: 'fab fa-google-drive', iconTone: 'bg-emerald-500/10 text-emerald-500', labelAr: 'Google Drive', labelEn: 'Google Drive', descriptionAr: 'ربط ملفات البراند والمجلدات المرجعية من Google Drive.', descriptionEn: 'Connect brand files and working folders from Google Drive.', route: 'brand-hub' },
     figma: { icon: 'fab fa-figma', iconTone: 'bg-pink-500/10 text-pink-500', labelAr: 'Figma', labelEn: 'Figma', descriptionAr: 'ربط مساحة التصميم والفرق الإبداعية بالبراند.', descriptionEn: 'Connect the design workspace and creative teams to the brand.', route: 'brand-hub' },
 };
@@ -150,7 +151,7 @@ const SOCIAL_PROVIDER_SET = new Set<Provider>(['instagram', 'x', 'linkedin', 'ti
 const CONNECTABLE_PROVIDER_SECTIONS = {
     ads: ['google_ads'],
     analytics: ['ga4', 'search_console'],
-    automation: ['slack', 'zapier'],
+    automation: ['slack', 'zapier', 'n8n'],
     files: ['google_drive', 'figma'],
     commerce: ['shopify', 'woocommerce', 'wordpress'],
 } as const satisfies Record<'ads' | 'analytics' | 'automation' | 'files' | 'commerce', readonly ConnectableBrandProvider[]>;
@@ -209,6 +210,13 @@ const PROVIDER_FIELD_CONFIG: Record<ConnectableBrandProvider, ProviderFieldConfi
         { key: 'webhookUrl', labelAr: 'Webhook URL', labelEn: 'Webhook URL', placeholderAr: 'https://hooks.zapier.com/...', placeholderEn: 'https://hooks.zapier.com/...' },
         { key: 'workflowName', labelAr: 'Workflow Name', labelEn: 'Workflow name', placeholderAr: 'اسم التدفق', placeholderEn: 'Workflow name' },
         { key: 'sharedSecret', labelAr: 'Shared Secret', labelEn: 'Shared secret', placeholderAr: 'اختياري', placeholderEn: 'Optional', type: 'password', noteAr: 'استخدم secret إذا كان الـ Zap يتحقق من التوقيع أو المصدر.', noteEn: 'Use a shared secret if the Zap validates signatures or the request source.' },
+    ],
+    n8n: [
+        { key: 'baseUrl', labelAr: 'Base URL', labelEn: 'Base URL', placeholderAr: 'https://n8n.yourcompany.com', placeholderEn: 'https://n8n.yourcompany.com' },
+        { key: 'webhookUrl', labelAr: 'Webhook URL', labelEn: 'Webhook URL', placeholderAr: 'اختياري: https://n8n.yourcompany.com/webhook/...', placeholderEn: 'Optional: https://n8n.yourcompany.com/webhook/...' },
+        { key: 'workflowName', labelAr: 'Workflow Name', labelEn: 'Workflow name', placeholderAr: 'اسم التدفق في n8n', placeholderEn: 'n8n workflow name' },
+        { key: 'apiKey', labelAr: 'API Key', labelEn: 'API key', placeholderAr: 'اختياري', placeholderEn: 'Optional', type: 'password', noteAr: 'أضف API key إذا كنت تريد الاحتفاظ بوصول REST إلى نفس مساحة n8n.', noteEn: 'Provide an API key only if you want to keep REST access to the same n8n workspace.' },
+        { key: 'sharedSecret', labelAr: 'Shared Secret', labelEn: 'Shared secret', placeholderAr: 'اختياري', placeholderEn: 'Optional', type: 'password', noteAr: 'استخدم secret إذا كانت Webhooks في n8n تتحقق من التوقيع أو مصدر الطلب.', noteEn: 'Use a shared secret if your n8n webhooks validate the request source or signature.' },
     ],
     google_drive: [
         { key: 'accessToken', labelAr: 'Access Token', labelEn: 'Access token', placeholderAr: 'ألصق Google access token', placeholderEn: 'Paste a Google access token' },
@@ -286,6 +294,14 @@ function buildProviderFormValues(
                 workflowName: connection?.external_account_name ?? '',
                 sharedSecret: readConnectionMetadataString(connection, 'shared_secret'),
             };
+        case 'n8n':
+            return {
+                baseUrl: readConnectionMetadataString(connection, 'base_url'),
+                webhookUrl: readConnectionMetadataString(connection, 'inbound_webhook_url'),
+                workflowName: connection?.external_account_name ?? '',
+                apiKey: connection?.access_token ?? '',
+                sharedSecret: readConnectionMetadataString(connection, 'shared_secret'),
+            };
         case 'google_drive':
             return {
                 accessToken: connection?.access_token ?? '',
@@ -352,6 +368,14 @@ function buildProviderPayload(
                 workflowName: values.workflowName || undefined,
                 sharedSecret: values.sharedSecret || undefined,
             };
+        case 'n8n':
+            return {
+                baseUrl: values.baseUrl ?? '',
+                webhookUrl: values.webhookUrl || undefined,
+                workflowName: values.workflowName || undefined,
+                apiKey: values.apiKey || undefined,
+                sharedSecret: values.sharedSecret || undefined,
+            };
         case 'google_drive':
             return {
                 accessToken: values.accessToken ?? '',
@@ -386,6 +410,8 @@ function getProviderActionLabel(provider: ConnectableBrandProvider, ar: boolean)
             return ar ? 'ربط Slack' : 'Connect Slack';
         case 'zapier':
             return ar ? 'ربط Zapier' : 'Connect Zapier';
+        case 'n8n':
+            return ar ? 'ربط n8n' : 'Connect n8n';
         case 'google_drive':
             return ar ? 'ربط Google Drive' : 'Connect Google Drive';
         case 'figma':

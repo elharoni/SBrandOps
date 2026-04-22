@@ -18,6 +18,10 @@ dist-ssr
 .env.production
 .env.development
 
+# Supabase CLI binary (not needed in version control — install via npm/brew)
+supabase.exe
+supabase
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

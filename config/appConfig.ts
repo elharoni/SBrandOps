@@ -14,9 +14,6 @@ export interface AppConfig {
         url: string;
         anonKey: string;
     };
-    ai: {
-        geminiApiKey: string;
-    };
     social: {
         /** Public App ID used to load the Facebook JS SDK — safe to expose */
         facebook: {
@@ -54,9 +51,6 @@ export function getConfig(): AppConfig {
         supabase: {
             url: import.meta.env.VITE_SUPABASE_URL || '',
             anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-        },
-        ai: {
-            geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
         },
         social: {
             facebook: {
@@ -103,11 +97,6 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
         errors.push('VITE_SUPABASE_ANON_KEY is required');
     }
 
-    // التحقق من Gemini API (اختياري للتطوير)
-    if (!config.ai.geminiApiKey && config.app.environment === 'production') {
-        errors.push('VITE_GEMINI_API_KEY is required in production');
-    }
-
     // التحقق من Facebook (اختياري)
     if (!config.social.facebook.appId) {
         console.warn('VITE_FACEBOOK_APP_ID is not set. Facebook features will be limited.');
@@ -131,7 +120,7 @@ export function logConfig(): void {
     console.log('API URL:', config.app.apiUrl);
     console.log('Supabase URL:', config.supabase.url);
     console.log('Supabase Key:', config.supabase.anonKey ? '✓ Set' : '✗ Missing');
-    console.log('Gemini API Key:', config.ai.geminiApiKey ? '✓ Set' : '✗ Missing');
+    console.log('Gemini API Key:', 'managed server-side via Admin > AI Keys');
     console.log('Facebook App ID:', config.social.facebook.appId ? '✓ Set' : '✗ Missing');
     console.groupEnd();
 
@@ -179,7 +168,7 @@ export function isFeatureEnabled(feature: string): boolean {
         case 'tiktok':
             return !!getConfigValue('social.tiktok.clientKey');
         case 'ai':
-            return !!getConfigValue('ai.geminiApiKey');
+            return true; // AI key managed server-side; feature always available if proxy is deployed
         default:
             return false;
     }

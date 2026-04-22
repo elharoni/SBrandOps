@@ -10,14 +10,16 @@ interface AdminHeaderProps {
 }
 
 const PAGE_BREADCRUMBS: Record<string, { parent?: string; current: string }> = {
-    'admin-dashboard': { current: 'نظرة عامة' },
-    'admin-users': { parent: 'Management', current: 'المستخدمون' },
-    'admin-tenants': { parent: 'Management', current: 'العملاء' },
-    'admin-billing': { parent: 'Management', current: 'الفواتير والخطط' },
-    'admin-ai-monitor': { parent: 'Monitoring', current: 'مراقبة AI' },
-    'admin-queues': { parent: 'Monitoring', current: 'قوائم الانتظار' },
-    'admin-system-health': { parent: 'Monitoring', current: 'حالة النظام' },
-    'admin-settings': { current: 'إعدادات النظام' },
+    'admin-dashboard':   { current: 'نظرة عامة' },
+    'admin-users':       { parent: 'الإدارة', current: 'المسؤولون' },
+    'admin-tenants':     { parent: 'الإدارة', current: 'الحسابات' },
+    'admin-billing':     { parent: 'الإدارة', current: 'الفواتير والخطط' },
+    'admin-ai-keys':     { parent: 'الإدارة', current: 'مفاتيح AI' },
+    'admin-ai-monitor':  { parent: 'المراقبة', current: 'مراقبة AI' },
+    'admin-queues':      { parent: 'المراقبة', current: 'قوائم الانتظار' },
+    'admin-system-health': { parent: 'المراقبة', current: 'حالة النظام' },
+    'admin-logs':        { parent: 'المراقبة', current: 'سجلات الأدمن' },
+    'admin-settings':    { current: 'إعدادات النظام' },
 };
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({

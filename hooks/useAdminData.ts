@@ -5,11 +5,13 @@ import {
     AIMetric, QueueJob, SystemHealthStatus, ActivityLog,
     AdminPermission, GeneralSettings, SecuritySettings, NotificationType,
     AdminBillingOverview, AdminBillingSubscription, AdminBillingInvoice, AdminBillingEvent, AdminBillingAuditLog,
+    AdminLog,
 } from '../types';
 import {
     getAdminDashboardStats, getAdminUsers, getAIMetrics, getQueueJobs,
     getSystemHealth, getLatestActivities, getAdminPermissions,
-    getGeneralSettings, getSecuritySettings,
+    getGeneralSettings, getSecuritySettings, getAdminLogs,
+    ensureCurrentAdminInTable,
 } from '../services/adminService';
 import { getTenants, getSubscriptionPlans } from '../services/tenantService';
 import { getAdminBillingSnapshot } from '../services/billingService';
@@ -31,6 +33,7 @@ interface AdminDataState {
     adminPermissions: AdminPermission[];
     generalSettings: GeneralSettings | null;
     securitySettings: SecuritySettings | null;
+    adminLogs: AdminLog[];
     isLoading: boolean;
 }
 
@@ -51,6 +54,7 @@ const initialState: AdminDataState = {
     adminPermissions: [],
     generalSettings: null,
     securitySettings: null,
+    adminLogs: [],
     isLoading: false,
 };
 
@@ -62,6 +66,9 @@ export function useAdminData(
     const fetchAdminData = useCallback(async () => {
         setState(prev => ({ ...prev, isLoading: true }));
         try {
+            // Auto-register current admin user into admin_users table if not there
+            await ensureCurrentAdminInTable().catch(() => {});
+
             const results = await Promise.allSettled([
                 getAdminDashboardStats(),
                 getAdminUsers(),
@@ -75,31 +82,33 @@ export function useAdminData(
                 getAdminPermissions(),
                 getGeneralSettings(),
                 getSecuritySettings(),
+                getAdminLogs(),
             ]);
 
             const [
                 statsData, usersData, tenantsData, plansData, billingData,
                 metricsData, jobsData, healthData, logsData,
-                permsData, genSettingsData, secSettingsData,
+                permsData, genSettingsData, secSettingsData, adminLogsData,
             ] = results;
 
             setState({
-                adminStats:        statsData.status === 'fulfilled'      ? statsData.value      : null,
-                adminUsers:        usersData.status === 'fulfilled'      ? usersData.value      : [],
-                tenants:           tenantsData.status === 'fulfilled'    ? tenantsData.value    : [],
-                subscriptionPlans: plansData.status === 'fulfilled'      ? plansData.value      : [],
-                billingOverview:   billingData.status === 'fulfilled'    ? billingData.value.overview : null,
-                billingSubscriptions: billingData.status === 'fulfilled' ? billingData.value.subscriptions : [],
-                billingInvoices:   billingData.status === 'fulfilled'    ? billingData.value.invoices : [],
-                billingEvents:     billingData.status === 'fulfilled'    ? billingData.value.webhookEvents : [],
-                billingAuditLogs:  billingData.status === 'fulfilled'    ? billingData.value.auditLogs : [],
-                aiMetrics:         metricsData.status === 'fulfilled'    ? metricsData.value    : [],
-                queueJobs:         jobsData.status === 'fulfilled'       ? jobsData.value       : [],
-                systemHealth:      healthData.status === 'fulfilled'     ? healthData.value     : [],
-                activityLogs:      logsData.status === 'fulfilled'       ? logsData.value       : [],
-                adminPermissions:  permsData.status === 'fulfilled'      ? permsData.value      : [],
-                generalSettings:   genSettingsData.status === 'fulfilled'? genSettingsData.value: null,
-                securitySettings:  secSettingsData.status === 'fulfilled'? secSettingsData.value: null,
+                adminStats:           statsData.status === 'fulfilled'        ? statsData.value                        : null,
+                adminUsers:           usersData.status === 'fulfilled'        ? usersData.value                        : [],
+                tenants:              tenantsData.status === 'fulfilled'      ? tenantsData.value                      : [],
+                subscriptionPlans:    plansData.status === 'fulfilled'        ? plansData.value                        : [],
+                billingOverview:      billingData.status === 'fulfilled'      ? billingData.value.overview             : null,
+                billingSubscriptions: billingData.status === 'fulfilled'      ? billingData.value.subscriptions        : [],
+                billingInvoices:      billingData.status === 'fulfilled'      ? billingData.value.invoices             : [],
+                billingEvents:        billingData.status === 'fulfilled'      ? billingData.value.webhookEvents        : [],
+                billingAuditLogs:     billingData.status === 'fulfilled'      ? billingData.value.auditLogs            : [],
+                aiMetrics:            metricsData.status === 'fulfilled'      ? metricsData.value                      : [],
+                queueJobs:            jobsData.status === 'fulfilled'         ? jobsData.value                         : [],
+                systemHealth:         healthData.status === 'fulfilled'       ? healthData.value                       : [],
+                activityLogs:         logsData.status === 'fulfilled'         ? logsData.value                         : [],
+                adminPermissions:     permsData.status === 'fulfilled'        ? permsData.value                        : [],
+                generalSettings:      genSettingsData.status === 'fulfilled'  ? genSettingsData.value                  : null,
+                securitySettings:     secSettingsData.status === 'fulfilled'  ? secSettingsData.value                  : null,
+                adminLogs:            adminLogsData.status === 'fulfilled'    ? adminLogsData.value                    : [],
                 isLoading: false,
             });
         } catch (error) {

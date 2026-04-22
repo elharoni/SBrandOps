@@ -39,8 +39,12 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'error-center': '/app/error-center',
     'marketing-plans': '/app/marketing-plans',
     'brand-analysis': '/app/brand-analysis',
+    'ai-video': '/app/ai-video',
+    'content-studio': '/app/content-studio',
+    'asset-library': '/app/asset-library',
     system: '/app/system',
     'user-settings': '/app/settings',
+    billing: '/app/billing',
     'team-management': '/app/team',
     crm: '/app/crm',
 };
@@ -50,15 +54,16 @@ export const ROUTE_TO_BRAND_PAGE: Record<string, string> = Object.fromEntries(
 );
 
 export const ADMIN_PAGE_ROUTES: Record<string, string> = {
-    'admin-dashboard': '/admin',
-    'admin-users': '/admin/users',
-    'admin-tenants': '/admin/tenants',
-    'admin-billing': '/admin/billing',
-    'admin-ai-monitor': '/admin/ai-monitor',
-    'admin-queues': '/admin/queues',
+    'admin-dashboard':   '/admin',
+    'admin-users':       '/admin/users',
+    'admin-tenants':     '/admin/tenants',
+    'admin-billing':     '/admin/billing',
+    'admin-ai-monitor':  '/admin/ai-monitor',
+    'admin-queues':      '/admin/queues',
     'admin-system-health': '/admin/health',
-    'admin-settings': '/admin/settings',
-    'admin-logs': '/admin/logs',
+    'admin-settings':    '/admin/settings',
+    'admin-logs':        '/admin/logs',
+    'admin-ai-keys':     '/admin/ai-keys',
 };
 
 export const ROUTE_TO_ADMIN_PAGE: Record<string, string> = Object.fromEntries(

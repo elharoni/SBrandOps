@@ -8,7 +8,6 @@
 interface ImportMetaEnv {
     readonly VITE_SUPABASE_URL: string;
     readonly VITE_SUPABASE_ANON_KEY: string;
-    readonly VITE_GEMINI_API_KEY: string;
     // Social — public App/Client IDs only
     readonly VITE_FACEBOOK_APP_ID: string;
     readonly VITE_INSTAGRAM_CLIENT_ID: string;

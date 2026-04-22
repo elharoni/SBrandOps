@@ -1,4 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// NOTE: provider-webhook is called by external platforms (no user JWT).
+// We validate callers using a shared WEBHOOK_SECRET header instead.
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -31,6 +33,24 @@ function json(body: unknown, status = 200, headers?: HeadersInit) {
 
 Deno.serve(async request => {
   const correlationId = crypto.randomUUID();
+
+  // ── Webhook secret validation ───────────────────────────────────────────
+  // External providers cannot supply a user JWT, so we use a shared secret.
+  // Set WEBHOOK_SECRET in Supabase Edge Function secrets and pass it from
+  // the provider as the X-Webhook-Secret header.
+  const webhookSecret = Deno.env.get('WEBHOOK_SECRET');
+  if (webhookSecret) {
+    const incomingSecret = request.headers.get('X-Webhook-Secret');
+    if (!incomingSecret || incomingSecret !== webhookSecret) {
+      return json({ error: 'Unauthorized' }, 401, { 'X-Correlation-Id': correlationId });
+    }
+  }
+
+  // ── Request size guard (1 MB) ────────────────────────────────────────
+  const contentLength = Number(request.headers.get('content-length') ?? 0);
+  if (contentLength > 1024 * 1024) {
+    return json({ error: 'Request body too large' }, 413, { 'X-Correlation-Id': correlationId });
+  }
 
   if (request.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405, { 'X-Correlation-Id': correlationId });

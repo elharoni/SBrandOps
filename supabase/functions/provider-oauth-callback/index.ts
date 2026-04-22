@@ -1,4 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { verifyJWT, assertBrandOwnership, buildCorsHeaders } from '../_shared/auth.ts';
+import { encryptToken } from '../_shared/tokens.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -25,35 +27,47 @@ type CallbackPayload = {
   error?: string | null;
 };
 
-function json(body: unknown, status = 200, headers?: HeadersInit) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...headers,
-    },
-  });
-}
-
 Deno.serve(async request => {
   const correlationId = crypto.randomUUID();
+  const corsHeaders = buildCorsHeaders(request.headers.get('Origin'));
+
+  function json(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId, ...corsHeaders },
+    });
+  }
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // ── JWT verification ──────────────────────────────────────────────────────
+  // This function is called from the frontend after an OAuth redirect.
+  // All callers must supply a valid user JWT.
+  const userOrError = await verifyJWT(request, correlationId);
+  if (userOrError instanceof Response) return userOrError;
 
   if (request.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405, { 'X-Correlation-Id': correlationId });
+    return json({ error: 'Method not allowed' }, 405);
   }
 
   let body: CallbackPayload;
   try {
     body = await request.json() as CallbackPayload;
   } catch {
-    return json({ error: 'Invalid JSON payload' }, 400, { 'X-Correlation-Id': correlationId });
+    return json({ error: 'Invalid JSON payload' }, 400);
   }
 
   if (!body.brand_id || !body.provider || !body.external_account_id) {
     return json({
       error: 'brand_id, provider, and external_account_id are required',
-    }, 400, { 'X-Correlation-Id': correlationId });
+    }, 400);
   }
+
+  // ── Brand ownership check ─────────────────────────────────────────────────
+  const ownershipError = await assertBrandOwnership(supabase, userOrError.id, body.brand_id!, correlationId);
+  if (ownershipError) return ownershipError;
 
   const now = new Date().toISOString();
   const status = body.error ? 'error' : (body.status ?? 'connected');
@@ -74,7 +88,7 @@ Deno.serve(async request => {
         .maybeSingle();
 
   if (existing.error) {
-    return json({ error: existing.error.message }, 500, { 'X-Correlation-Id': correlationId });
+    return json({ error: existing.error.message }, 500);
   }
 
   const current = Array.isArray(existing.data) ? existing.data[0] : existing.data;
@@ -87,14 +101,19 @@ Deno.serve(async request => {
     oauth_callback_error: body.error ?? null,
   };
 
+  const rawAccessToken = body.access_token ?? current?.access_token ?? null;
+  const rawRefreshToken = body.refresh_token ?? current?.refresh_token ?? null;
+
   const row = {
     brand_id: body.brand_id,
     provider: body.provider,
     provider_version: current?.provider_version ?? 'v1',
     external_account_id: body.external_account_id,
     external_account_name: body.external_account_name ?? current?.external_account_name ?? null,
-    access_token: body.access_token ?? current?.access_token ?? null,
-    refresh_token: body.refresh_token ?? current?.refresh_token ?? null,
+    access_token: null,                                          // cleared — use enc column
+    refresh_token: null,                                         // cleared — use enc column
+    access_token_enc: await encryptToken(rawAccessToken),
+    refresh_token_enc: await encryptToken(rawRefreshToken),
     token_expires_at: body.token_expires_at ?? current?.token_expires_at ?? null,
     scopes: body.scopes ?? current?.scopes ?? null,
     status,
@@ -118,7 +137,7 @@ Deno.serve(async request => {
 
   const { data, error } = await persistQuery.select('*').single();
   if (error) {
-    return json({ error: error.message }, 500, { 'X-Correlation-Id': correlationId });
+    return json({ error: error.message }, 500);
   }
 
   await supabase
@@ -137,5 +156,5 @@ Deno.serve(async request => {
     connection_id: data.id,
     provider: data.provider,
     status: data.status,
-  }, 200, { 'X-Correlation-Id': correlationId });
+  }, 200);
 });

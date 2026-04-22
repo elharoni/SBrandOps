@@ -34,9 +34,19 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
                     { id: 'social-ops/social-search', icon: 'fa-magnifying-glass-chart', label: ar ? 'البحث الاجتماعي' : 'Social Search' },
                 ],
             },
-            { id: 'content-ops', icon: 'fa-edit',    label: ar ? 'خطة المحتوى'      : 'Content Ops'    },
-            { id: 'design-ops',  icon: 'fa-palette', label: ar ? 'استوديو التصميم' : 'Design Ops'     },
-            { id: 'idea-ops',    icon: 'fa-lightbulb', label: ar ? 'بنك الأفكار'   : 'Idea Ops'       },
+            {
+                id: 'ai-studio',
+                icon: 'fa-wand-magic-sparkles',
+                label: ar ? 'استوديو AI' : 'AI Studio',
+                children: [
+                    { id: 'content-studio', icon: 'fa-pen-nib',   label: ar ? 'استوديو المحتوى'   : 'Content Studio' },
+                    { id: 'design-ops',     icon: 'fa-palette',   label: ar ? 'التصميمات'          : 'Designs'        },
+                    { id: 'ai-video',       icon: 'fa-film',       label: ar ? 'استوديو الفيديو'   : 'Video Studio'   },
+                    { id: 'idea-ops',       icon: 'fa-lightbulb',  label: ar ? 'بنك الأفكار'       : 'Idea Bank'      },
+                    { id: 'content-ops',    icon: 'fa-layer-group', label: ar ? 'لوحة المحتوى'     : 'Content Pipeline'},
+                    { id: 'asset-library',  icon: 'fa-photo-film',  label: ar ? 'مكتبة الأصول'     : 'Asset Library'  },
+                ],
+            },
             { id: 'marketing-plans', icon: 'fa-clipboard-list', label: ar ? 'خطط التسويق' : t.nav.marketing },
         ],
     },
@@ -104,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || (ar ? 'مستخدم' : 'User');
     const userEmail = user?.email || '';
     const navSections = useMemo(() => getNavSections(t, ar), [t, ar]);
-    const [openMenus, setOpenMenus] = useState<string[]>(['social-ops']);
+    const [openMenus, setOpenMenus] = useState<string[]>(['social-ops', 'ai-studio']);
 
     const toggleMenu = (id: string) => {
         if (isCollapsed) {
@@ -133,7 +143,9 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     const renderItem = (item: NavItem, nested = false) => {
         const hasChildren = !!item.children;
         const isMenuOpen = openMenus.includes(item.id);
-        const isActive = hasChildren ? activePage.startsWith(`${item.id}/`) : activePage === item.id;
+        const isActive = hasChildren
+            ? (activePage.startsWith(`${item.id}/`) || (item.children?.some(c => c.id === activePage) ?? false))
+            : activePage === item.id;
 
         return (
             <div key={item.id} className="group">

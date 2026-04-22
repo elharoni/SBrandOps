@@ -145,7 +145,7 @@ const NewAutomationDrawer: React.FC<NewAutomationDrawerProps> = ({ brandId, onSa
             <div className="relative w-96 bg-white h-full shadow-2xl overflow-y-auto p-5 space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-800">أتمتة جديدة</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><i className="fas fa-times" /></button>
+                    <button onClick={onClose} aria-label="إغلاق" className="text-gray-400 hover:text-gray-600"><i className="fas fa-times" /></button>
                 </div>
 
                 <div className="space-y-3">

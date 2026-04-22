@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     MarketingPlan, MarketingPlanStatus, SocialPlatform, PLATFORM_ASSETS,
-    NotificationType, BrandHubProfile,
+    NotificationType, BrandHubProfile, PublisherBrief,
     AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan,
     PlanObjectiveType,
 } from '../../types';
@@ -86,7 +86,7 @@ const AiPlanGeneratorModal: React.FC<{
     onSave: (plan: MarketingPlan) => void;
     brandId: string;
 }> = ({ brandProfile, onClose, onSave, brandId }) => {
-    const [step, setStep] = useState<'form' | 'generating' | 'result'>('form');
+    const [step, setStep] = useState<'form' | 'generating' | 'result' | 'error'>('form');
     const [form, setForm] = useState<GeneratorFormData>({
         name: '',
         objective: '',
@@ -122,7 +122,7 @@ const AiPlanGeneratorModal: React.FC<{
             setGeneratedPlan(plan);
             setStep('result');
         } catch {
-            setStep('form');
+            setStep('error');
         }
     };
 
@@ -262,6 +262,26 @@ const AiPlanGeneratorModal: React.FC<{
                         </div>
                     )}
 
+                    {/* Step: Error */}
+                    {step === 'error' && (
+                        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                            <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center">
+                                <i className="fas fa-triangle-exclamation text-red-500 text-2xl" />
+                            </div>
+                            <h3 className="font-bold text-gray-800 text-lg">فشل التوليد</h3>
+                            <p className="text-sm text-gray-500 max-w-sm">
+                                تعذّر الاتصال بـ Gemini AI. تأكد من صحة مفتاح API وأن لديك حصة كافية، ثم حاول مجدداً.
+                            </p>
+                            <button
+                                onClick={() => setStep('form')}
+                                className="mt-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                            >
+                                <i className="fas fa-arrow-right me-2" />
+                                العودة للنموذج
+                            </button>
+                        </div>
+                    )}
+
                     {/* Step: Result */}
                     {step === 'result' && generatedPlan && (
                         <div className="space-y-4">
@@ -361,37 +381,74 @@ const AiPlanGeneratorModal: React.FC<{
     );
 };
 
-const ContentItemCard: React.FC<{ item: AiContentPlanItem; expanded: boolean; onToggle: () => void }> = ({ item, expanded, onToggle }) => (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-        <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-right">
-            <span className="text-xs font-bold text-gray-400 w-8 flex-shrink-0">يوم {item.dayNumber}</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${POST_TYPE_COLORS[item.postType] ?? 'bg-gray-100 text-gray-600'}`}>
-                {item.postType}
-            </span>
-            <span className="flex-1 text-sm font-medium text-gray-800 truncate text-right">{item.topic}</span>
-            <span className="text-xs text-gray-400 flex-shrink-0">{item.suggestedTime}</span>
-            <i className={`fas fa-chevron-${expanded ? 'up' : 'down'} text-gray-300 text-xs flex-shrink-0`} />
-        </button>
-        {expanded && (
-            <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100 space-y-3">
-                <p className="text-sm text-gray-700 leading-relaxed">{item.caption}</p>
-                <div className="flex flex-wrap gap-1.5">
-                    {item.hashtags.map((h, i) => (
-                        <span key={i} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{h}</span>
-                    ))}
+const ContentItemCard: React.FC<{
+    item: AiContentPlanItem;
+    expanded: boolean;
+    onToggle: () => void;
+    onSendToPublisher?: (brief: PublisherBrief) => void;
+}> = ({ item, expanded, onToggle, onSendToPublisher }) => {
+    const handleSend = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onSendToPublisher) return;
+        const brief: PublisherBrief = {
+            id: crypto.randomUUID(),
+            source: 'marketing-plans',
+            title: item.topic,
+            query: item.topic,
+            objective: item.objective,
+            angle: item.caption,
+            competitors: [],
+            keywords: item.hashtags,
+            hashtags: item.hashtags,
+            suggestedPlatforms: item.platform ? [item.platform as SocialPlatform] : [],
+            notes: [],
+        };
+        onSendToPublisher(brief);
+    };
+
+    return (
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-right">
+                <span className="text-xs font-bold text-gray-400 w-8 flex-shrink-0">يوم {item.dayNumber}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${POST_TYPE_COLORS[item.postType] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {item.postType}
+                </span>
+                <span className="flex-1 text-sm font-medium text-gray-800 truncate text-right">{item.topic}</span>
+                <span className="text-xs text-gray-400 flex-shrink-0">{item.suggestedTime}</span>
+                <i className={`fas fa-chevron-${expanded ? 'up' : 'down'} text-gray-300 text-xs flex-shrink-0`} />
+            </button>
+            {expanded && (
+                <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100 space-y-3">
+                    <p className="text-sm text-gray-700 leading-relaxed">{item.caption}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {item.hashtags.map((h, i) => (
+                            <span key={i} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">{h}</span>
+                        ))}
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span><i className="fas fa-bullseye mr-1" />{item.objective}</span>
+                            {item.estimatedReach && <span><i className="fas fa-eye mr-1" />{item.estimatedReach}</span>}
+                        </div>
+                        {onSendToPublisher && (
+                            <button
+                                onClick={handleSend}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 whitespace-nowrap"
+                            >
+                                <i className="fas fa-paper-plane text-[10px]" />
+                                أرسل للناشر
+                            </button>
+                        )}
+                    </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span><i className="fas fa-bullseye mr-1" />{item.objective}</span>
-                    {item.estimatedReach && <span><i className="fas fa-eye mr-1" />{item.estimatedReach}</span>}
-                </div>
-            </div>
-        )}
-    </div>
-);
+            )}
+        </div>
+    );
+};
 
 // ── Plans List ────────────────────────────────────────────────────────────────
 
-const PlanCard: React.FC<{ plan: MarketingPlan; onDelete: (id: string) => void }> = ({ plan, onDelete }) => {
+const PlanCard: React.FC<{ plan: MarketingPlan; onDelete: (id: string) => void; onSendToPublisher?: (brief: PublisherBrief) => void }> = ({ plan, onDelete, onSendToPublisher }) => {
     const [expanded, setExpanded] = useState(false);
     const statusColors: Record<MarketingPlanStatus, string> = {
         [MarketingPlanStatus.Active]:    'bg-green-100 text-green-700',
@@ -467,7 +524,7 @@ const PlanCard: React.FC<{ plan: MarketingPlan; onDelete: (id: string) => void }
     );
 };
 
-const PlansTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string }> = ({ brandProfile, brandId }) => {
+const PlansTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string; onSendToPublisher?: (brief: PublisherBrief) => void }> = ({ brandProfile, brandId, onSendToPublisher }) => {
     const [plans, setPlans]   = useState<MarketingPlan[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -509,7 +566,7 @@ const PlansTab: React.FC<{ brandProfile: BrandHubProfile; brandId: string }> = (
                             <p className="text-sm text-gray-400 mt-1">اضغط على "إنشاء خطة" وسيقوم Gemini بتوليد جدول محتوى كامل</p>
                         </div>
                     )
-                    : plans.map(plan => <PlanCard key={plan.id} plan={plan} onDelete={handleDelete} />)
+                    : plans.map(plan => <PlanCard key={plan.id} plan={plan} onDelete={handleDelete} onSendToPublisher={onSendToPublisher} />)
             }
 
             {showModal && (
@@ -788,6 +845,7 @@ interface MarketingPlansPageProps {
     addNotification?: (type: NotificationType, message: string) => void;
     onAddPlan?: (plan: Omit<MarketingPlan, 'id' | 'status'>) => Promise<void>;
     brandProfile?: BrandHubProfile;
+    onSendToPublisher?: (brief: PublisherBrief) => void;
 }
 
 const HUB_TABS: { id: HubTab; label: string; icon: string }[] = [
@@ -796,7 +854,7 @@ const HUB_TABS: { id: HubTab; label: string; icon: string }[] = [
     { id: 'monthly',    label: 'خطة الشهر',        icon: 'fa-calendar-alt' },
 ];
 
-export const MarketingPlansPage: React.FC<MarketingPlansPageProps> = ({ addNotification, brandProfile: propBrandProfile }) => {
+export const MarketingPlansPage: React.FC<MarketingPlansPageProps> = ({ addNotification, brandProfile: propBrandProfile, onSendToPublisher }) => {
     const { activeBrand } = useBrandStore();
     const [activeTab, setActiveTab] = useState<HubTab>('plans');
 
@@ -851,7 +909,7 @@ export const MarketingPlansPage: React.FC<MarketingPlansPageProps> = ({ addNotif
             </div>
 
             {/* Tab content */}
-            {activeTab === 'plans'      && <PlansTab brandProfile={brandProfile} brandId={brandId} />}
+            {activeTab === 'plans'      && <PlansTab brandProfile={brandProfile} brandId={brandId} onSendToPublisher={onSendToPublisher} />}
             {activeTab === 'priorities' && <PrioritiesTab brandProfile={brandProfile} />}
             {activeTab === 'monthly'    && <MonthlyPlanTab brandProfile={brandProfile} brandId={brandId} />}
         </div>

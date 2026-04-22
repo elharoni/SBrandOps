@@ -17,6 +17,7 @@ import {
     type IssueStatus, type BriefStatus, type SeoKeywordCluster, type SeoDataScope,
 } from '../../services/seoIntelligenceService';
 import { NotificationType } from '../../types';
+import { crawlWebsite, type SyncProgress, type CrawlResult } from '../../services/seoSyncService';
 import type { BrandHubProfile, SeoArticle } from '../../types';
 import type { BrandAsset, BrandConnection } from '../../services/brandConnectionService';
 import {
@@ -32,7 +33,7 @@ import { ProviderConnectionCallout } from '../shared/ProviderConnectionCallout';
 // TYPES & CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-type ActiveTab = 'overview' | 'pages' | 'keywords' | 'opportunities' | 'issues' | 'briefs' | 'reporting';
+type ActiveTab = 'overview' | 'pages' | 'keywords' | 'opportunities' | 'issues' | 'briefs' | 'reporting' | 'sync';
 type WordPressCredentials = NonNullable<ReturnType<typeof getSavedWordPressCredentials>>;
 
 interface SEOOpsPageV2Props {
@@ -181,12 +182,26 @@ const OverviewTab: React.FC<{ brandId: string; scope?: SeoDataScope }> = ({ bran
     if (loading) return <LoadingSpinner />;
     if (!kpis)   return <EmptyState icon="analytics" title="No data yet" desc="Connect Google Search Console to start pulling SEO data." />;
 
+    const hasScData = kpis.totalClicks30d > 0 || kpis.totalImpressions30d > 0;
     const brandedPct = kpis.brandedVsNonBranded.brandedClicks + kpis.brandedVsNonBranded.nonBrandedClicks > 0
         ? Math.round((kpis.brandedVsNonBranded.brandedClicks / (kpis.brandedVsNonBranded.brandedClicks + kpis.brandedVsNonBranded.nonBrandedClicks)) * 100)
         : 0;
 
     return (
         <div className="space-y-6">
+            {/* No SC data banner */}
+            {!hasScData && (
+                <div className="flex items-start gap-3 rounded-lg px-4 py-3" style={{ backgroundColor: '#1e2d1a', border: '1px solid #2d4a1e' }}>
+                    <span className="material-symbols-outlined mt-0.5" style={{ fontSize: '16px', color: '#4edea3' }}>info</span>
+                    <div>
+                        <p className="text-xs font-medium" style={{ color: '#4edea3' }}>Search Console غير مربوط</p>
+                        <p className="text-xs mt-0.5" style={{ color: '#c3c6d7' }}>
+                            بيانات الـ Clicks / Impressions / CTR / Position تحتاج ربط Google Search Console.
+                            يمكنك الآن مزامنة الموقع من تبويب &quot;مزامنة&quot; لملء بيانات الصفحات والمشاكل.
+                        </p>
+                    </div>
+                </div>
+            )}
             {/* KPI Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KpiCard label="Clicks (30d)"       value={kpis.totalClicks30d.toLocaleString()}       icon="ads_click"     accentColor="#2563eb" />
@@ -1379,6 +1394,167 @@ const ReportingTab: React.FC<{ brandId: string; scope?: SeoDataScope }> = ({ bra
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// TAB 8 — SITE SYNC
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SiteSyncTabProps {
+    brandId: string;
+    scopedWebsiteUrl: string | null;
+    addNotification: (type: NotificationType, message: string) => void;
+}
+
+const SiteSyncTab: React.FC<SiteSyncTabProps> = ({ brandId, scopedWebsiteUrl, addNotification }) => {
+    const [url, setUrl]           = useState(scopedWebsiteUrl ?? '');
+    const [maxPages, setMaxPages] = useState(50);
+    const [running, setRunning]   = useState(false);
+    const [progress, setProgress] = useState<SyncProgress | null>(null);
+    const [result, setResult]     = useState<CrawlResult | null>(null);
+
+    const run = async () => {
+        if (!url.trim()) { addNotification(NotificationType.Error, 'أدخل رابط الموقع أولاً'); return; }
+        setRunning(true); setResult(null);
+        try {
+            const res = await crawlWebsite(url.trim(), brandId, (p) => setProgress({ ...p }), maxPages);
+            setResult(res);
+            addNotification(NotificationType.Success, `مزامنة اكتملت: ${res.pagesAudited} صفحة، ${res.issuesFound} مشكلة`);
+        } catch (e) {
+            addNotification(NotificationType.Error, 'فشلت المزامنة: ' + (e instanceof Error ? e.message : String(e)));
+        } finally {
+            setRunning(false);
+        }
+    };
+
+    const pct = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+
+    const STEPS = [
+        { icon: 'robot_2',      label: '1. robots.txt', phases: ['sitemap', 'audit', 'save', 'issues', 'done'] },
+        { icon: 'account_tree', label: '2. Sitemap',    phases: ['audit', 'save', 'issues', 'done'] },
+        { icon: 'speed',        label: '3. PageSpeed',  phases: ['save', 'issues', 'done'] },
+        { icon: 'save',         label: '4. حفظ',        phases: ['done'] },
+    ];
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-6 py-4">
+            {/* Config panel */}
+            <div className="rounded-lg p-5" style={{ backgroundColor: '#151b2a' }}>
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#2563eb' }}>travel_explore</span>
+                    <span className="text-base font-semibold" style={{ color: '#dce2f6' }}>مزامنة الموقع</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#1e3a5f', color: '#4cd7f6' }}>جديد</span>
+                </div>
+                <p className="text-xs mb-5" style={{ color: '#c3c6d7' }}>
+                    يجلب المحرك robots.txt → sitemap.xml → PageSpeed Insights لكل صفحة ويحفظ البيانات تلقائيًا في قاعدة البيانات.
+                </p>
+
+                <div className="flex gap-2 mb-4">
+                    <input
+                        type="url"
+                        value={url}
+                        onChange={e => setUrl(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && !running && void run()}
+                        placeholder="https://example.com"
+                        disabled={running}
+                        className="flex-1 text-sm rounded px-3 py-2 outline-none"
+                        style={{ backgroundColor: '#19202e', color: '#dce2f6', border: '1px solid #232a39' }}
+                    />
+                    <select
+                        value={maxPages}
+                        onChange={e => setMaxPages(Number(e.target.value))}
+                        disabled={running}
+                        className="text-xs rounded px-2 py-2"
+                        style={{ backgroundColor: '#19202e', color: '#c3c6d7', border: '1px solid #232a39' }}
+                    >
+                        <option value={10}>10 صفحات</option>
+                        <option value={25}>25 صفحة</option>
+                        <option value={50}>50 صفحة</option>
+                        <option value={100}>100 صفحة</option>
+                    </select>
+                    <button
+                        onClick={() => void run()}
+                        disabled={running || !url.trim()}
+                        className="px-4 py-2 rounded text-xs font-semibold"
+                        style={{ backgroundColor: running ? '#1e3a5f' : '#2563eb', color: '#fff', opacity: running || !url.trim() ? 0.6 : 1 }}
+                    >
+                        {running ? 'جارٍ...' : 'ابدأ المزامنة'}
+                    </button>
+                </div>
+
+                {/* Algorithm steps indicator */}
+                <div className="grid grid-cols-4 gap-2">
+                    {STEPS.map(step => {
+                        const done  = progress ? step.phases.includes(progress.phase) : false;
+                        const color = done ? '#4edea3' : '#434655';
+                        return (
+                            <div key={step.label} className="rounded p-2 text-center" style={{ backgroundColor: '#19202e' }}>
+                                <span className="material-symbols-outlined block mb-1" style={{ fontSize: '18px', color }}>{step.icon}</span>
+                                <span className="text-xs" style={{ color }}>{step.label}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Progress panel */}
+            {(running || (progress && progress.phase !== 'done' && progress.phase !== 'error')) && (
+                <div className="rounded-lg p-5" style={{ backgroundColor: '#151b2a' }}>
+                    <div className="flex justify-between text-xs mb-2" style={{ color: '#c3c6d7' }}>
+                        <span>{progress?.message ?? 'جارٍ التهيئة...'}</span>
+                        <span>{pct}%</span>
+                    </div>
+                    <div className="h-2 rounded-full mb-4" style={{ backgroundColor: '#19202e' }}>
+                        <div
+                            className="h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${pct}%`, backgroundColor: '#2563eb' }}
+                        />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded p-2" style={{ backgroundColor: '#19202e' }}>
+                            <div className="text-xl font-bold" style={{ color: '#4cd7f6' }}>{progress?.pagesDiscovered ?? 0}</div>
+                            <div className="text-xs mt-0.5" style={{ color: '#434655' }}>اكتُشفت</div>
+                        </div>
+                        <div className="rounded p-2" style={{ backgroundColor: '#19202e' }}>
+                            <div className="text-xl font-bold" style={{ color: '#4edea3' }}>{progress?.pagesAudited ?? 0}</div>
+                            <div className="text-xs mt-0.5" style={{ color: '#434655' }}>فُحصت</div>
+                        </div>
+                        <div className="rounded p-2" style={{ backgroundColor: '#19202e' }}>
+                            <div className="text-xl font-bold" style={{ color: '#f87171' }}>{progress?.issuesFound ?? 0}</div>
+                            <div className="text-xs mt-0.5" style={{ color: '#434655' }}>مشكلة</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Result panel */}
+            {result && (
+                <div className="rounded-lg p-5" style={{ backgroundColor: '#151b2a' }}>
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#4edea3' }}>check_circle</span>
+                        <span className="text-sm font-semibold" style={{ color: '#dce2f6' }}>اكتملت المزامنة</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-center mb-4">
+                        <div className="rounded p-3" style={{ backgroundColor: '#19202e' }}>
+                            <div className="text-2xl font-bold" style={{ color: '#4cd7f6' }}>{result.pagesAudited}</div>
+                            <div className="text-xs mt-1" style={{ color: '#c3c6d7' }}>صفحة فُحصت</div>
+                        </div>
+                        <div className="rounded p-3" style={{ backgroundColor: '#19202e' }}>
+                            <div className="text-2xl font-bold" style={{ color: '#f87171' }}>{result.issuesFound}</div>
+                            <div className="text-xs mt-1" style={{ color: '#c3c6d7' }}>مشكلة مكتشفة</div>
+                        </div>
+                        <div className="rounded p-3" style={{ backgroundColor: '#19202e' }}>
+                            <div className="text-2xl font-bold" style={{ color: '#a78bfa' }}>{result.pagesFailed}</div>
+                            <div className="text-xs mt-1" style={{ color: '#c3c6d7' }}>فشل في الفحص</div>
+                        </div>
+                    </div>
+                    <p className="text-xs" style={{ color: '#434655' }}>
+                        انتقل إلى تبويب «Page Audit» أو «Issues» لمراجعة النتائج التفصيلية.
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1390,6 +1566,7 @@ const TABS: Array<{ id: ActiveTab; label: string; icon: string }> = [
     { id: 'issues',        label: 'Issues',        icon: 'bug_report'    },
     { id: 'briefs',        label: 'Briefs',        icon: 'edit_note'     },
     { id: 'reporting',     label: 'Reporting',     icon: 'bar_chart'     },
+    { id: 'sync',          label: 'مزامنة',         icon: 'travel_explore' },
 ];
 
 const SEOOpsPageV2: React.FC<SEOOpsPageV2Props> = ({
@@ -1477,26 +1654,26 @@ const SEOOpsPageV2: React.FC<SEOOpsPageV2Props> = ({
                 <div className="mb-4 grid gap-4 md:grid-cols-2">
                     <ProviderConnectionCallout
                         title="Search Console"
-                        description="Ø­Ø§Ù„Ø© Ù…Ø²ÙˆØ¯ Ø§Ù„Ø¨Ø­Ø« Ø§Ù„Ø¹Ø¶ÙˆÙŠ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ù„Ù„Ø§Ù†Ø·Ø¨Ø§Ø¹Ø§Øª ÙˆØ§Ù„Ø¸Ù‡ÙˆØ± ÙÙŠ SEO Ops."
+                        description="حالة مزود البحث العضوي المستخدم للانطباعات والظهور في SEO Ops."
                         connection={searchConsoleConnection}
                         brandAssets={brandAssets}
-                        emptyTitle="Search Console ØºÙŠØ± Ù…Ø±Ø¨ÙˆØ· Ø¨Ø¹Ø¯"
-                        emptyDescription="Ø§Ø±Ø¨Ø· Search Console Ù…Ù† Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª Ù„ÙƒÙŠ ØªØªÙˆÙ‚Ù Ù‡Ø°Ù‡ Ø§Ù„Ø´Ø§Ø´Ø© Ø¹Ù† Ø§Ù„Ø§Ø¹ØªÙ…Ø§Ø¯ Ø¹Ù„Ù‰ Ø­Ø§Ù„Ø© Ù…ÙØµÙˆÙ„Ø©."
-                        primaryActionLabel="ÙØªØ­ Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª"
+                        emptyTitle="Search Console غير مربوط بعد"
+                        emptyDescription="اربط Search Console من مساحة التكاملات لكي تتوقف هذه الشاشة عن الاعتماد على حالة مفصولة."
+                        primaryActionLabel="فتح مساحة التكاملات"
                         onPrimaryAction={() => onNavigate('integrations')}
-                        secondaryActionLabel="ØªØ­Ø¯ÙŠØ« SEO Ops"
+                        secondaryActionLabel="تحديث SEO Ops"
                         onSecondaryAction={() => onNavigate('seo-ops')}
                     />
                     <ProviderConnectionCallout
                         title="GA4"
-                        description="Ø­Ø§Ù„Ø© Ø§Ù„Ù…Ø²ÙˆØ¯ Ø§Ù„ØªØ­Ù„ÙŠÙ„ÙŠ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… ÙÙŠ Ø±Ø¨Ø· SEO Ø¨Ø§Ù„Ø£Ø«Ø± Ø§Ù„ØªØ¬Ø§Ø±ÙŠ."
+                        description="حالة المزود التحليلي المستخدم في ربط SEO بالأثر التجاري."
                         connection={ga4Connection}
                         brandAssets={brandAssets}
-                        emptyTitle="GA4 ØºÙŠØ± Ù…Ø±Ø¨ÙˆØ· Ø¨Ø¹Ø¯"
-                        emptyDescription="Ø§Ø±Ø¨Ø· GA4 Ù…Ù† Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª Ù„ÙƒÙŠ ØªØ¸Ù‡Ø± Ø§Ù„Ø®Ø§ØµÙŠØ© Ø§Ù„Ù…Ø­ÙÙˆØ¸Ø© ÙˆÙŠØ¸Ù‡Ø± Ø§Ù„Ø£Ø«Ø± Ø§Ù„ØªØ¬Ø§Ø±ÙŠ ÙÙŠ ØªÙ‚Ø§Ø±ÙŠØ± SEO."
-                        primaryActionLabel="ÙØªØ­ Ù…Ø³Ø§Ø­Ø© Ø§Ù„ØªÙƒØ§Ù…Ù„Ø§Øª"
+                        emptyTitle="GA4 غير مربوط بعد"
+                        emptyDescription="اربط GA4 من مساحة التكاملات لكي تظهر الخاصية المحفوظة ويظهر الأثر التجاري في تقارير SEO."
+                        primaryActionLabel="فتح مساحة التكاملات"
                         onPrimaryAction={() => onNavigate('integrations')}
-                        secondaryActionLabel="ÙØªØ­ Analytics"
+                        secondaryActionLabel="فتح Analytics"
                         onSecondaryAction={() => onNavigate('analytics')}
                     />
                 </div>
@@ -1531,6 +1708,8 @@ const SEOOpsPageV2: React.FC<SEOOpsPageV2Props> = ({
                 {activeTab === 'issues'        && <IssueTrackerTab   brandId={brandId} addNotification={addNotification} scope={seoScope} />}
                 {activeTab === 'briefs'        && <ContentBriefsTab  brandId={brandId} addNotification={addNotification} wordPressCredentials={wordPressCredentials} wordPressWebsiteLabel={wordPressWebsiteLabel} />}
                 {activeTab === 'reporting'     && <ReportingTab      brandId={brandId} scope={seoScope} />}
+                {activeTab === 'sync'          && <SiteSyncTab       brandId={brandId} scopedWebsiteUrl={seoScope.websiteUrl} addNotification={addNotification} />}
+                {activeTab === 'sync'          && <SiteSyncTab       brandId={brandId} scopedWebsiteUrl={seoScope.websiteUrl} addNotification={addNotification} />}
             </div>
         </div>
     );

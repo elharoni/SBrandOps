@@ -20,7 +20,7 @@ serve(async (req: Request) => {
         const brandId = url.searchParams.get('brand_id');
 
         if (!provider || !brandId) {
-            return new Response('Missing provider or brand_id', { status: 400 });
+            return new Response(JSON.stringify({ error: 'Missing provider or brand_id' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
         }
 
         let scopes = ['openid', 'email', 'profile'];
@@ -114,11 +114,13 @@ serve(async (req: Request) => {
         );
     }
 
-    return new Response('Not found', { status: 404 });
+    return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 });
 
 /**
  * Generates the HTML to post a message back to the opening window and close itself.
+ * SECURITY: targetOrigin is set to FRONTEND_ORIGIN (not '*') to prevent token
+ * interception by malicious pages that may have opened this popup.
  */
 function getHtmlResponse(
     type: 'OAUTH_SUCCESS' | 'OAUTH_ERROR', 
@@ -128,6 +130,7 @@ function getHtmlResponse(
     errorMsg: string | null,
     expiresIn: number = 3600
 ) {
+    const allowedOrigin = Deno.env.get('FRONTEND_ORIGIN') ?? '';
     const payload = JSON.stringify({
         type,
         provider,
@@ -148,8 +151,12 @@ function getHtmlResponse(
     <p>You can close this window if it doesn't close automatically.</p>
     <script>
         const payload = ${payload};
-        if (window.opener) {
-            window.opener.postMessage(payload, '*');
+        const allowedOrigin = ${JSON.stringify(allowedOrigin)};
+        if (window.opener && allowedOrigin) {
+            // Use explicit targetOrigin — never '*' — to prevent token theft
+            window.opener.postMessage(payload, allowedOrigin);
+        } else if (window.opener) {
+            console.error('FRONTEND_ORIGIN is not configured. Cannot safely deliver OAuth result.');
         } else {
             console.error('No window.opener found. Are you running this directly?');
         }
@@ -159,3 +166,4 @@ function getHtmlResponse(
 </html>
 `;
 }
+

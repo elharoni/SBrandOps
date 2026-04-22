@@ -1,10 +1,9 @@
-/**
- * Analytics Aggregator Edge Function
- * تجميع بيانات التحليلات من جميع المنصات
- *
- * Triggered by: pg_cron every 6 hours
- * SELECT cron.schedule('analytics-sync', '0 */6 * * *', 'SELECT net.http_post(...)');
- */
+// Analytics Aggregator Edge Function
+// تجميع بيانات التحليلات من جميع المنصات
+//
+// Triggered by: pg_cron every 6 hours
+// cron expression: 0 every-6-hours * * *
+
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -111,8 +110,25 @@ async function syncLinkedInAnalytics(brandId: string, account: any): Promise<voi
     }
 }
 
+// ─── Auth guard (cron-only) ───────────────────────────────────────────────────
+// The pg_cron job passes Authorization: Bearer <SERVICE_ROLE_KEY>.
+// Reject anything that doesn't match to prevent unauthenticated invocations.
+function isCronAuthorized(req: Request): boolean {
+    const expected = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!expected) return false;
+    const bearer = req.headers.get('Authorization')?.replace('Bearer ', '');
+    return bearer === expected;
+}
+
 // ─── Main Handler ──────────────────────────────────────────────────────────────
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+    if (!isCronAuthorized(req)) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
     // Get all brands with connected accounts
     const { data: accounts, error } = await supabase
         .from('social_accounts')

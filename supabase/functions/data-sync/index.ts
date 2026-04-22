@@ -168,8 +168,23 @@ async function syncGa4(connection: any) {
     }
 }
 
+// ─── Auth guard (cron-only) ───────────────────────────────────────────────────
+function isCronAuthorized(req: Request): boolean {
+    const expected = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!expected) return false;
+    const bearer = req.headers.get('Authorization')?.replace('Bearer ', '');
+    return bearer === expected;
+}
+
 // ─── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
+    if (!isCronAuthorized(req)) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
     // Determine scope of sync: we can pass specific brand_id, or just sync all
     const url = new URL(req.url);
     const specificBrandId = url.searchParams.get('brand_id');

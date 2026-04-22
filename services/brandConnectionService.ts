@@ -23,7 +23,7 @@ export type Provider =
     | 'tiktok'     | 'youtube'    | 'snapchat'
     | 'ga4'        | 'search_console' | 'google_ads'
     | 'woocommerce'| 'shopify'    | 'wordpress'
-    | 'slack'      | 'zapier'     | 'google_drive' | 'figma';
+    | 'slack'      | 'zapier'     | 'n8n'        | 'google_drive' | 'figma';
 
 export const BRAND_CONNECTION_PROVIDER_OWNERSHIP = {
     meta: 'social_ads',
@@ -41,6 +41,7 @@ export const BRAND_CONNECTION_PROVIDER_OWNERSHIP = {
     wordpress: 'cms',
     slack: 'automation',
     zapier: 'automation',
+    n8n: 'automation',
     google_drive: 'files',
     figma: 'files',
 } as const satisfies Record<Provider, string>;
@@ -54,6 +55,7 @@ export const CONNECTABLE_BRAND_PROVIDERS = [
     'wordpress',
     'slack',
     'zapier',
+    'n8n',
     'google_drive',
     'figma',
 ] as const satisfies readonly Provider[];

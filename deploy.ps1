@@ -41,7 +41,7 @@ $functions = @(
 
 foreach ($fn in $functions) {
     Write-Host "  Deploying: $fn" -ForegroundColor Gray
-    npx supabase functions deploy $fn --no-verify-jwt 2>&1
+    npx supabase functions deploy $fn 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  ⚠️  $fn failed — continuing..." -ForegroundColor Red
     } else {

@@ -8,6 +8,7 @@ import { getContentBriefs } from '../../services/competitiveIntelService';
 import { scoreAndSave, getContentScore } from '../../services/contentScoringService';
 import type { ContentScoreResult } from '../../services/contentScoringService';
 import { ContentScoreBadge, ContentScorePanel } from '../ContentScoreBadge';
+import { AssetLibraryPage } from './AssetLibraryPage';
 
 interface ContentOpsPageProps {
     addNotification: (type: NotificationType, message: string) => void;
@@ -983,6 +984,9 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
     const [showAIStudio, setShowAIStudio] = useState(false);
     const [showAIIdeation, setShowAIIdeation] = useState(false);
     const [activeTab, setActiveTab] = useState<'plan' | 'assets' | 'approvals'>('plan');
+    // Approvals tab state (hoisted to avoid hooks-in-IIFE violation)
+    const [approvalFilter, setApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+    const [localStatuses, setLocalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
     // Bulk selection state
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const isBulkMode = selectedIds.size > 0;
@@ -1073,8 +1077,16 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
     };
     
     const handleAIGenerate = (data: Omit<ContentPiece, 'id' | 'comments' | 'media' | 'assignee' | 'dueDate' | 'status'>[]) => {
-        const piecesWithStatus = data.map(p => ({ ...p, status: ContentStatus.Ideas }));
-        onAddPiece(piecesWithStatus);
+        // Optimistic update — cards appear immediately
+        const optimisticPieces: ContentPiece[] = data.map(p => ({
+            ...p,
+            id: `temp-${crypto.randomUUID()}`,
+            status: ContentStatus.Ideas,
+            comments: [],
+            media: [],
+        }));
+        setContent(prev => [...optimisticPieces, ...prev]);
+        onAddPiece(data.map(p => ({ ...p, status: ContentStatus.Ideas })));
         addNotification(NotificationType.Success, `تمت إضافة ${data.length} أفكار جديدة إلى قائمة الانتظار.`);
     };
 
@@ -1103,29 +1115,72 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
     };
 
     const handleAddNewPiece = () => {
-        onAddPiece([{
+        // Optimistic update — card appears immediately without waiting for DB
+        const tempId = `temp-${crypto.randomUUID()}`;
+        const optimisticPiece: ContentPiece = {
+            id: tempId,
             title: 'فكرة جديدة - اضغط للتعديل',
             type: 'Social',
+            status: ContentStatus.Ideas,
+            generatedContent: '',
+            comments: [],
+            media: [],
+        };
+        setContent(prev => [optimisticPiece, ...prev]);
+        onAddPiece([{
+            title: optimisticPiece.title,
+            type: optimisticPiece.type,
             status: ContentStatus.Ideas,
             generatedContent: '',
         }]);
         addNotification(NotificationType.Success, 'تم إنشاء فكرة محتوى جديدة.');
     };
     
+    const statsData = [
+        { label: 'الأفكار',          count: content.filter(p => p.status === ContentStatus.Ideas).length,      icon: 'fa-lightbulb',     color: 'text-gray-500',    bg: 'bg-gray-100 dark:bg-gray-800/40' },
+        { label: 'تحت الكتابة',      count: content.filter(p => p.status === ContentStatus.InProgress).length, icon: 'fa-pen-nib',       color: 'text-blue-500',    bg: 'bg-blue-50 dark:bg-blue-900/20' },
+        { label: 'في المراجعة',      count: content.filter(p => p.status === ContentStatus.InReview).length,   icon: 'fa-magnifying-glass', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+        { label: 'جاهز للنشر',       count: content.filter(p => p.status === ContentStatus.Approved).length,   icon: 'fa-circle-check',  color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    ];
+
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center flex-shrink-0">
-                 <div>
-                     <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">خطة المحتوى</h1>
-                     <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1">
-                         {content.length} قطعة محتوى في الخط الإنتاجي
-                     </p>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <button onClick={() => setShowAIStudio(true)} className="bg-gradient-to-r from-brand-pink to-brand-purple text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
-                        <i className="fas fa-magic me-2"></i>✨ استوديو AI — أنشئ محتوى
+            {/* ── Page Header ── */}
+            <div className="flex flex-wrap justify-between items-start gap-4 flex-shrink-0">
+                <div>
+                    <p className="text-[11px] font-black uppercase tracking-widest text-brand-primary mb-1">Content Pipeline</p>
+                    <h1 className="text-2xl font-black text-light-text dark:text-dark-text">خطة المحتوى</h1>
+                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                        {content.length} قطعة محتوى في الخط الإنتاجي
+                    </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => setShowAIIdeation(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card text-light-text-secondary dark:text-dark-text-secondary text-sm font-semibold hover:border-brand-primary hover:text-brand-primary transition-all">
+                        <i className="fas fa-lightbulb text-xs" />
+                        توليد أفكار
                     </button>
-                 </div>
+                    <button onClick={() => setShowAIStudio(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-brand-pink to-brand-purple text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all text-sm">
+                        <i className="fas fa-wand-magic-sparkles text-xs" />
+                        استوديو AI
+                    </button>
+                </div>
+            </div>
+
+            {/* ── Stats Row ── */}
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 flex-shrink-0">
+                {statsData.map(stat => (
+                    <div key={stat.label} className={`rounded-2xl p-3.5 flex items-center gap-3 ${stat.bg} border border-transparent`}>
+                        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white dark:bg-dark-card/60 ${stat.color}`}>
+                            <i className={`fas ${stat.icon} text-sm`} />
+                        </span>
+                        <div>
+                            <p className="text-xl font-black text-light-text dark:text-dark-text leading-none">{stat.count}</p>
+                            <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary mt-0.5">{stat.label}</p>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {/* ── Bulk Actions Toolbar ── */}
@@ -1169,100 +1224,126 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
                 onCancel={() => setConfirmDelete(false)}
             />
 
-            <div className="mt-5 rounded-2xl border border-light-border bg-light-card p-4 dark:border-dark-border dark:bg-dark-card">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">Saved Briefs</p>
-                        <h2 className="mt-2 text-lg font-semibold text-light-text dark:text-dark-text">أعد استخدام briefs المحفوظة داخل Content Ops</h2>
-                        <p className="mt-1 text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                            افتح الـ brief كسياق داخل الناشر أو حوّله مباشرة إلى draft جديد بدل بدء الكتابة من الصفر.
-                        </p>
+            {/* ── Saved Briefs ── */}
+            <div className="mt-5 rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card overflow-hidden flex-shrink-0">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-light-border/60 dark:border-dark-border/60">
+                    <div className="flex items-center gap-2.5">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-primary/10">
+                            <i className="fas fa-bookmark text-brand-primary text-xs" />
+                        </span>
+                        <div>
+                            <p className="text-sm font-bold text-light-text dark:text-dark-text">Briefs المحفوظة</p>
+                            <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">افتح كسياق في الناشر أو حوّله مباشرة إلى draft</p>
+                        </div>
                     </div>
-                    <span className="rounded-full bg-brand-primary/10 px-3 py-1 text-xs font-semibold text-brand-primary">
+                    <span className="rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-xs font-bold text-brand-primary">
                         {savedBriefs.length} briefs
                     </span>
                 </div>
 
-                <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                <div className="p-4">
                     {briefsLoading ? (
-                        <div className="col-span-full rounded-xl border border-light-border bg-light-bg px-4 py-5 text-sm text-light-text-secondary dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-secondary">
+                        <div className="flex items-center gap-3 py-3 px-1 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                            <i className="fas fa-circle-notch fa-spin text-brand-primary" />
                             جارٍ تحميل briefs المحفوظة...
                         </div>
                     ) : savedBriefs.length === 0 ? (
-                        <div className="col-span-full rounded-xl border border-dashed border-light-border bg-light-bg px-4 py-5 text-sm text-light-text-secondary dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-secondary">
-                            لا توجد briefs محفوظة بعد. احفظ briefs من Social Search لتظهر هنا.
+                        <div className="flex items-center gap-3 rounded-xl border border-dashed border-light-border dark:border-dark-border px-4 py-4">
+                            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-light-bg dark:bg-dark-bg text-light-text-secondary dark:text-dark-text-secondary">
+                                <i className="fas fa-inbox text-sm" />
+                            </span>
+                            <div>
+                                <p className="text-sm font-semibold text-light-text-secondary dark:text-dark-text-secondary">لا توجد briefs بعد</p>
+                                <p className="text-xs text-light-text-secondary/70 dark:text-dark-text-secondary/70 mt-0.5">احفظ briefs من Social Search لتظهر هنا</p>
+                            </div>
                         </div>
                     ) : (
-                        savedBriefs.map((brief) => (
-                            <div key={brief.id} className="rounded-xl border border-light-border bg-light-bg p-4 dark:border-dark-border dark:bg-dark-bg">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">{brief.source === 'social-search' ? 'Social Search' : 'Content Ops'}</p>
-                                        <h3 className="mt-2 text-sm font-semibold text-light-text dark:text-dark-text">{brief.title}</h3>
-                                    </div>
-                                    <span className="rounded-full bg-white px-2.5 py-1 text-[11px] text-light-text-secondary dark:bg-dark-card dark:text-dark-text-secondary">
-                                        {brief.suggestedPlatforms.length} قنوات
-                                    </span>
-                                </div>
-                                <p className="mt-3 line-clamp-3 text-xs leading-6 text-light-text-secondary dark:text-dark-text-secondary">{brief.angle}</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    {brief.keywords.slice(0, 4).map((keyword) => (
-                                        <span key={keyword} className="rounded-full bg-white px-2 py-1 text-[11px] text-light-text-secondary dark:bg-dark-card dark:text-dark-text-secondary">
-                                            {keyword}
+                        <div className="grid gap-3 lg:grid-cols-3">
+                            {savedBriefs.map((brief) => (
+                                <div key={brief.id} className="group rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg p-4 hover:border-brand-primary/40 transition-colors">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">
+                                            {brief.source === 'social-search' ? 'Social Search' : 'Content Ops'}
                                         </span>
-                                    ))}
+                                        {brief.suggestedPlatforms.length > 0 && (
+                                            <span className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">
+                                                {brief.suggestedPlatforms.length} قنوات
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="text-sm font-bold text-light-text dark:text-dark-text line-clamp-1">{brief.title}</h3>
+                                    <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-light-text-secondary dark:text-dark-text-secondary">{brief.angle}</p>
+                                    {brief.keywords.length > 0 && (
+                                        <div className="mt-2.5 flex flex-wrap gap-1">
+                                            {brief.keywords.slice(0, 3).map((kw) => (
+                                                <span key={kw} className="rounded-full bg-light-card dark:bg-dark-card px-2 py-0.5 text-[10px] text-light-text-secondary dark:text-dark-text-secondary border border-light-border dark:border-dark-border">
+                                                    {kw}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <div className="mt-3 flex gap-2">
+                                        <button onClick={() => onLoadBrief(brief)}
+                                            className="flex-1 rounded-lg border border-light-border dark:border-dark-border px-3 py-1.5 text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary hover:border-brand-primary hover:text-brand-primary transition-colors">
+                                            <i className="fas fa-arrow-up-right-from-square me-1 text-[9px]" />
+                                            فتح
+                                        </button>
+                                        <button onClick={() => onGenerateFromBrief(brief)}
+                                            className="flex-1 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-bold text-white hover:opacity-90 transition-opacity">
+                                            <i className="fas fa-bolt me-1 text-[9px]" />
+                                            توليد draft
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    <button
-                                        onClick={() => onLoadBrief(brief)}
-                                        className="rounded-lg border border-light-border px-3 py-2 text-xs font-semibold text-light-text transition-colors hover:border-brand-primary hover:text-brand-primary dark:border-dark-border dark:text-dark-text"
-                                    >
-                                        فتح الـ brief
-                                    </button>
-                                    <button
-                                        onClick={() => onGenerateFromBrief(brief)}
-                                        className="rounded-lg bg-brand-primary px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-secondary"
-                                    >
-                                        توليد draft
-                                    </button>
-                                </div>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
             </div>
 
-            <div className="border-b border-light-border dark:border-dark-border mt-6">
-                <nav className="-mb-px flex space-s-8">
+            {/* ── Tab Navigation ── */}
+            <div className="border-b border-light-border dark:border-dark-border mt-6 flex-shrink-0">
+                <nav className="-mb-px flex gap-1">
                     <button
                         onClick={() => setActiveTab('plan')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                        className={`flex items-center gap-2 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors rounded-t-lg ${
                             activeTab === 'plan'
-                                ? 'border-brand-pink text-brand-pink'
-                                : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text'
+                                ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
+                                : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg'
                         }`}
                     >
+                        <i className="fas fa-columns text-xs" />
                         خطة المحتوى
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeTab === 'plan' ? 'bg-brand-primary/15 text-brand-primary' : 'bg-light-border dark:bg-dark-border text-light-text-secondary dark:text-dark-text-secondary'}`}>
+                            {content.length}
+                        </span>
                     </button>
                     <button
                         onClick={() => setActiveTab('assets')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                        className={`flex items-center gap-2 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors rounded-t-lg ${
                             activeTab === 'assets'
-                                ? 'border-brand-pink text-brand-pink'
-                                : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text'
+                                ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
+                                : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg'
                         }`}
                     >
+                        <i className="fas fa-images text-xs" />
                         الأصول
                     </button>
                     <button
                         onClick={() => setActiveTab('approvals')}
-                        className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                        className={`flex items-center gap-2 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors rounded-t-lg ${
                             activeTab === 'approvals'
-                                ? 'border-brand-pink text-brand-pink'
-                                : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text'
+                                ? 'border-brand-primary text-brand-primary bg-brand-primary/5'
+                                : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg'
                         }`}
                     >
+                        <i className="fas fa-clipboard-check text-xs" />
                         الموافقات
+                        {content.filter(p => p.status === ContentStatus.InReview).length > 0 && (
+                            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                                {content.filter(p => p.status === ContentStatus.InReview).length}
+                            </span>
+                        )}
                     </button>
                 </nav>
             </div>
@@ -1288,80 +1369,17 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
                         ))}
                     </div>
                 )}
-                {/* CON-2: Media Library */}
-                {activeTab === 'assets' && (() => {
-                    const allMedia: MediaItem[] = content.flatMap(p => p.media ?? []);
-                    const [mediaFilter, setMediaFilter] = React.useState<'all' | 'image' | 'video'>('all');
-                    const filteredMedia = allMedia.filter(m => mediaFilter === 'all' || m.type === mediaFilter);
-                    // Seed mock items if no real media
-                    interface MockMedia { id: string; type: 'image' | 'video'; url: string; label: string }
-                    const MOCK_MEDIA: MockMedia[] = filteredMedia.length > 0
-                        ? filteredMedia.map(m => ({ id: m.id, type: m.type, url: m.url, label: m.id }))
-                        : ([
-                            { id: 'm1', type: 'image', url: 'https://picsum.photos/seed/1/400/300', label: 'hero-image.jpg' },
-                            { id: 'm2', type: 'video', url: '',                                      label: 'product-video.mp4' },
-                            { id: 'm3', type: 'image', url: 'https://picsum.photos/seed/2/400/300', label: 'brand-logo.png' },
-                            { id: 'm5', type: 'image', url: 'https://picsum.photos/seed/3/400/300', label: 'campaign-bg.jpg' },
-                            { id: 'm6', type: 'video', url: '',                                      label: 'promo-reel.mp4' },
-                        ] as MockMedia[]).filter(m => mediaFilter === 'all' || m.type === mediaFilter);
-                    return (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <div className="flex gap-1">
-                                    {(['all', 'image', 'video'] as const).map(f => (
-                                        <button key={f} onClick={() => setMediaFilter(f)}
-                                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${mediaFilter === f ? 'bg-brand-primary text-white' : 'bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-border/30 dark:hover:bg-dark-border/30'}`}>
-                                            {f === 'all' ? `الكل (${allMedia.length || 5})` : f === 'image' ? '🖼️ صور' : '🎬 فيديو'}
-                                        </button>
-                                    ))}
-                                </div>
-                                <label className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary-dark transition-colors cursor-pointer ms-auto">
-                                    <i className="fas fa-upload text-xs" /> رفع ملف
-                                    <input type="file" multiple accept="image/*,video/*" className="hidden" onChange={e => {
-                                        if (e.target.files && e.target.files.length > 0)
-                                            addNotification(NotificationType.Info, `تم تحديد ${e.target.files.length} ملف — سيتم الرفع قريباً`);
-                                    }} />
-                                </label>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                {MOCK_MEDIA.map(item => (
-                                    <div key={item.id} className="group bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-                                        <div className="aspect-square bg-light-surface dark:bg-dark-surface flex items-center justify-center relative">
-                                            {item.type === 'image' && item.url ? (
-                                                <img src={item.url} alt={item.label} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <i className="fas fa-film text-3xl text-brand-primary" />
-                                            )}
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                                <button className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-xs hover:scale-110 transition-transform" aria-label="View">
-                                                    <i className="fas fa-eye" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div className="p-2">
-                                            <p className="text-xs font-medium text-light-text dark:text-dark-text truncate">{item.label}</p>
-                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{item.type}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            {MOCK_MEDIA.length === 0 && (
-                                <div className="text-center py-16 text-light-text-secondary dark:text-dark-text-secondary">
-                                    <i className="fas fa-photo-video text-4xl mb-3 opacity-30" />
-                                    <p>لا توجد أصول — ارفع ملفاتك الأولى</p>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })()}
+                {/* CON-2: Asset Library */}
+                {activeTab === 'assets' && (
+                    <AssetLibraryPage
+                        brandId={brandId}
+                        addNotification={addNotification}
+                    />
+                )}
                 {/* CON-1: Approval Workflow */}
                 {activeTab === 'approvals' && (() => {
                     const inReview = content.filter(p => p.status === ContentStatus.InReview);
-                    const [approvalFilter, setApprovalFilter] = React.useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-                    const [localStatuses, setLocalStatuses] = React.useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});
-
                     const getStatus = (id: string) => localStatuses[id] ?? 'pending';
-
                     const handleApprove = (piece: ContentPiece) => {
                         setLocalStatuses(s => ({ ...s, [piece.id]: 'approved' }));
                         onUpdatePiece(piece.id, { status: ContentStatus.Approved });
@@ -1371,17 +1389,13 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
                         setLocalStatuses(s => ({ ...s, [piece.id]: 'rejected' }));
                         addNotification(NotificationType.Warning, `❌ تم رفض "${piece.title}"`);
                     };
-
-                    const filteredPieces = inReview.filter(p => {
-                        const s = getStatus(p.id);
-                        return approvalFilter === 'all' || s === approvalFilter;
-                    });
-
+                    const filteredPieces = inReview.filter(p =>
+                        approvalFilter === 'all' || (localStatuses[p.id] ?? 'pending') === approvalFilter
+                    );
                     const PLATFORM_ICON: Record<string, string> = {
                         Facebook: 'fa-facebook', Instagram: 'fa-instagram', TikTok: 'fa-tiktok',
                         X: 'fa-x-twitter', LinkedIn: 'fa-linkedin',
                     };
-
                     return (
                         <div className="space-y-5">
                             <div className="flex items-center gap-4 flex-wrap">
@@ -1394,7 +1408,6 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
                                     ))}
                                 </div>
                             </div>
-
                             {filteredPieces.length === 0 ? (
                                 <div className="text-center py-16">
                                     <i className="fas fa-check-double text-5xl text-green-500 mb-3 opacity-60" />
