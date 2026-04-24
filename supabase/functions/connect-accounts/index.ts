@@ -161,12 +161,29 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // ── Encryption key pre-flight check ──────────────────────────────────────
-  const encKey = Deno.env.get('OAUTH_ENCRYPTION_KEY');
+  // ── Config pre-flight check ───────────────────────────────────────────────
+  const encKey      = Deno.env.get('OAUTH_ENCRYPTION_KEY');
+  const fbAppId     = Deno.env.get('FACEBOOK_APP_ID');
+  const fbAppSecret = Deno.env.get('FACEBOOK_APP_SECRET');
+
+  // Log config state (no secret values exposed)
+  console.log(JSON.stringify({
+    correlationId,
+    event: 'config-check',
+    OAUTH_ENCRYPTION_KEY_set: Boolean(encKey && encKey.length >= 64),
+    FACEBOOK_APP_ID_set:      Boolean(fbAppId),
+    FACEBOOK_APP_SECRET_set:  Boolean(fbAppSecret),
+    FRONTEND_ORIGIN:          Deno.env.get('FRONTEND_ORIGIN') ?? '(not set — permissive CORS active)',
+  }));
+
   if (!encKey || encKey.length < 64) {
-    console.error(JSON.stringify({ correlationId, event: 'missing-encryption-key' }));
+    console.error(JSON.stringify({
+      correlationId,
+      event: 'missing-encryption-key',
+      fix: 'Run: supabase secrets set OAUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) --project-ref <ref>',
+    }));
     return new Response(JSON.stringify({
-      error: 'Server misconfiguration: OAUTH_ENCRYPTION_KEY is not set.',
+      error: 'Server misconfiguration: OAUTH_ENCRYPTION_KEY is not set. See SUPABASE_SECRETS_SETUP.md.',
     }), {
       status: 503,
       headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId },
@@ -214,6 +231,15 @@ Deno.serve(async (req: Request) => {
 
     if (isFbPlatform && resolvedUserToken) {
       const exchanged = await exchangeToLongLivedToken(resolvedUserToken);
+      const tokenUpgraded = exchanged.token !== resolvedUserToken;
+      console.log(JSON.stringify({
+        correlationId,
+        event: 'token-exchange',
+        platform: body.platform,
+        long_lived_obtained: tokenUpgraded,
+        expires_at: exchanged.expiresAt ?? '(no expiry — token may be permanent page token)',
+        note: tokenUpgraded ? 'success' : 'FACEBOOK_APP_ID/SECRET may be missing — fell back to short-lived token (2h)',
+      }));
       resolvedUserToken = exchanged.token;
       if (exchanged.expiresAt) resolvedTokenExpiresAt = exchanged.expiresAt;
 

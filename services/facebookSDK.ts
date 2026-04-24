@@ -39,8 +39,8 @@ export async function loadFacebookSDK(appId: string): Promise<void> {
             window.fbAsyncInit = () => {
                 window.FB.init({
                     appId: appId,
-                    cookie: true,
-                    xfbml: true,
+                    cookie: false,   // third-party cookies blocked in modern browsers
+                    xfbml: false,    // no FB social plugins needed
                     version: 'v23.0'
                 });
 

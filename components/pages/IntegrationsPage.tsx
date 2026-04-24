@@ -1183,18 +1183,25 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
             await refreshData();
         } catch (error) {
             console.error('IntegrationsPage connect assets failed:', error);
-            const msg = error instanceof Error ? error.message : '';
-            const isServerConfig = msg.includes('OAUTH_ENCRYPTION_KEY') || msg.includes('misconfiguration') || msg.includes('503') || msg.includes('Server misconfiguration');
-            const isAuthError = msg.includes('401') || msg.includes('403') || msg.includes('Unauthorized') || msg.includes('Forbidden');
+            const msg = error instanceof Error ? error.message : String(error);
+            const isServerConfig = msg.includes('OAUTH_ENCRYPTION_KEY')
+                || msg.includes('misconfiguration')
+                || msg.includes('503')
+                || msg.includes('Server misconfiguration')
+                || msg.includes('non-2xx');   // generic Supabase gateway error → almost always missing secrets
+            const isAuthError = msg.includes('401') || msg.includes('403')
+                || msg.includes('Unauthorized') || msg.includes('Forbidden');
             let userMsg: string;
             if (isServerConfig) {
                 userMsg = ar
-                    ? 'خطأ في إعداد الخادم: مفتاح التشفير غير مضبوط في Supabase — يرجى إضافة OAUTH_ENCRYPTION_KEY في secrets.'
-                    : 'Server config error: OAUTH_ENCRYPTION_KEY is not set in Supabase — add it under Edge Function secrets.';
+                    ? 'خطأ في إعداد الخادم — افتح Supabase Dashboard → Edge Functions → Secrets وأضف:\n• OAUTH_ENCRYPTION_KEY\n• FACEBOOK_APP_ID\n• FACEBOOK_APP_SECRET'
+                    : 'Server config error — open Supabase Dashboard → Edge Functions → Secrets and add OAUTH_ENCRYPTION_KEY, FACEBOOK_APP_ID, FACEBOOK_APP_SECRET. See SUPABASE_SECRETS_SETUP.md.';
             } else if (isAuthError) {
                 userMsg = ar ? 'انتهت الجلسة — يرجى تسجيل الدخول مرة أخرى.' : 'Session expired — please sign in again.';
             } else {
-                userMsg = ar ? `فشل حفظ الأصول المرتبطة: ${msg || 'حاول مرة أخرى.'}` : `Failed to save connected assets: ${msg || 'Please try again.'}`;
+                userMsg = ar
+                    ? `فشل حفظ الأصول: ${msg} — افتح Supabase Logs للمزيد.`
+                    : `Failed to save assets: ${msg} — check Supabase Edge Function logs.`;
             }
             addNotification(NotificationType.Error, userMsg);
         } finally {

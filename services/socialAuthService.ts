@@ -36,15 +36,27 @@ export async function initiateSocialLogin(platform: SocialPlatform): Promise<Aut
         }
 
         return new Promise((resolve, reject) => {
-            // Facebook: ads_read allows fetching Ad Accounts (works for app admins without review)
-            // Instagram: removed instagram_basic (deprecated by Meta, removed for new apps)
+            // Minimum scopes for page management — no App Review required for Live apps.
+            // read_insights + ads_read require Advanced/Standard Access App Review → added later.
+            // instagram_basic removed (deprecated by Meta since 2023).
             const scopes = platform === SocialPlatform.Facebook
-                ? 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content,read_insights,ads_read'
+                ? 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content'
                 : 'pages_show_list,pages_read_engagement,instagram_content_publish,instagram_manage_insights,instagram_manage_messages';
 
             window.FB.login((response: any) => {
+                if (!response || response.status === 'unknown') {
+                    reject(new Error(
+                        'فشل تسجيل الدخول عبر Facebook. ' +
+                        'إذا كان التطبيق في وضع التطوير، تأكد من إضافتك كـ Tester في Meta Developer Console.'
+                    ));
+                    return;
+                }
                 if (!response.authResponse) {
-                    reject(new Error('User cancelled login or did not fully authorize.'));
+                    const status = response.status ?? 'no_authResponse';
+                    reject(new Error(
+                        `تم رفض الإذن أو ألغى المستخدم الدخول. (status: ${status}) — ` +
+                        'تأكد أن التطبيق في وضع Live وأن الصلاحيات مفعّلة في Meta.'
+                    ));
                     return;
                 }
 
@@ -234,39 +246,76 @@ export async function connectSelectedAssets(
         market?: string;
     },
 ): Promise<void> {
-    // Force-refresh so we always send a fresh token to the Edge Function.
-    // After the Facebook OAuth popup the in-memory token can be stale.
-    await supabase.auth.refreshSession();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error('Not authenticated. Please sign in again.');
+    // Force-refresh JWT — Facebook OAuth popup can stale the in-memory session.
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+        console.error('[connect-accounts] refreshSession failed:', refreshError.message);
+        throw new Error(`انتهت الجلسة: ${refreshError.message} — يرجى تسجيل الدخول مرة أخرى.`);
+    }
+    const jwt = refreshData.session?.access_token;
+    if (!jwt) throw new Error('Not authenticated. Please sign in again.');
 
-    // Explicitly set the fresh token on the Functions client — the auto-update
-    // from onAuthStateChange may not have fired yet at the point of invocation.
-    supabase.functions.setAuth(session.access_token);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    const functionUrl = `${supabaseUrl}/functions/v1/connect-accounts`;
 
-    const { error } = await supabase.functions.invoke('connect-accounts', {
-        body: {
-            brand_id:         brandId,
-            platform,
-            assets,
-            user_token:       userToken,
-            default_purposes: options?.defaultPurposes ?? ['publishing', 'analytics'],
-            default_asset_type: options?.defaultAssetType,
-            default_market:   options?.market,
-        },
+    const payload = {
+        brand_id:           brandId,
+        platform,
+        assets,
+        user_token:         userToken,
+        default_purposes:   options?.defaultPurposes ?? ['publishing', 'analytics'],
+        default_asset_type: options?.defaultAssetType,
+        default_market:     options?.market,
+    };
+
+    console.log('[connect-accounts] calling', functionUrl, {
+        brand_id: brandId,
+        platform,
+        assetCount: assets.length,
+        hasUserToken: Boolean(userToken),
+        hasJwt: Boolean(jwt),
+        jwtPrefix: jwt.substring(0, 20) + '...',
     });
 
-    if (error) {
-        // Supabase FunctionsHttpError: context is the parsed JSON body (plain object),
-        // not a Response — so we read context.error directly instead of calling .json()
-        const ctx = (error as any).context;
-        const serverMsg: string | undefined =
-            (typeof ctx?.error === 'string' ? ctx.error : null)          // {"error":"..."} shape
-            ?? (typeof ctx?.message === 'string' ? ctx.message : null)   // {"message":"..."} shape
-            ?? (typeof ctx === 'string' ? ctx : null);                   // raw text body
-        const msg = serverMsg ?? (error as any).message ?? 'Edge Function error';
-        console.error('connect-accounts error:', msg, ctx);
-        throw new Error(msg);
+    // Use raw fetch to bypass supabase-js v2 functions wrapper quirks
+    // and guarantee the correct JWT is sent as Authorization header.
+    let response: Response;
+    try {
+        response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${jwt}`,
+                'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify(payload),
+        });
+    } catch (networkErr) {
+        console.error('[connect-accounts] network error:', networkErr);
+        throw new Error(`خطأ في الشبكة — تعذّر الوصول إلى Edge Function: ${(networkErr as Error).message}`);
+    }
+
+    console.log('[connect-accounts] response status:', response.status);
+
+    if (!response.ok) {
+        let serverMsg = `HTTP ${response.status}`;
+        try {
+            const contentType = response.headers.get('content-type') ?? '';
+            if (contentType.includes('application/json')) {
+                const data = await response.json() as Record<string, unknown>;
+                serverMsg = typeof data.error === 'string'
+                    ? `${response.status}: ${data.error}`
+                    : `${response.status}: ${JSON.stringify(data)}`;
+            } else {
+                const text = await response.text();
+                serverMsg = `${response.status}: ${text.substring(0, 300)}`;
+            }
+        } catch {
+            // ignore body parse error
+        }
+        console.error('[connect-accounts] server error:', serverMsg);
+        throw new Error(serverMsg);
     }
 }
 
