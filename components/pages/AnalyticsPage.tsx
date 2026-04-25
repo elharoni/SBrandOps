@@ -242,7 +242,7 @@ const ExportTab: React.FC<{ data: AnalyticsData; addNotification: (type: Notific
     const hasSearch = Boolean(searchSource);
     const hasEngagement = data.engagementRate.length > 0;
     const hasFollowerGrowth = (data.followerGrowth?.length ?? 0) > 0;
-    const hasAdSpend = attrData.some((c) => c.spend > 0);
+    const hasAdSpend = attrData.some((c) => (c.spend ?? 0) > 0);
     const connectedCount = [hasGA4, hasSearch, hasEngagement].filter(Boolean).length;
 
     const reports: {
@@ -314,14 +314,12 @@ const ExportTab: React.FC<{ data: AnalyticsData; addNotification: (type: Notific
             action: () => exportCSV(attrData.map((c) => ({
                 channel: c.channel,
                 impressions: c.impressions,
-                clicks: c.clicks,
-                'ctr%': `${c.ctr}%`,
-                conversions: c.conversions,
-                'cvr%': `${c.cvr}%`,
-                spend_usd: `$${c.spend}`,
-                revenue_usd: `$${c.revenue}`,
-                roas: `${c.roas}x`,
-                cpa_usd: `$${c.cpa}`,
+                engagement: c.engagement,
+                'engagement_rate%': `${c.engagementRate}%`,
+                spend_usd: c.spend != null ? `$${c.spend}` : '—',
+                revenue_usd: c.revenue != null ? `$${c.revenue}` : '—',
+                roas: c.roas != null ? `${c.roas}x` : '—',
+                cpa_usd: c.cpa != null ? `$${c.cpa}` : '—',
             })), `attribution-${today}.csv`),
         },
         {
@@ -332,14 +330,13 @@ const ExportTab: React.FC<{ data: AnalyticsData; addNotification: (type: Notific
                 ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400'
                 : 'bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500',
             available: hasAdSpend,
-            action: () => exportCSV(attrData.filter((c) => c.spend > 0).map((c) => ({
+            action: () => exportCSV(attrData.filter((c) => (c.spend ?? 0) > 0).map((c) => ({
                 channel: c.channel,
-                spend_usd: `$${c.spend}`,
-                revenue_usd: `$${c.revenue}`,
-                roas: `${c.roas}x`,
-                cpa_usd: `$${c.cpa}`,
+                spend_usd: c.spend != null ? `$${c.spend}` : '—',
+                revenue_usd: c.revenue != null ? `$${c.revenue}` : '—',
+                roas: c.roas != null ? `${c.roas}x` : '—',
+                cpa_usd: c.cpa != null ? `$${c.cpa}` : '—',
                 impressions: c.impressions,
-                clicks: c.clicks,
             })), `ad-spend-${today}.csv`),
         },
         {

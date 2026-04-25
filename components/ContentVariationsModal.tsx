@@ -3,14 +3,16 @@
  * واجهة توليد نسخ متعددة من المحتوى
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useModalClose } from '../hooks/useModalClose';
 import { generateContentVariations, ContentVariation } from '../services/aiVariationsService';
-import { SocialPlatform } from '../types';
+import { BrandHubProfile, SocialPlatform } from '../types';
 import { Button, Spinner, Badge } from './shared/UIComponents';
 
 interface ContentVariationsModalProps {
     content: string;
     platforms: SocialPlatform[];
+    brandProfile?: BrandHubProfile | null;
     onClose: () => void;
     onSelectVariation: (content: string) => void;
 }
@@ -18,12 +20,13 @@ interface ContentVariationsModalProps {
 export const ContentVariationsModal: React.FC<ContentVariationsModalProps> = ({
     content,
     platforms,
+    brandProfile,
     onClose,
     onSelectVariation
 }) => {
     const [variations, setVariations] = useState<ContentVariation[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [selectedTones, setSelectedTones] = useState<string[]>(['professional', 'casual', 'friendly']);
+    useModalClose(onClose);
     const [count, setCount] = useState(5);
 
     const toneOptions = [
@@ -35,13 +38,36 @@ export const ContentVariationsModal: React.FC<ContentVariationsModalProps> = ({
         { value: 'formal', label: 'رسمي', icon: '🎩' }
     ];
 
+    // pre-select tones from brand voice when profile is available
+    const [selectedTones, setSelectedTones] = useState<string[]>(() => {
+        if (brandProfile?.brandVoice?.toneDescription?.length) {
+            const brandToneLower = brandProfile.brandVoice.toneDescription.map(t => t.toLowerCase());
+            const matched = toneOptions
+                .filter(opt => brandToneLower.some(bt => bt.includes(opt.value) || opt.value.includes(bt)))
+                .map(opt => opt.value);
+            if (matched.length > 0) return matched;
+        }
+        return ['professional', 'casual', 'friendly'];
+    });
+
+    const brandVoiceContext = brandProfile
+        ? [
+            brandProfile.brandVoice.toneDescription.join(', '),
+            brandProfile.brandVoice.keywords.slice(0, 5).join(', '),
+            brandProfile.brandVoice.negativeKeywords.length
+                ? `تجنب: ${brandProfile.brandVoice.negativeKeywords.join(', ')}`
+                : '',
+          ].filter(Boolean).join(' | ')
+        : '';
+
     const handleGenerate = async () => {
         setIsLoading(true);
         try {
             const results = await generateContentVariations(content, {
                 platforms,
                 tones: selectedTones,
-                count
+                count,
+                brandVoice: brandVoiceContext || undefined,
             });
             setVariations(results);
         } catch (error) {
@@ -72,8 +98,8 @@ export const ContentVariationsModal: React.FC<ContentVariationsModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-scale-in">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-dark-border">
                     <div className="flex items-center justify-between">
@@ -106,9 +132,14 @@ export const ContentVariationsModal: React.FC<ContentVariationsModalProps> = ({
                     {/* Settings */}
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold text-dark-text-secondary mb-2">
-                                النبرات المطلوبة:
-                            </label>
+                            <div className="flex items-center gap-2 mb-2">
+                                <label className="text-sm font-bold text-dark-text-secondary">النبرات المطلوبة:</label>
+                                {brandProfile && (
+                                    <span className="text-[10px] bg-brand-primary/15 text-brand-primary px-2 py-0.5 rounded-full font-medium">
+                                        محدّدة من صوت البراند
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex flex-wrap gap-2">
                                 {toneOptions.map(tone => (
                                     <button

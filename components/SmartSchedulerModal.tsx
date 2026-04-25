@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
+import { useModalClose } from '../hooks/useModalClose';
 import { getOptimalPostingTimes, SchedulingParams } from '../services/schedulingService';
-import { SocialPlatform, ScheduleSuggestion } from '../types';
+import { BrandHubProfile, SocialPlatform, ScheduleSuggestion } from '../types';
 
 interface SmartSchedulerModalProps {
   onClose: () => void;
   onSelectTime: (suggestion: ScheduleSuggestion) => void;
   platforms: SocialPlatform[];
   postTopic: string;
+  brandProfile?: BrandHubProfile | null;
 }
 
 const formatSuggestedTime = (date: string, time: string) => {
@@ -34,11 +36,16 @@ const TIME_SLOTS = [
     { key: 'evening', label: 'مساءً (5م - 9م)' },
 ];
 
-export const SmartSchedulerModal: React.FC<SmartSchedulerModalProps> = ({ onClose, onSelectTime, platforms, postTopic }) => {
-    const [targetAudience, setTargetAudience] = useState('البالغون المهتمون بالصحة والراحة في السعودية');
+export const SmartSchedulerModal: React.FC<SmartSchedulerModalProps> = ({ onClose, onSelectTime, platforms, postTopic, brandProfile }) => {
+    const defaultAudience = brandProfile?.brandAudiences?.length
+        ? brandProfile.brandAudiences.map(a => a.personaName).join(' • ')
+        : 'البالغون المهتمون بالصحة والراحة في السعودية';
+
+    const [targetAudience, setTargetAudience] = useState(defaultAudience);
     const [goal, setGoal] = useState('زيادة التفاعل والمبيعات');
     const [preferredDays, setPreferredDays] = useState<string[]>([]);
     const [preferredTime, setPreferredTime] = useState('any');
+    useModalClose(onClose);
     const [isLoading, setIsLoading] = useState(false);
     const [suggestions, setSuggestions] = useState<ScheduleSuggestion[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -63,11 +70,13 @@ export const SmartSchedulerModal: React.FC<SmartSchedulerModalProps> = ({ onClos
         try {
             const params: SchedulingParams = {
                 platforms,
-                topic: postTopic || 'منشور جديد عن منتجات الراحة',
+                topic: postTopic || 'منشور جديد',
                 targetAudience,
                 goal,
                 preferredDays,
                 preferredTime,
+                brandName: brandProfile?.brandName,
+                brandIndustry: brandProfile?.industry,
             };
             const result = await getOptimalPostingTimes(params);
             setSuggestions(result);
@@ -80,8 +89,8 @@ export const SmartSchedulerModal: React.FC<SmartSchedulerModalProps> = ({ onClos
     }, [platforms, postTopic, targetAudience, goal, preferredDays, preferredTime]);
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="p-5 border-b border-dark-border flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white flex items-center"><i className="fas fa-brain me-3 text-brand-secondary"></i>الجدولة الذكية</h2>
                     <button onClick={onClose} className="text-dark-text-secondary hover:text-white">&times;</button>

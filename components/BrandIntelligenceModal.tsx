@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Brand } from '../types';
+import { Brand, BrandHubProfile } from '../types';
 import { callAIProxy, Type } from '../services/aiProxy';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface Props {
     brand: Brand;
+    brandProfile?: BrandHubProfile | null;
     onClose: () => void;
+    onUseIdea?: (idea: { title: string; hook: string; platform: string }) => void;
 }
 
 interface Report {
@@ -13,11 +16,12 @@ interface Report {
     hashtags: string[];
 }
 
-export const BrandIntelligenceModal: React.FC<Props> = ({ brand, onClose }) => {
+export const BrandIntelligenceModal: React.FC<Props> = ({ brand, brandProfile, onClose, onUseIdea }) => {
     const [visible, setVisible] = useState(false);
     const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading');
     const [report, setReport] = useState<Report | null>(null);
     const [copiedIdx, setCopiedIdx] = useState<string | null>(null);
+    useModalClose(onClose);
 
     useEffect(() => {
         setTimeout(() => setVisible(true), 60);
@@ -26,11 +30,27 @@ export const BrandIntelligenceModal: React.FC<Props> = ({ brand, onClose }) => {
 
     const generate = async () => {
         try {
+            const profileContext = brandProfile ? `
+معلومات البراند التفصيلية:
+- المجال: ${brandProfile.industry || 'غير محدد'}
+- القيم: ${brandProfile.values.join('، ') || 'غير محدد'}
+- نقاط التميز: ${brandProfile.keySellingPoints.join('، ') || 'غير محدد'}
+- نبرة الصوت: ${brandProfile.brandVoice.toneDescription.join('، ') || 'غير محدد'}
+- الكلمات المفتاحية: ${brandProfile.brandVoice.keywords.join('، ') || 'غير محدد'}
+- الجمهور المستهدف: ${brandProfile.brandAudiences.map(a => `${a.personaName}: ${a.description}`).join(' | ') || 'غير محدد'}
+- الكلمات المحظورة: ${brandProfile.brandVoice.negativeKeywords.join('، ') || 'لا يوجد'}
+` : '';
+
             const res = await callAIProxy({
                 model: 'gemini-2.5-flash',
                 feature: 'brand-intelligence-report',
                 brand_id: brand.id,
-                prompt: `You are a social media strategist. For a brand called "${brand.name}", generate a JSON report with exactly this structure. Be creative, specific, and practical. Write everything in Arabic.`,
+                prompt: `أنت خبير استراتيجية سوشيال ميديا متخصص. استناداً إلى المعلومات الكاملة للبراند أدناه، أنشئ تقرير ذكاء تسويقي دقيق ومخصص لهذا البراند تحديداً — ليس توصيات عامة.
+
+البراند: "${brand.name}"
+${profileContext}
+
+المطلوب: تقرير JSON يشمل أفكار محتوى مبنية على نبرة البراند وجمهوره الفعلي، أفضل أوقات نشر مناسبة للجمهور المذكور، وهاشتاقات مرتبطة بمجاله وكلماته المفتاحية. كل شيء بالعربية.`,
                 schema: {
                     type: Type.OBJECT,
                     properties: {
@@ -149,10 +169,21 @@ export const BrandIntelligenceModal: React.FC<Props> = ({ brand, onClose }) => {
                                                     <p className="text-xs font-semibold text-dark-text mb-0.5">{idea.title}</p>
                                                     <p className="text-[11px] text-dark-text-secondary leading-relaxed">{idea.hook}</p>
                                                 </div>
-                                                <button onClick={() => copy(`${idea.title}\n${idea.hook}`, `idea-${i}`)}
-                                                    className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${copiedIdx === `idea-${i}` ? 'bg-emerald-500' : 'bg-dark-card hover:bg-dark-border'}`}>
-                                                    <i className={`fas ${copiedIdx === `idea-${i}` ? 'fa-check' : 'fa-copy'} text-xs text-white`} />
-                                                </button>
+                                                <div className="flex flex-col gap-1 flex-shrink-0">
+                                                    <button onClick={() => copy(`${idea.title}\n${idea.hook}`, `idea-${i}`)}
+                                                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${copiedIdx === `idea-${i}` ? 'bg-emerald-500' : 'bg-dark-card hover:bg-dark-border'}`}>
+                                                        <i className={`fas ${copiedIdx === `idea-${i}` ? 'fa-check' : 'fa-copy'} text-xs text-white`} />
+                                                    </button>
+                                                    {onUseIdea && (
+                                                        <button
+                                                            onClick={() => { onUseIdea(idea); handleClose(); }}
+                                                            title="استخدام في الناشر"
+                                                            className="w-7 h-7 rounded-lg bg-brand-primary/20 hover:bg-brand-primary/40 flex items-center justify-center transition-colors"
+                                                        >
+                                                            <i className="fas fa-arrow-up-right-from-square text-brand-primary text-[10px]" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

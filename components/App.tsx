@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LanguageProvider, useLanguage } from '../context/LanguageContext';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -22,6 +22,7 @@ import { BrandIntelligenceModal } from './BrandIntelligenceModal';
 import { MobileBottomNav } from './MobileBottomNav';
 import { NotificationsPanel } from './NotificationsPanel';
 import { ToastStack } from './shared/ToastStack';
+import { SupportChatWidget } from './SupportChatWidget';
 
 // Stores & Hooks
 import { useBrandStore } from '../stores/brandStore';
@@ -196,10 +197,10 @@ const AppShell: React.FC = () => {
     const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
     const trial = useTrialStatus();
 
-    const resolvedBrandProfile = buildFallbackBrandProfile(activeBrand?.name ?? '');
-    const resolvedAnalyticsData = buildFallbackAnalyticsData();
-    const resolvedAdsDashboardData = buildFallbackAdsDashboardData();
-    const resolvedSystemData = buildFallbackSystemData();
+    const resolvedBrandProfile     = useMemo(() => buildFallbackBrandProfile(activeBrand?.name ?? ''),     [activeBrand?.name]);
+    const resolvedAnalyticsData    = useMemo(() => buildFallbackAnalyticsData(),    []);
+    const resolvedAdsDashboardData = useMemo(() => buildFallbackAdsDashboardData(), []);
+    const resolvedSystemData       = useMemo(() => buildFallbackSystemData(),       []);
     const hasLiveGoogleAdsConnection = hasLiveProviderConnection(brandConnections, ['google_ads']);
     const { data: fetchedBrandProfile } = usePageBrandProfile(activeBrand?.id, activeBrand?.name ?? '');
 
@@ -338,6 +339,13 @@ const AppShell: React.FC = () => {
         addNotification(NotificationType.Success, ar ? `تم إنشاء البراند "${name}"` : `Brand "${name}" created.`);
     };
 
+    const handleBrandImported = async (brandId: string, brandName: string) => {
+        setShowAddBrandModal(false);
+        await fetchBrands();
+        switchBrand(brandId);
+        addNotification(NotificationType.Success, `تم استيراد البراند "${brandName}" بنجاح`);
+    };
+
     const handleDeleteBrand = async (brandId: string) => {
         const brand = brands.find(b => b.id === brandId);
         await deleteBrand(brandId);
@@ -394,7 +402,11 @@ const AppShell: React.FC = () => {
             </div>
 
             {showBrandIntelModal && activeBrand && (
-                <BrandIntelligenceModal brand={activeBrand} onClose={() => setShowBrandIntelModal(false)} />
+                <BrandIntelligenceModal
+                    brand={activeBrand}
+                    brandProfile={fetchedBrandProfile ?? null}
+                    onClose={() => setShowBrandIntelModal(false)}
+                />
             )}
             {showWelcomeModal && user && (
                 <WelcomeModal
@@ -609,6 +621,7 @@ const AppShell: React.FC = () => {
                     : <AddBrandModal
                         onClose={() => setShowAddBrandModal(false)}
                         onCreate={handleAddBrand}
+                        onImported={handleBrandImported}
                         currentBrandCount={brands.length}
                       />
             )}
@@ -622,6 +635,7 @@ const AppShell: React.FC = () => {
             </Suspense>
 
             <ToastStack />
+            {isAuthenticated && viewMode === 'brand' && <SupportChatWidget />}
         </div>
     );
 };

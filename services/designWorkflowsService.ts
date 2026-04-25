@@ -1,6 +1,7 @@
 // services/designWorkflowsService.ts
 import { supabase } from './supabaseClient';
-import { DesignWorkflow, DesignWorkflowStatus, DESIGN_FORMAT_MAP, BrandHubProfile } from '../types';
+import { DesignWorkflow, DesignWorkflowStatus, DESIGN_FORMAT_MAP, BrandHubProfile, Brand } from '../types';
+import { extractBrandColors, buildBrandPromptContext } from './brandDesignUtils';
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ const DEFAULT_WORKFLOWS: Omit<DesignWorkflow, 'id' | 'brandId' | 'createdAt' | '
             { id: 's5', order: 5, type: 'select-variant',  labelAr: 'اختيار التصميم',        labelEn: 'Pick Variant' },
             { id: 's6', order: 6, type: 'review',          labelAr: 'مراجعة وحفظ',           labelEn: 'Review & Save' },
         ],
-        promptTemplate: 'Create a professional social media visual for a brand called {brandName}. Topic: {topic}. Tone: {tone}. Use these brand colors as dominant palette: {brandColors}. Style: clean, modern, eye-catching, suitable for digital marketing. High quality, no text unless specified.',
+        promptTemplate: 'Create a professional social media visual. {brandIdentity}. Topic: {topic}. Tone: {tone}. Use brand colors as dominant palette: {brandColors}. Style: clean, modern, eye-catching, suitable for digital marketing. High quality, no text unless specified.',
         useBrandColors: true,
         useBrandVoice: true,
         status: 'active',
@@ -77,7 +78,7 @@ const DEFAULT_WORKFLOWS: Omit<DesignWorkflow, 'id' | 'brandId' | 'createdAt' | '
             { id: 's5', order: 5, type: 'select-variant',     labelAr: 'اختيار التصميم',      labelEn: 'Pick Variant' },
             { id: 's6', order: 6, type: 'review',             labelAr: 'مراجعة وحفظ',         labelEn: 'Review & Save' },
         ],
-        promptTemplate: 'Create a vertical social story/reel cover for a brand called {brandName}. Topic: {topic}. Text concept: {textOverlay}. Brand colors: {brandColors}. Bold, mobile-first design, full bleed, dramatic composition. Vertical 9:16 format.',
+        promptTemplate: 'Create a vertical social story/reel cover. {brandIdentity}. Topic: {topic}. Text concept: {textOverlay}. Brand colors: {brandColors}. Bold, mobile-first design, full bleed, dramatic composition. Vertical 9:16 format.',
         useBrandColors: true,
         useBrandVoice: false,
         status: 'active',
@@ -105,7 +106,7 @@ const DEFAULT_WORKFLOWS: Omit<DesignWorkflow, 'id' | 'brandId' | 'createdAt' | '
             { id: 's6', order: 6, type: 'select-variant',     labelAr: 'اختيار التصميم',     labelEn: 'Pick Variant' },
             { id: 's7', order: 7, type: 'review',             labelAr: 'مراجعة وحفظ',        labelEn: 'Review & Save' },
         ],
-        promptTemplate: 'Create a high-converting ad creative for a brand called {brandName}. Product/offer: {topic}. Ad type: {tone}. Call to action: {textOverlay}. Brand colors: {brandColors}. Design: urgency, clear value proposition, professional, conversion-optimized. No placeholder text.',
+        promptTemplate: 'Create a high-converting ad creative. {brandIdentity}. Product/offer: {topic}. Ad type: {tone}. Call to action: {textOverlay}. Brand colors: {brandColors}. Design: urgency, clear value proposition, professional, conversion-optimized. No placeholder text.',
         useBrandColors: true,
         useBrandVoice: false,
         status: 'active',
@@ -133,7 +134,7 @@ const DEFAULT_WORKFLOWS: Omit<DesignWorkflow, 'id' | 'brandId' | 'createdAt' | '
             { id: 's5', order: 5, type: 'select-variant',  labelAr: 'اختيار التصميم الأساسي', labelEn: 'Pick Base Design' },
             { id: 's6', order: 6, type: 'review',          labelAr: 'مراجعة الباقة',         labelEn: 'Review Pack' },
         ],
-        promptTemplate: 'Create a cohesive campaign visual for a brand called {brandName}. Campaign theme: {topic}. Tone: {tone}. Brand colors: {brandColors}. Design should work across multiple formats — consistent visual identity, memorable, campaign-worthy composition.',
+        promptTemplate: 'Create a cohesive campaign visual. {brandIdentity}. Campaign theme: {topic}. Tone: {tone}. Brand colors: {brandColors}. Design should work across multiple formats — consistent visual identity, memorable, campaign-worthy composition.',
         useBrandColors: true,
         useBrandVoice: true,
         status: 'active',
@@ -168,22 +169,22 @@ const DEFAULT_WORKFLOWS: Omit<DesignWorkflow, 'id' | 'brandId' | 'createdAt' | '
 export function buildFinalPrompt(
     workflow: DesignWorkflow,
     inputs: Record<string, any>,
-    brandProfile?: BrandHubProfile | null
+    brandProfile?: BrandHubProfile | null,
+    brand?: Brand | null
 ): string {
-    const brandName   = brandProfile?.brandName || 'the brand';
-    const brandColors = brandProfile?.styleGuidelines?.filter(g =>
-        g.toLowerCase().includes('color') ||
-        g.toLowerCase().includes('#') ||
-        g.toLowerCase().includes('لون')
-    ).join(', ') || 'professional brand colors';
+    const brandName     = brandProfile?.brandName || brand?.name || 'the brand';
+    const colors        = extractBrandColors(brandProfile?.styleGuidelines);
+    const brandColors   = colors.length ? colors.join(', ') : 'professional brand colors';
+    const brandIdentity = buildBrandPromptContext(brand, brandProfile);
 
     return workflow.promptTemplate
-        .replace(/{brandName}/g,   brandName)
-        .replace(/{brandColors}/g, brandColors)
-        .replace(/{topic}/g,       inputs['input-topic']        || inputs.topic        || '')
-        .replace(/{tone}/g,        inputs['input-tone']         || inputs.tone         || 'professional')
-        .replace(/{textOverlay}/g, inputs['input-text-overlay'] || inputs.textOverlay  || '')
-        .replace(/{cta}/g,         inputs['input-text-overlay'] || inputs.cta          || '');
+        .replace(/{brandName}/g,     brandName)
+        .replace(/{brandColors}/g,   brandColors)
+        .replace(/{brandIdentity}/g, brandIdentity)
+        .replace(/{topic}/g,         inputs['input-topic']        || inputs.topic        || '')
+        .replace(/{tone}/g,          inputs['input-tone']         || inputs.tone         || 'professional')
+        .replace(/{textOverlay}/g,   inputs['input-text-overlay'] || inputs.textOverlay  || '')
+        .replace(/{cta}/g,           inputs['input-text-overlay'] || inputs.cta          || '');
 }
 
 // ── Read ──────────────────────────────────────────────────────────────────────

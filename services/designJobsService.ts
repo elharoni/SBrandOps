@@ -1,10 +1,11 @@
 // services/designJobsService.ts
 import { supabase } from './supabaseClient';
-import { DesignJob, DesignJobStatus, DesignWorkflow, DesignAsset, BrandHubProfile, NotificationType } from '../types';
+import { DesignJob, DesignJobStatus, DesignWorkflow, DesignAsset, BrandHubProfile, Brand, NotificationType } from '../types';
 import { generateImageFromPrompt, enhanceArabicDesignPrompt, AIImageProvider } from './geminiService';
 import { buildFinalPrompt, incrementWorkflowUsage } from './designWorkflowsService';
 import { createDesignAsset } from './designAssetsService';
 import { uploadFile } from './storageService';
+import { extractBrandColors, overlayLogoOnCanvas } from './brandDesignUtils';
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -94,18 +95,17 @@ export async function runDesignJob(
     brandId: string,
     onProgress?: (msg: string) => void,
     imageProvider: AIImageProvider = 'google',
+    brand?: Brand | null,
 ): Promise<DesignJob> {
     try {
         await updateDesignJob(job.id, { status: 'generating' });
         onProgress?.('جاري تحسين الـ prompt...');
 
-        // 1. Build base prompt
-        const basePrompt = buildFinalPrompt(workflow, job.inputs, brandProfile);
+        // 1. Build base prompt with full brand context
+        const basePrompt = buildFinalPrompt(workflow, job.inputs, brandProfile, brand);
 
         // 2. Enhance Arabic prompt via gemini-2.5-flash
-        const brandColors = brandProfile?.styleGuidelines
-            ?.filter(g => g.toLowerCase().includes('color') || g.includes('#'))
-            .join(', ');
+        const brandColors = extractBrandColors(brandProfile?.styleGuidelines).join(', ');
 
         const { enhancedPrompt, arabicTextSuggestions } = await enhanceArabicDesignPrompt(
             basePrompt,
@@ -122,12 +122,20 @@ export async function runDesignJob(
         // generateImageFromPrompt now returns string[] — pass count directly
         const dataUrls = await generateImageFromPrompt(enhancedPrompt, aspectRatio, imageProvider, count);
 
+        // 4. Overlay brand logo on each generated image (if available)
+        const logoUrl = brand?.logoUrl || '';
+        onProgress?.(logoUrl ? 'جاري إضافة لوجو البراند...' : 'جاري رفع الصور على المكتبة...');
+
+        const processedUrls = logoUrl
+            ? await Promise.all(dataUrls.map(url => overlayLogoOnCanvas(url, logoUrl)))
+            : dataUrls;
+
         onProgress?.('جاري رفع الصور على المكتبة...');
 
-        // 4. Upload each image & save as DesignAsset
+        // 5. Upload each image & save as DesignAsset
         const savedAssets: DesignAsset[] = [];
-        for (let i = 0; i < dataUrls.length; i++) {
-            const dataUrl = dataUrls[i];
+        for (let i = 0; i < processedUrls.length; i++) {
+            const dataUrl = processedUrls[i];
             try {
                 // data URL → File
                 const res   = await fetch(dataUrl);
@@ -169,14 +177,14 @@ export async function runDesignJob(
             }
         }
 
-        // 5. Update job to done
+        // 6. Update job to done
         await updateDesignJob(job.id, {
             status:           'done',
             assets:           savedAssets,
             enhanced_prompt:  enhancedPrompt,
         });
 
-        // 6. Increment workflow usage (non-blocking)
+        // 7. Increment workflow usage (non-blocking)
         if (workflow.brandId && workflow.id) {
             incrementWorkflowUsage(brandId, workflow.id).catch(() => {});
         }

@@ -26,6 +26,8 @@ interface DashboardPageProps {
     hasBrandProfile: boolean;
     hasLinkedAds: boolean;
     brandProfile?: BrandHubProfile;
+    brandId?: string;
+    onSyncAnalytics?: () => Promise<void>;
 }
 
 // ─── Shared UI primitives ────────────────────────────────────────────────────
@@ -329,11 +331,23 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     hasBrandProfile,
     hasLinkedAds,
     brandProfile,
+    onSyncAnalytics,
 }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
     const locale = ar ? 'ar-EG' : 'en-US';
     const [timePeriod, setTimePeriod] = useState<'7d' | '30d' | '90d'>('30d');
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleSyncAnalytics = async () => {
+        if (!onSyncAnalytics || isSyncing) return;
+        setIsSyncing(true);
+        try {
+            await onSyncAnalytics();
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     // ── Derived state ────────────────────────────────────────────────────────
     const upcomingPosts = useMemo(() =>
@@ -886,6 +900,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
 
             {/* ── Analytics metrics ─────────────────────────────────────────── */}
+            <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary font-medium">
+                    {ar ? 'الأداء الكلي' : 'Overall performance'}
+                </p>
+                {onSyncAnalytics && (
+                    <button
+                        onClick={handleSyncAnalytics}
+                        disabled={isSyncing}
+                        title={ar ? 'مزامنة الإحصائيات من المنصات' : 'Sync stats from platforms'}
+                        className="flex items-center gap-1.5 rounded-lg border border-light-border dark:border-dark-border px-2.5 py-1 text-xs font-medium text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary hover:border-brand-primary transition-colors disabled:opacity-50"
+                    >
+                        <i className={`fas fa-rotate-right text-xs ${isSyncing ? 'animate-spin' : ''}`} />
+                        {isSyncing ? (ar ? 'جارٍ المزامنة...' : 'Syncing...') : (ar ? 'مزامنة' : 'Sync')}
+                    </button>
+                )}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricTile title={ar ? 'إجمالي المتابعين' : 'Total followers'} value={formatter.format(analyticsData.overallStats.totalFollowers)} icon="fa-users" positive />
                 <MetricTile title={ar ? 'الوصول' : 'Reach'} value={formatter.format(analyticsData.overallStats.impressions)} icon="fa-eye" positive />

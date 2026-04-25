@@ -16,6 +16,7 @@ import {
 import { createScheduledPost, updateScheduledPost, deleteScheduledPost } from '../../services/postsService';
 import { updateBrandProfile } from '../../services/brandHubService';
 import { connectSocialAccount } from '../../services/socialAccountService';
+import { syncAnalytics } from '../../services/analyticsService';
 import { addContentPiece, updateContentPiece, addComment, deleteContentPiece } from '../../services/contentOpsService';
 import { addMarketingPlan } from '../../services/marketingPlansService';
 import { inviteUser, updateUserRole, deleteUser, revokeSession, generateApiKey, deleteApiKey } from '../../services/systemService';
@@ -37,6 +38,7 @@ const SocialSearchPage  = lazy(() => import('../pages/SocialSearchPage').then(m 
 const IdeaOpsPage       = lazy(() => import('../pages/IdeaOpsPage').then(m => ({ default: m.IdeaOpsPage })));
 const InboxPage         = lazy(() => import('../pages/InboxPage').then(m => ({ default: m.InboxPage })));
 const WorkflowPage      = lazy(() => import('../pages/WorkflowPage').then(m => ({ default: m.WorkflowPage })));
+const SmartBotPage      = lazy(() => import('../pages/SmartBotPage').then(m => ({ default: m.SmartBotPage })));
 const IntegrationsPage  = lazy(() => import('../pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
 const ErrorCenterPage   = lazy(() => import('../pages/ErrorCenterPage').then(m => ({ default: m.ErrorCenterPage })));
 const SystemPage        = lazy(() => import('../pages/SystemPage').then(m => ({ default: m.SystemPage })));
@@ -56,7 +58,9 @@ const DesignOpsPage      = lazy(() => import('../pages/DesignOpsPage').then(m =>
 const VideoStudioPage    = lazy(() => import('../pages/VideoStudioPage').then(m => ({ default: m.VideoStudioPage })));
 const ContentStudioPage  = lazy(() => import('../pages/ContentStudioPage').then(m => ({ default: m.ContentStudioPage })));
 const MediaOpsPage       = lazy(() => import('../pages/MediaOpsPage').then(m => ({ default: m.MediaOpsPage })));
-const AssetLibraryPage   = lazy(() => import('../pages/AssetLibraryPage').then(m => ({ default: m.AssetLibraryPage })));
+const AssetLibraryPage     = lazy(() => import('../pages/AssetLibraryPage').then(m => ({ default: m.AssetLibraryPage })));
+const CampaignBrainPage    = lazy(() => import('../pages/CampaignBrainPage').then(m => ({ default: m.CampaignBrainPage })));
+const SupportInboxPage     = lazy(() => import('../pages/support/SupportInboxPage').then(m => ({ default: m.SupportInboxPage })));
 
 const NoBrandState: React.FC<{ onCreateBrand: () => void }> = ({ onCreateBrand }) => {
     const { language } = useLanguage();
@@ -164,6 +168,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             platforms: post.platforms,
             mediaUrls: post.media?.map((m: MediaItem) => m.url) ?? [],
             scheduledAt: post.scheduledAt ? new Date(post.scheduledAt) : undefined,
+            status: post.status,
             instagramFirstComment: post.instagramFirstComment,
             locations: post.locations,
         });
@@ -339,6 +344,8 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     hasBrandProfile={Boolean(fetchedBrandProfile)}
                     hasLinkedAds={hasLinkedAds}
                     brandProfile={resolvedBrandProfile ?? undefined}
+                    brandId={activeBrand.id}
+                    onSyncAnalytics={() => syncAnalytics(activeBrand.id)}
                 />
             );
 
@@ -446,6 +453,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             return (
                 <DesignOpsPage
                     brandId={activeBrand.id}
+                    brand={activeBrand}
                     brandProfile={resolvedBrandProfile}
                     designAssets={designAssets}
                     designWorkflows={designWorkflows}
@@ -592,6 +600,17 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
         case 'brand-brain':
             return <BrandBrainPage brandId={activeBrand.id} brandName={activeBrand.name} addNotification={addNotification} />;
 
+        case 'campaign-brain':
+            return (
+                <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل Campaign Brain...' : 'Loading Campaign Brain...'} />}>
+                    <CampaignBrainPage
+                        brandId={activeBrand.id}
+                        brandProfile={resolvedBrandProfile}
+                        addNotification={addNotification}
+                    />
+                </Suspense>
+            );
+
         case 'brand-knowledge':
             return (
                 <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
@@ -621,7 +640,14 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             return <BrandAnalysisPage brandProfile={resolvedBrandProfile} addNotification={addNotification} />;
 
         case 'workflow':
-            return <WorkflowPage initialWorkflows={workflows} />;
+            return (
+                <SmartBotPage
+                    brandId={activeBrand.id}
+                    brand={activeBrand}
+                    brandProfile={resolvedBrandProfile}
+                    addNotification={addNotification}
+                />
+            );
 
         case 'integrations':
             return (
@@ -694,6 +720,13 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             return <CrmPipelinePage brandId={activeBrand.id} brandProfile={resolvedBrandProfile} addNotification={addNotification} />;
         case 'crm/tickets':
             return <CrmTicketsPage brandId={activeBrand.id} />;
+
+        case 'support-inbox':
+            return (
+                <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل صندوق الدعم...' : 'Loading Support Inbox...'} />}>
+                    <SupportInboxPage />
+                </Suspense>
+            );
 
         default:
             return <div>Page not found: {activePage}</div>;

@@ -1,13 +1,21 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { generateImageFromPrompt, AIImageProvider } from '../services/geminiService';
-import { MediaItem } from '../types';
+import { BrandHubProfile, Brand, MediaItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useModalClose } from '../hooks/useModalClose';
+import { extractBrandColors, overlayLogoOnCanvas, buildBrandPromptContext } from '../services/brandDesignUtils';
 
 interface AIImageGeneratorModalProps {
     onClose: () => void;
     onAddImage: (mediaItem: MediaItem) => void;
     /** If provided, selected images can be saved to the brand asset library */
     brandId?: string;
+    /** Full brand object — used for logo overlay and name */
+    brand?: Brand | null;
+    /** If provided, brand context is used to improve image prompts */
+    brandProfile?: BrandHubProfile | null;
+    /** Pre-fill the prompt from an idea (e.g. from BrandIntelligenceModal) */
+    initialPrompt?: string;
 }
 
 type GeneratedImage = {
@@ -20,12 +28,25 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
     onClose,
     onAddImage,
     brandId,
+    brand,
+    brandProfile,
+    initialPrompt,
 }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
+    useModalClose(onClose);
 
-    const [prompt, setPrompt] = useState('');
+    const [prompt, setPrompt] = useState(initialPrompt ?? '');
     const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>('1:1');
+
+    const logoUrl       = brand?.logoUrl || '';
+    const brandColors   = extractBrandColors(brandProfile?.styleGuidelines);
+    const brandContext  = buildBrandPromptContext(brand, brandProfile);
+
+    // Style hint shown in prompt placeholder
+    const brandStyleHint = brandProfile
+        ? `— بأسلوب يعكس براند "${brandProfile.brandName || brand?.name}" ونبرة ${brandProfile.brandVoice.toneDescription.slice(0, 2).join(' و')}`
+        : (brand?.name ? `— بأسلوب يعكس براند "${brand.name}"` : '');
     const [provider, setProvider] = useState<AIImageProvider>('pollinations');
     const [count, setCount] = useState<number>(1);
     const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -39,8 +60,19 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
         setError(null);
         setImages([]);
         try {
-            const urls = await generateImageFromPrompt(prompt, aspectRatio, provider, count);
-            setImages(urls.map(url => ({ id: crypto.randomUUID(), url, selected: false })));
+            // Enrich prompt with brand context automatically
+            const enrichedPrompt = brandContext
+                ? `${prompt.trim()}. ${brandContext}.`
+                : prompt.trim();
+
+            const urls = await generateImageFromPrompt(enrichedPrompt, aspectRatio, provider, count);
+
+            // Overlay brand logo on each generated image if available
+            const processedUrls = logoUrl
+                ? await Promise.all(urls.map(u => overlayLogoOnCanvas(u, logoUrl)))
+                : urls;
+
+            setImages(processedUrls.map(url => ({ id: crypto.randomUUID(), url, selected: false })));
         } catch (err: any) {
             let errorMsg = ar
                 ? 'فشل في توليد الصورة. يرجى المحاولة مرة أخرى.'
@@ -59,7 +91,7 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
         } finally {
             setIsLoading(false);
         }
-    }, [prompt, aspectRatio, provider, count, ar]);
+    }, [prompt, aspectRatio, provider, count, ar, brandContext, logoUrl]);
 
     const toggleSelect = useCallback((id: string) => {
         setImages(prev => prev.map(img => img.id === id ? { ...img, selected: !img.selected } : img));
@@ -136,22 +168,54 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
     const selectedCount = images.filter(img => img.selected).length;
 
     return (
-        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-dark-card rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] border border-dark-border">
+        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-dark-card rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] border border-dark-border" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="p-5 border-b border-dark-border flex justify-between items-center flex-shrink-0">
-                    <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary/20 text-brand-secondary">
-                            <i className="fas fa-wand-magic-sparkles text-sm" />
-                        </span>
-                        {ar ? 'مولّد الصور بالذكاء الاصطناعي' : 'AI Image Generator'}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-dark-text-secondary hover:bg-dark-bg hover:text-white transition-colors"
-                    >
-                        <i className="fas fa-times" />
-                    </button>
+                <div className="p-5 border-b border-dark-border flex-shrink-0">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
+                            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary/20 text-brand-secondary">
+                                <i className="fas fa-wand-magic-sparkles text-sm" />
+                            </span>
+                            {ar ? 'مولّد الصور بالذكاء الاصطناعي' : 'AI Image Generator'}
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-dark-text-secondary hover:bg-dark-bg hover:text-white transition-colors"
+                        >
+                            <i className="fas fa-times" />
+                        </button>
+                    </div>
+
+                    {/* Brand identity strip */}
+                    {(brand || brandProfile) && (
+                        <div className="mt-3 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-brand-primary/8 border border-brand-primary/20">
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="logo" className="w-7 h-7 rounded-lg object-contain bg-white/10 p-0.5 flex-shrink-0" />
+                            ) : (
+                                <div className="w-7 h-7 rounded-lg bg-brand-primary/20 flex items-center justify-center flex-shrink-0">
+                                    <i className="fas fa-store text-brand-secondary text-xs" />
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-white truncate">
+                                    {brandProfile?.brandName || brand?.name}
+                                </p>
+                                <p className="text-[10px] text-brand-secondary">
+                                    {logoUrl
+                                        ? (ar ? 'هوية البراند + اللوجو مُطبَّقان تلقائياً' : 'Brand identity + logo applied automatically')
+                                        : (ar ? 'هوية البراند مُطبَّقة تلقائياً' : 'Brand identity applied automatically')}
+                                </p>
+                            </div>
+                            {brandColors.length > 0 && (
+                                <div className="flex gap-1 flex-shrink-0">
+                                    {brandColors.filter(c => c.startsWith('#')).slice(0, 4).map((c, i) => (
+                                        <div key={i} className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: c }} title={c} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex-grow overflow-y-auto p-5 space-y-5">
@@ -159,14 +223,28 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Prompt */}
                         <div className="md:col-span-2 space-y-1.5">
-                            <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
-                                {ar ? 'وصف الصورة' : 'Image Prompt'}
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
+                                    {ar ? 'وصف الصورة' : 'Image Prompt'}
+                                </label>
+                                {(brandProfile || brand) && (
+                                    <span className="text-[10px] bg-brand-primary/15 text-brand-primary px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                        {logoUrl && <i className="fas fa-circle-check text-[8px]" />}
+                                        {ar
+                                            ? `سياق البراند: ${brandProfile?.brandName || brand?.name}`
+                                            : `Brand: ${brandProfile?.brandName || brand?.name}`}
+                                    </span>
+                                )}
+                            </div>
                             <textarea
                                 value={prompt}
                                 onChange={e => setPrompt(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGenerate(); }}
-                                placeholder={ar ? 'صف الصورة التي تريدها بدقة...' : 'Describe the image you want in detail...'}
+                                placeholder={
+                                    brandProfile
+                                        ? (ar ? `صف الصورة ${brandStyleHint}...` : `Describe the image ${brandStyleHint}...`)
+                                        : (ar ? 'صف الصورة التي تريدها بدقة...' : 'Describe the image you want in detail...')
+                                }
                                 rows={3}
                                 className="w-full rounded-xl border border-dark-border bg-dark-bg px-4 py-3 text-sm text-white outline-none resize-none placeholder:text-dark-text-secondary/50 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20"
                             />

@@ -1,5 +1,6 @@
 import React from 'react';
 import { SocialPlatform } from '../../types';
+import { useModalClose } from '../../hooks/useModalClose';
 
 export const SETUP_GUIDES: Partial<Record<SocialPlatform, {
     steps: string[];
@@ -93,6 +94,7 @@ export const SetupGuideModal: React.FC<{
     onClose: () => void;
     ar: boolean;
 }> = ({ platform, onClose, ar }) => {
+    useModalClose(onClose);
     const guide = SETUP_GUIDES[platform];
     if (!guide) return null;
 

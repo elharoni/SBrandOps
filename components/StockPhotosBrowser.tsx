@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useModalClose } from '../hooks/useModalClose';
 import { searchStockPhotos, downloadStockPhoto, StockPhoto } from '../services/stockPhotosService';
 import { Button, Input, Spinner, EmptyState } from './shared/UIComponents';
 
@@ -20,6 +21,7 @@ export const StockPhotosBrowser: React.FC<StockPhotosBrowserProps> = ({
     const [photos, setPhotos] = useState<StockPhoto[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSource, setSelectedSource] = useState<'all' | 'unsplash' | 'pexels'>('all');
+    useModalClose(onClose);
     const [orientation, setOrientation] = useState<'landscape' | 'portrait' | 'square' | undefined>();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
@@ -81,8 +83,8 @@ export const StockPhotosBrowser: React.FC<StockPhotosBrowserProps> = ({
     }, []);
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-scale-in">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-scale-in" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-dark-border">
                     <div className="flex items-center justify-between mb-4">

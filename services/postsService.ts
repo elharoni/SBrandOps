@@ -10,6 +10,7 @@ export interface CreatePostData {
     platforms: SocialPlatform[];
     mediaUrls?: string[];
     scheduledAt?: Date;
+    status?: PostStatus;
     instagramFirstComment?: string;
     locations?: Partial<Record<SocialPlatform, string>>;
 }
@@ -43,7 +44,7 @@ export async function createScheduledPost(data: CreatePostData): Promise<Schedul
                 platforms: data.platforms,
                 media_urls: data.mediaUrls || [],
                 scheduled_at: data.scheduledAt || null,
-                status: PostStatus.Draft,
+                status: data.status || PostStatus.Draft,
                 instagram_first_comment: data.instagramFirstComment,
                 locations: data.locations
             }])

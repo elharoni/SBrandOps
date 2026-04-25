@@ -549,6 +549,7 @@ export interface AnalyticsData {
         platform: SocialPlatform;
         rate: number;
     }[];
+    platformBreakdown?: Record<string, { impressions: number; engagement: number }>;
 }
 
 export interface BriefPerformanceRollup {
@@ -1848,16 +1849,23 @@ export type DesignWorkflowCategory =
 
 export type DesignWorkflowOutputFormat =
     | 'instagram-post'
+    | 'instagram-portrait'
     | 'instagram-story'
     | 'instagram-reel-cover'
     | 'facebook-post'
+    | 'facebook-story'
     | 'twitter-post'
+    | 'twitter-portrait'
     | 'linkedin-post'
     | 'linkedin-banner'
     | 'tiktok-cover'
     | 'youtube-thumbnail'
+    | 'pinterest-pin'
+    | 'snapchat-story'
+    | 'whatsapp-status'
     | 'ad-banner-square'
     | 'ad-banner-landscape'
+    | 'ad-banner-portrait'
     | 'custom';
 
 export interface DesignWorkflowFormat {
@@ -1866,7 +1874,12 @@ export interface DesignWorkflowFormat {
     height: number;
     label: string;
     labelAr: string;
+    /** Closest ratio supported by AI image generators (Imagen / Pollinations) */
     aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+    /** True = best-practice format for this platform (highest reach / engagement) */
+    recommended?: boolean;
+    /** Short Arabic tip shown in the format picker */
+    tipAr?: string;
 }
 
 export type DesignStepType =
@@ -1937,18 +1950,46 @@ export interface DesignOpsStats {
 }
 
 export const DESIGN_FORMAT_MAP: Record<DesignWorkflowOutputFormat, DesignWorkflowFormat> = {
-    'instagram-post':       { format: 'instagram-post',       width: 1080, height: 1080, label: 'Instagram Post',     labelAr: 'منشور إنستاغرام',    aspectRatio: '1:1'  },
-    'instagram-story':      { format: 'instagram-story',      width: 1080, height: 1920, label: 'Instagram Story',    labelAr: 'ستوري إنستاغرام',    aspectRatio: '9:16' },
-    'instagram-reel-cover': { format: 'instagram-reel-cover', width: 1080, height: 1920, label: 'Reel Cover',         labelAr: 'غلاف ريل',           aspectRatio: '9:16' },
-    'facebook-post':        { format: 'facebook-post',        width: 1200, height: 630,  label: 'Facebook Post',      labelAr: 'منشور فيسبوك',       aspectRatio: '16:9' },
-    'twitter-post':         { format: 'twitter-post',         width: 1600, height: 900,  label: 'X (Twitter) Post',   labelAr: 'منشور X (تويتر)',    aspectRatio: '16:9' },
-    'linkedin-post':        { format: 'linkedin-post',        width: 1200, height: 627,  label: 'LinkedIn Post',      labelAr: 'منشور لينكدإن',      aspectRatio: '16:9' },
-    'linkedin-banner':      { format: 'linkedin-banner',      width: 1584, height: 396,  label: 'LinkedIn Banner',    labelAr: 'بانر لينكدإن',       aspectRatio: '4:3'  },
-    'tiktok-cover':         { format: 'tiktok-cover',         width: 1080, height: 1920, label: 'TikTok Cover',       labelAr: 'غلاف تيك توك',       aspectRatio: '9:16' },
-    'youtube-thumbnail':    { format: 'youtube-thumbnail',    width: 1280, height: 720,  label: 'YouTube Thumbnail',  labelAr: 'صورة مصغرة يوتيوب', aspectRatio: '16:9' },
-    'ad-banner-square':     { format: 'ad-banner-square',     width: 1200, height: 1200, label: 'Ad Square',          labelAr: 'إعلان مربع',         aspectRatio: '1:1'  },
-    'ad-banner-landscape':  { format: 'ad-banner-landscape',  width: 1200, height: 628,  label: 'Ad Landscape',       labelAr: 'إعلان أفقي',         aspectRatio: '16:9' },
-    'custom':               { format: 'custom',               width: 1080, height: 1080, label: 'Custom Size',        labelAr: 'مقاس مخصص',         aspectRatio: '1:1'  },
+    // ── Instagram ─────────────────────────────────────────────────────────────
+    'instagram-post':       { format: 'instagram-post',       width: 1080, height: 1080, label: 'Instagram Post',       labelAr: 'منشور مربع',          aspectRatio: '1:1',  recommended: true,  tipAr: 'الأكثر انتشاراً' },
+    'instagram-portrait':   { format: 'instagram-portrait',   width: 1080, height: 1350, label: 'Instagram Portrait',   labelAr: 'صورة عمودية',         aspectRatio: '3:4',  recommended: true,  tipAr: 'أعلى تفاعل 4:5' },
+    'instagram-story':      { format: 'instagram-story',      width: 1080, height: 1920, label: 'Instagram Story',      labelAr: 'ستوري إنستاغرام',     aspectRatio: '9:16',                     tipAr: 'ستوري كاملة الشاشة' },
+    'instagram-reel-cover': { format: 'instagram-reel-cover', width: 1080, height: 1920, label: 'Reel Cover',           labelAr: 'غلاف ريل',            aspectRatio: '9:16',                     tipAr: 'غلاف الريلز' },
+
+    // ── Facebook ──────────────────────────────────────────────────────────────
+    'facebook-post':        { format: 'facebook-post',        width: 1200, height: 630,  label: 'Facebook Post',        labelAr: 'منشور فيسبوك',        aspectRatio: '16:9', recommended: true,  tipAr: 'المقاس المثالي 1.91:1' },
+    'facebook-story':       { format: 'facebook-story',       width: 1080, height: 1920, label: 'Facebook Story',       labelAr: 'ستوري فيسبوك',        aspectRatio: '9:16',                     tipAr: 'ستوري كاملة الشاشة' },
+
+    // ── X / Twitter ───────────────────────────────────────────────────────────
+    'twitter-post':         { format: 'twitter-post',         width: 1600, height: 900,  label: 'X Post (Landscape)',   labelAr: 'منشور X أفقي',        aspectRatio: '16:9', recommended: true,  tipAr: '16:9 — أفضل ظهور' },
+    'twitter-portrait':     { format: 'twitter-portrait',     width: 1080, height: 1350, label: 'X Post (Portrait)',    labelAr: 'منشور X عمودي',       aspectRatio: '3:4',                      tipAr: 'يملأ الـ feed عمودياً' },
+
+    // ── LinkedIn ──────────────────────────────────────────────────────────────
+    'linkedin-post':        { format: 'linkedin-post',        width: 1200, height: 627,  label: 'LinkedIn Post',        labelAr: 'منشور لينكدإن',       aspectRatio: '16:9', recommended: true,  tipAr: '1.91:1 — مثالي للـ feed' },
+    'linkedin-banner':      { format: 'linkedin-banner',      width: 1584, height: 396,  label: 'LinkedIn Banner',      labelAr: 'بانر لينكدإن',        aspectRatio: '4:3',                      tipAr: 'صورة البروفايل الخلفية' },
+
+    // ── TikTok ────────────────────────────────────────────────────────────────
+    'tiktok-cover':         { format: 'tiktok-cover',         width: 1080, height: 1920, label: 'TikTok Cover',         labelAr: 'غلاف تيك توك',        aspectRatio: '9:16', recommended: true,  tipAr: 'غلاف الفيديو 9:16' },
+
+    // ── YouTube ───────────────────────────────────────────────────────────────
+    'youtube-thumbnail':    { format: 'youtube-thumbnail',    width: 1280, height: 720,  label: 'YouTube Thumbnail',    labelAr: 'صورة مصغرة يوتيوب',  aspectRatio: '16:9', recommended: true,  tipAr: '1280×720 — المعيار الرسمي' },
+
+    // ── Pinterest ─────────────────────────────────────────────────────────────
+    'pinterest-pin':        { format: 'pinterest-pin',        width: 1000, height: 1500, label: 'Pinterest Pin',        labelAr: 'دبوس بينتريست',       aspectRatio: '3:4',  recommended: true,  tipAr: '2:3 — أفضل أداء على المنصة' },
+
+    // ── Snapchat ──────────────────────────────────────────────────────────────
+    'snapchat-story':       { format: 'snapchat-story',       width: 1080, height: 1920, label: 'Snapchat Story',       labelAr: 'ستوري سناب شات',      aspectRatio: '9:16', recommended: true,  tipAr: 'كاملة الشاشة 9:16' },
+
+    // ── WhatsApp ──────────────────────────────────────────────────────────────
+    'whatsapp-status':      { format: 'whatsapp-status',      width: 1080, height: 1920, label: 'WhatsApp Status',      labelAr: 'ستاتس واتساب',        aspectRatio: '9:16', recommended: true,  tipAr: 'حالة واتساب 9:16' },
+
+    // ── Ads ───────────────────────────────────────────────────────────────────
+    'ad-banner-square':     { format: 'ad-banner-square',     width: 1080, height: 1080, label: 'Ad Square',            labelAr: 'إعلان مربع',          aspectRatio: '1:1',  recommended: true,  tipAr: 'مربع — يعمل على كل المنصات' },
+    'ad-banner-landscape':  { format: 'ad-banner-landscape',  width: 1200, height: 628,  label: 'Ad Landscape',         labelAr: 'إعلان أفقي',          aspectRatio: '16:9',                     tipAr: 'بانر أفقي — Meta Ads' },
+    'ad-banner-portrait':   { format: 'ad-banner-portrait',   width: 1080, height: 1350, label: 'Ad Portrait',          labelAr: 'إعلان عمودي',         aspectRatio: '3:4',                      tipAr: '4:5 — أعلى تحويل في الهاتف' },
+
+    // ── Custom ────────────────────────────────────────────────────────────────
+    'custom':               { format: 'custom',               width: 1080, height: 1080, label: 'Custom Size',          labelAr: 'مقاس مخصص',           aspectRatio: '1:1' },
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2344,4 +2385,427 @@ export interface CreativeRequestForm {
     deadline: string;
     priority: MediaProjectPriority;
     notes: string;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Campaign Brain — AI Marketing Operating System
+// ════════════════════════════════════════════════════════════════════════════
+
+export type CampaignGoalType = 'awareness' | 'engagement' | 'leads' | 'sales' | 'retention';
+
+export type CampaignBrainStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+
+export type CBContentFormat = 'post' | 'story' | 'reel' | 'carousel' | 'video' | 'ad';
+
+export type CBContentType = 'educational' | 'promotional' | 'testimonial' | 'behind-scenes' | 'occasion' | 'entertainment';
+
+export type CBItemStatus =
+    | 'draft'
+    | 'brief_ready'
+    | 'design_in_progress'
+    | 'design_ready'
+    | 'caption_ready'
+    | 'needs_review'
+    | 'approved'
+    | 'scheduled'
+    | 'publishing'
+    | 'published'
+    | 'publish_failed'
+    | 'performance_tracked'
+    | 'needs_optimization';
+
+export type CBApprovalDecision = 'pending' | 'approved' | 'rejected' | 'needs_changes';
+
+export interface CBGoal {
+    id: string;
+    brandId: string;
+    title: string;
+    description?: string;
+    goalType: CampaignGoalType;
+    kpis: Array<{ metric: string; target: number; unit: string }>;
+    targetDate?: string;
+    status: 'active' | 'completed' | 'paused' | 'cancelled';
+    progress: number;
+    createdAt: string;
+}
+
+export interface CBCampaign {
+    id: string;
+    brandId: string;
+    goalId?: string;
+    name: string;
+    description?: string;
+    status: CampaignBrainStatus;
+    strategyData: CBStrategyDocument;
+    startDate?: string;
+    endDate?: string;
+    budget?: number;
+    currency: string;
+    platforms: string[];
+    contentCount: number;
+    publishedCount: number;
+    healthScore: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CBStrategyDocument {
+    coreMessage?: string;
+    contentMix?: Array<{ type: CBContentType; percentage: number }>;
+    keyMessages?: Array<{ text: string; priority: number }>;
+    platformDistribution?: Array<{ platform: string; weight: number }>;
+    toneGuidance?: string;
+    avoidTopics?: string[];
+    confidenceScore?: number;
+    reasoning?: string;
+}
+
+export interface CBContentPlan {
+    id: string;
+    brandId: string;
+    campaignId: string;
+    title: string;
+    totalItems: number;
+    status: 'draft' | 'active' | 'locked';
+    createdAt: string;
+}
+
+export interface CBContentItem {
+    id: string;
+    brandId: string;
+    campaignId?: string;
+    contentPlanId?: string;
+    title: string;
+    contentType: CBContentType;
+    platform: string;
+    format: CBContentFormat;
+    status: CBItemStatus;
+    caption?: string;
+    mediaUrl?: string;
+    briefData?: CBBriefData;
+    designPrompt?: string;
+    brandFitScore?: number;
+    scheduledAt?: string;
+    publishedAt?: string;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CBBriefData {
+    objective?: string;
+    targetSegment?: string;
+    keyMessage?: string;
+    tone?: string;
+    hooks?: string[];
+    cta?: string;
+    slideStructure?: CBSlide[];
+}
+
+export interface CBSlide {
+    order: number;
+    headline: string;
+    subtext?: string;
+    visualNote?: string;
+    cta?: string;
+}
+
+export interface CBCreativeBrief {
+    id: string;
+    brandId: string;
+    contentItemId: string;
+    objective: string;
+    targetSegment?: string;
+    keyMessage: string;
+    tone?: string;
+    hooks: string[];
+    cta?: string;
+    visualDirection?: string;
+    negativeSpace?: string;
+    slideStructure: CBSlide[];
+    version: number;
+    isApproved: boolean;
+    createdAt: string;
+}
+
+export interface CBDesignPrompt {
+    id: string;
+    brandId: string;
+    contentItemId: string;
+    creativeBriefId?: string;
+    promptText: string;
+    negativePrompt?: string;
+    model: string;
+    aspectRatio: string;
+    stylePreset?: string;
+    generatedImageUrl?: string;
+    generationStatus: 'pending' | 'generating' | 'done' | 'failed';
+    isSelected: boolean;
+    version: number;
+    createdAt: string;
+}
+
+export interface CBApproval {
+    id: string;
+    brandId: string;
+    contentItemId: string;
+    decision: CBApprovalDecision;
+    reviewType: 'content' | 'design' | 'compliance' | 'final';
+    notes?: string;
+    changesRequested: string[];
+    expiresAt?: string;
+    createdAt: string;
+}
+
+export interface CBPublishingJob {
+    id: string;
+    brandId: string;
+    contentItemId: string;
+    platform: string;
+    scheduledAt: string;
+    status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled' | 'retry';
+    attempts: number;
+    platformPostId?: string;
+    platformUrl?: string;
+    publishedAt?: string;
+    lastError?: string;
+    createdAt: string;
+}
+
+export interface CBQualityScore {
+    overall: number;
+    brandFit: number;
+    audienceFit: number;
+    goalFit: number;
+    platformFit: number;
+    visualClarity: number;
+    captionPower: number;
+    ctaStrength: number;
+    algorithm: number;
+    safety: number;
+    conversion: number;
+    issues: Array<{ dimension: string; message: string; autoFixable: boolean }>;
+    predictedCtr: 'low' | 'medium' | 'high';
+}
+
+export interface CBRecommendation {
+    priority: 'high' | 'medium' | 'low';
+    title: string;
+    reason: string;
+    action: string;
+    confidence: number;
+}
+
+// ── Campaign Brain wizard step type ──────────────────────────────────────────
+
+export type CBWizardStep =
+    | 'campaigns-list'
+    | 'goal-builder'
+    | 'strategy-generator'
+    | 'content-calendar'
+    | 'item-workspace'
+    | 'performance'
+    | 'recommendations';
+
+export interface CBCalendarSlot {
+    date: string;         // YYYY-MM-DD
+    platform: string;
+    format: CBContentFormat;
+    contentType: CBContentType;
+    topic: string;
+    angle: string;
+    occasionLink?: string;
+}
+
+// ── Campaign Brain Performance & Learning types ──────────────────────────────
+
+export interface CBKPIPerformance {
+    metric: string;
+    predicted: number;
+    actual: number;
+    unit: string;
+    status: 'on_target' | 'exceeded' | 'below';
+}
+
+export interface CBPerformanceLearning {
+    type: 'success' | 'weakness' | 'trend';
+    text: string;
+}
+
+export interface CBPerformanceAnalysis {
+    campaignId: string;
+    kpiPerformance: CBKPIPerformance[];
+    learnings: CBPerformanceLearning[];
+    healthScore: number;
+    avgEngagement: number;
+    topPerformerType: string;
+    weakPerformerType: string;
+    generatedAt: string;
+}
+
+// ── Captions table type ───────────────────────────────────────────────────────
+
+export interface CBCaption {
+    id: string;
+    brandId: string;
+    contentItemId: string;
+    platform: string;
+    version: number;
+    captionText: string;
+    headline?: string;
+    hashtags: string[];
+    cta?: string;
+    altText?: string;
+    charCount: number;
+    language: string;
+    isSelected: boolean;
+    createdAt: string;
+}
+
+// ── Media Assets table type ───────────────────────────────────────────────────
+
+export interface CBMediaAsset {
+    id: string;
+    brandId: string;
+    contentItemId?: string;
+    designPromptId?: string;
+    name: string;
+    url: string;
+    type: string;
+    source: string;
+    provider?: string;
+    aiScore?: number;
+    aspectRatio?: string;
+    width?: number;
+    height?: number;
+    prompt?: string;
+    tags: string[];
+    isSelected: boolean;
+    createdAt: string;
+}
+
+// ── Support Chat ──────────────────────────────────────────────────────────────
+
+export type SupportSenderType = 'user' | 'ai' | 'agent';
+export type SupportSessionStatus = 'active' | 'resolved' | 'closed';
+export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type SupportTicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type SupportTicketCategory = 'technical' | 'billing' | 'feature' | 'bug' | 'other';
+
+export interface SupportChatSession {
+    id: string;
+    userId: string;
+    brandId?: string;
+    language: 'ar' | 'en';
+    status: SupportSessionStatus;
+    title?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SupportChatMessage {
+    id: string;
+    sessionId: string;
+    senderType: SupportSenderType;
+    senderId?: string;
+    content: string;
+    metadata?: {
+        category?: SupportTicketCategory;
+        priority?: SupportTicketPriority;
+        canResolve?: boolean;
+        suggestTicket?: boolean;
+    };
+    createdAt: string;
+}
+
+export interface SupportTicket {
+    id: string;
+    ticketNumber: number;
+    sessionId?: string;
+    userId: string;
+    brandId?: string;
+    title: string;
+    description: string;
+    priority: SupportTicketPriority;
+    status: SupportTicketStatus;
+    category: SupportTicketCategory;
+    language: 'ar' | 'en';
+    assignedTo?: string;
+    resolvedAt?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SupportTicketReply {
+    id: string;
+    ticketId: string;
+    senderId: string;
+    senderType: 'user' | 'admin' | 'support_agent';
+    content: string;
+    isInternal: boolean;
+    createdAt: string;
+}
+
+export interface AISupportResponse {
+    reply: string;
+    canResolve: boolean;
+    suggestTicket: boolean;
+    category: SupportTicketCategory;
+    priority: SupportTicketPriority;
+}
+
+// ─── Smart Bot Studio ─────────────────────────────────────────────────────────
+
+export type BotScenario =
+    | 'sales-closing'
+    | 'lead-qualification'
+    | 'faq'
+    | 'product-advisor'
+    | 'retention'
+    | 'appointment';
+
+export type BotPersonality = 'professional' | 'friendly' | 'urgent' | 'luxury' | 'enthusiastic';
+export type BotLanguage = 'arabic' | 'english' | 'bilingual';
+export type BotStatus = 'active' | 'paused' | 'draft';
+export type BotTrigger = 'dm-received' | 'keyword-match' | 'comment-reply' | 'manual';
+
+export interface BotPersona {
+    id: string;
+    brandId: string;
+    name: string;
+    avatarEmoji: string;
+    scenario: BotScenario;
+    personality: BotPersonality;
+    language: BotLanguage;
+    persuasionLevel: 1 | 2 | 3;
+    systemPrompt: string;
+    greetingMessage: string;
+    closingMessage: string;
+    trigger: BotTrigger;
+    triggerKeywords: string[];
+    status: BotStatus;
+    conversationCount: number;
+    conversionRate: number;
+    createdAt: string;
+    updatedAt?: string;
+}
+
+export interface BotMessage {
+    id: string;
+    role: 'bot' | 'customer';
+    content: string;
+    timestamp: string;
+}
+
+export interface BotConversation {
+    id: string;
+    brandId: string;
+    personaId: string;
+    platform: 'instagram' | 'facebook' | 'whatsapp' | 'website';
+    customerName: string;
+    customerId: string;
+    status: 'active' | 'closed' | 'escalated' | 'converted';
+    messages: BotMessage[];
+    createdAt: string;
+    updatedAt: string;
 }

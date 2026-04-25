@@ -488,10 +488,13 @@ export const Publisher: React.FC<PublisherProps> = ({
             });
 
             const allSucceeded = results.every((result) => result.success);
-            if (allSucceeded) {
+            const anySucceeded = results.some((result) => result.success);
+            if (anySucceeded) {
                 await persistPost(
                     { ...postToPublish, status: PostStatus.Published, scheduledAt: new Date() },
-                    postToEditId ? (ar ? 'تم تحديث المنشور المنشور.' : 'Published post updated.') : (ar ? 'تم نشر المنشور بنجاح.' : 'Post published successfully.'),
+                    allSucceeded
+                        ? (postToEditId ? (ar ? 'تم تحديث المنشور المنشور.' : 'Published post updated.') : (ar ? 'تم نشر المنشور بنجاح.' : 'Post published successfully.'))
+                        : copy.partialPublish,
                     false,
                 );
             } else {
@@ -984,6 +987,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                     onSelectTime={handleSuggestionSelect}
                     platforms={post.platforms}
                     postTopic={post.content}
+                    brandProfile={brandProfile}
                 />
             )}
 
@@ -1022,6 +1026,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                         onClose={() => setShowImageGenerator(false)}
                         onAddImage={(mediaItem) => dispatch({ type: 'ADD_MEDIA', payload: [mediaItem] })}
                         brandId={brandId}
+                        brandProfile={brandProfile}
                     />
                 </Suspense>
             )}

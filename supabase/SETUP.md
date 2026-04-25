@@ -25,7 +25,9 @@ supabase db push
 ```
 
 Or run manually in Supabase SQL Editor, in order:
-- `migrations/001_*.sql` through `migrations/015_*.sql`
+- `migrations/001_*.sql` through `migrations/033_*.sql`
+
+> **Note:** Migrations 030–033 add Campaign Brain, Brand Documents, Captions/Media Assets, and Support Chat tables. Run them in order after the base migrations.
 
 ## 3. Enable Required Extensions
 
@@ -43,6 +45,10 @@ supabase functions deploy auto-publisher
 
 # Deploy analytics aggregator
 supabase functions deploy analytics-aggregator
+
+# Deploy Campaign Brain edge functions (added in migrations 030+)
+supabase functions deploy publish-content
+supabase functions deploy analytics-learning
 
 # Set secrets for edge functions
 supabase secrets set SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co

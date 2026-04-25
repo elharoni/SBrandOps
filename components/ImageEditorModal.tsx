@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useModalClose } from '../hooks/useModalClose';
 import { MediaItem } from '../types';
 
 interface ImageEditorModalProps {
@@ -42,6 +43,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ mediaItem, o
     const [filters, setFilters] = useState<Filters>(initialFilters);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imageRef = useRef<HTMLImageElement>(new Image());
+    useModalClose(onClose);
 
     // Effect to load the image
     useEffect(() => {
@@ -124,8 +126,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ mediaItem, o
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-dark-border flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white flex items-center"><i className="fas fa-pencil-ruler me-3 text-brand-secondary"></i>تحرير الصورة</h2>
                     <button onClick={onClose} className="text-dark-text-secondary hover:text-white text-2xl">&times;</button>

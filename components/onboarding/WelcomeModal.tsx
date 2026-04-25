@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useModalClose } from '../../hooks/useModalClose';
 
 interface Props {
     userName: string;
@@ -25,6 +26,7 @@ export const WelcomeModal: React.FC<Props> = ({ userName, onClose, onUpgrade }) 
         setVisible(false);
         setTimeout(onClose, 400);
     };
+    useModalClose(handleClose);
 
     const handleUpgrade = () => {
         setVisible(false);
@@ -33,9 +35,10 @@ export const WelcomeModal: React.FC<Props> = ({ userName, onClose, onUpgrade }) 
 
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-500 ${visible ? 'opacity-100' : 'opacity-0'}`}
-            style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)' }}>
+            style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)' }}
+            onClick={handleClose}>
 
-            <div className={`w-full max-w-sm transition-all duration-500 ${visible ? 'scale-100 translate-y-0' : 'scale-90 translate-y-8'}`}>
+            <div className={`w-full max-w-sm transition-all duration-500 ${visible ? 'scale-100 translate-y-0' : 'scale-90 translate-y-8'}`} onClick={e => e.stopPropagation()}>
 
                 {/* Icon top */}
                 <div className="text-center mb-4">

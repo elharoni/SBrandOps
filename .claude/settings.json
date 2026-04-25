@@ -71,7 +71,11 @@
       "Bash(python -)",
       "Read(//e//**)",
       "Bash(npx vite *)",
-      "Read(//e/sbrandops/functions/**)"
+      "Read(//e/sbrandops/functions/**)",
+      "Bash(grep -r \"activeBrand\\\\\\\\.id\\\\|activeBrand\\\\\\\\.name\" /e/sbrandops---v1.0541/components --include=\"*.tsx\")",
+      "Bash(grep -n \"activeBrand\\\\\\\\.id\\\\|activeBrand\\\\\\\\.name\\\\|activeBrand\\\\\\\\.logo\" /e/sbrandops---v1.0541/components/Header.tsx /e/sbrandops---v1.0541/components/routing/BrandRouter.tsx)",
+      "Bash(supabase functions *)",
+      "Bash(where supabase *)"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

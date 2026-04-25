@@ -1,10 +1,13 @@
 
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
 import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
+import { callAIProxy, Type } from '../../services/aiProxy';
 import { getBrandSkillsReport } from '../../services/evaluationService';
+import { getBrandDocuments, deleteBrandDocument, BrandDocument, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
+import { BrandImportModal } from '../BrandImportModal';
 import { SkillStats } from '../../types';
 
 interface BrandHubPageProps {
@@ -14,7 +17,7 @@ interface BrandHubPageProps {
     addNotification: (type: NotificationType, message: string) => void;
 }
 
-type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'knowledge';
+type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'knowledge' | 'documents';
 
 const ScoreDonut: React.FC<{ score: number }> = ({ score }) => {
     const color = score >= 85 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400';
@@ -51,6 +54,24 @@ const TONE_OPTIONS = [
 
 const INDUSTRY_OPTIONS = ['تجزئة وتسوق', 'عقارات', 'مطاعم وأغذية', 'صحة وجمال', 'تقنية وSaaS', 'تعليم', 'سياحة وضيافة', 'مالية وبنوك', 'رياضة ولياقة', 'أخرى'];
 
+const BINARY_EXTS: Record<string, string> = {
+    pdf:  'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    doc:  'application/msword',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+};
+
+function getExt(name: string) { return name.split('.').pop()?.toLowerCase() ?? ''; }
+
+async function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGenerate: (profile: Partial<BrandHubProfile>) => void; }> = ({ brandName, onClose, onGenerate }) => {
     const [step, setStep] = useState(1);
     const [form, setForm] = useState({
@@ -62,6 +83,87 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
         platforms: [] as string[],
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [isExtractingFile, setIsExtractingFile] = useState(false);
+    const [fileExtractMsg, setFileExtractMsg] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setIsExtractingFile(true);
+        setFileExtractMsg(null);
+        try {
+            const ext = getExt(file.name);
+            const isBinary = ext in BINARY_EXTS;
+
+            // Build contents array — inline_data for binary, text for plain
+            let contents: unknown[];
+            if (isBinary) {
+                const base64 = await fileToBase64(file);
+                contents = [{
+                    role: 'user',
+                    parts: [
+                        { inline_data: { mime_type: BINARY_EXTS[ext], data: base64 } },
+                        { text: 'استخرج من هذه الوثيقة: الصناعة، وصف النشاط، الجمهور المستهدف، نبرة الصوت، والمنصات. أرجع JSON فقط.' },
+                    ],
+                }];
+            } else {
+                const rawText = await file.text();
+                contents = [{
+                    role: 'user',
+                    parts: [{ text: `استخرج من هذه الوثيقة: الصناعة، وصف النشاط، الجمهور المستهدف، نبرة الصوت، والمنصات. أرجع JSON فقط.\n\n${rawText.slice(0, 15000)}` }],
+                }];
+            }
+
+            const WIZARD_INDUSTRIES = ['تجزئة وتسوق', 'عقارات', 'مطاعم وأغذية', 'صحة وجمال', 'تقنية وSaaS', 'تعليم', 'سياحة وضيافة', 'مالية وبنوك', 'رياضة ولياقة', 'أخرى'];
+            const WIZARD_TONES = ['professional', 'friendly', 'bold', 'creative', 'empathetic', 'authoritative'];
+            const WIZARD_PLATFORMS = ['Instagram', 'TikTok', 'Facebook', 'X', 'LinkedIn', 'Snapchat'];
+
+            const res = await callAIProxy({
+                model: 'gemini-2.5-flash',
+                contents,
+                schema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        industry:       { type: Type.STRING,  description: `واحدة فقط من: ${WIZARD_INDUSTRIES.join(', ')}` },
+                        description:    { type: Type.STRING,  description: 'وصف موجز للنشاط التجاري، 2-4 جمل' },
+                        targetAudience: { type: Type.STRING,  description: 'وصف الجمهور المستهدف' },
+                        ageRange:       { type: Type.STRING,  description: 'مثال: 25-34' },
+                        tones:          { type: Type.ARRAY,   items: { type: Type.STRING, description: `واحدة من: ${WIZARD_TONES.join(', ')}` } },
+                        platforms:      { type: Type.ARRAY,   items: { type: Type.STRING, description: `واحدة من: ${WIZARD_PLATFORMS.join(', ')}` } },
+                    },
+                },
+                feature: 'wizard_file_extract',
+            });
+
+            const raw = typeof res.text === 'string' ? JSON.parse(res.text) : res.text as Record<string, unknown>;
+
+            const matchedIndustry = WIZARD_INDUSTRIES.find(o => o === raw.industry) ?? '';
+            const matchedTones = ((raw.tones as string[] | undefined) ?? []).filter(t => WIZARD_TONES.includes(t)).slice(0, 3);
+            const matchedPlatforms = ((raw.platforms as string[] | undefined) ?? []).filter(p => WIZARD_PLATFORMS.includes(p));
+            const matchedAge = ['18-24','25-34','35-44','45-54','55+'].find(r => r === raw.ageRange) ?? '';
+
+            setForm(f => ({
+                ...f,
+                industry:       matchedIndustry        || f.industry,
+                description:    (raw.description as string | undefined)    || f.description,
+                targetAudience: (raw.targetAudience as string | undefined) || f.targetAudience,
+                ageRange:       matchedAge             || f.ageRange,
+                tones:          matchedTones.length    ? matchedTones    : f.tones,
+                platforms:      matchedPlatforms.length ? matchedPlatforms : f.platforms,
+            }));
+
+            const filledCount = [matchedIndustry, raw.description, raw.targetAudience, matchedTones.length, matchedPlatforms.length].filter(Boolean).length;
+            setFileExtractMsg(`✓ تم ملء ${filledCount} حقول تلقائياً من "${file.name}"`);
+        } catch (err) {
+            console.error('[wizard file upload]', err);
+            const msg = err instanceof Error ? err.message : String(err);
+            setFileExtractMsg(`تعذّر قراءة الملف: ${msg.slice(0, 80)}`);
+        } finally {
+            setIsExtractingFile(false);
+        }
+    };
 
     const toggleTone = (val: string) => setForm(f => ({
         ...f, tones: f.tones.includes(val) ? f.tones.filter(t => t !== val) : [...f.tones, val].slice(0, 3),
@@ -124,6 +226,45 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                     {step === 1 && (
                         <div className="space-y-4">
                             <p className="text-dark-text-secondary text-sm">أخبرنا عن نشاطك التجاري — سيبني الذكاء الاصطناعي هوية البراند من هذه المعلومات</p>
+
+                            {/* File upload */}
+                            <input ref={fileInputRef} type="file" accept=".txt,.md,.pdf,.docx,.doc,.pptx" className="hidden" onChange={handleFileUpload} />
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isExtractingFile}
+                                className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-dashed border-brand-pink/40 hover:border-brand-pink hover:bg-brand-pink/5 transition-all text-right group disabled:opacity-60"
+                            >
+                                <div className="w-9 h-9 rounded-xl bg-brand-pink/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-pink/20 transition-colors">
+                                    {isExtractingFile
+                                        ? <i className="fas fa-circle-notch fa-spin text-brand-pink text-sm" />
+                                        : <i className="fas fa-file-import text-brand-pink text-sm" />
+                                    }
+                                </div>
+                                <div className="flex-1 min-w-0 text-right">
+                                    <p className="text-sm font-bold text-white">
+                                        {isExtractingFile ? 'جارٍ قراءة الملف...' : 'استيراد من ملف'}
+                                    </p>
+                                    <p className="text-xs text-dark-text-secondary mt-0.5">
+                                        PDF، Word، TXT، MD — يملأ الـ AI الحقول تلقائياً
+                                    </p>
+                                </div>
+                                <i className="fas fa-chevron-left text-brand-pink/50 group-hover:text-brand-pink transition-colors flex-shrink-0 text-xs" />
+                            </button>
+
+                            {fileExtractMsg && (
+                                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${fileExtractMsg.startsWith('✓') ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                    <i className={`fas ${fileExtractMsg.startsWith('✓') ? 'fa-check-circle' : 'fa-exclamation-circle'} text-[11px]`} />
+                                    {fileExtractMsg}
+                                </div>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 border-t border-dark-border" />
+                                <span className="text-[10px] text-dark-text-secondary flex-shrink-0">أو أدخل يدوياً</span>
+                                <div className="flex-1 border-t border-dark-border" />
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-semibold text-dark-text-secondary mb-1">الصناعة / القطاع</label>
                                 <select value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
@@ -257,6 +398,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     const [kForm, setKForm] = useState({ title: '', content: '' });
     const [kSaving, setKSaving] = useState(false);
 
+    // Learning Library State
+    const [documents, setDocuments] = useState<BrandDocument[]>([]);
+    const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+
     const loadKnowledge = useCallback(async () => {
         if (!brandId) return;
         setIsLoadingKnowledge(true);
@@ -272,7 +418,31 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
     useEffect(() => {
         if (activeTab === 'knowledge') loadKnowledge();
+        if (activeTab === 'documents') loadDocuments();
     }, [activeTab, loadKnowledge]);
+
+    const loadDocuments = useCallback(async () => {
+        if (!brandId) return;
+        setIsLoadingDocs(true);
+        try {
+            const docs = await getBrandDocuments(brandId);
+            setDocuments(docs);
+        } catch {
+            // silent
+        } finally {
+            setIsLoadingDocs(false);
+        }
+    }, [brandId]);
+
+    const handleDeleteDocument = async (docId: string) => {
+        try {
+            await deleteBrandDocument(brandId, docId);
+            setDocuments(prev => prev.filter(d => d.id !== docId));
+            addNotification(NotificationType.Success, 'تم حذف الوثيقة');
+        } catch {
+            addNotification(NotificationType.Error, 'فشل الحذف');
+        }
+    };
 
     const openAddForm = () => {
         setEditingEntry(null);
@@ -417,12 +587,13 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
             <div className="bg-dark-bg p-1 rounded-lg flex items-center gap-1 flex-wrap">
                 {([
-                    { id: 'identity',  label: 'الهوية',      icon: 'fa-building' },
-                    { id: 'assets',    label: 'الأصول',      icon: 'fa-palette' },
-                    { id: 'voice',     label: 'الصوت',       icon: 'fa-microphone' },
-                    { id: 'audience',  label: 'الجمهور',     icon: 'fa-users' },
+                    { id: 'identity',  label: 'الهوية',       icon: 'fa-building' },
+                    { id: 'assets',    label: 'الأصول',       icon: 'fa-palette' },
+                    { id: 'voice',     label: 'الصوت',        icon: 'fa-microphone' },
+                    { id: 'audience',  label: 'الجمهور',      icon: 'fa-users' },
                     { id: 'knowledge', label: 'قاعدة المعرفة', icon: 'fa-database' },
-                    { id: 'ai-memory', label: 'ذاكرة AI',    icon: 'fa-brain' },
+                    { id: 'documents', label: 'مكتبة التعلم', icon: 'fa-book-open' },
+                    { id: 'ai-memory', label: 'ذاكرة AI',     icon: 'fa-brain' },
                 ] as const).map(tab => (
                     <button
                         key={tab.id}
@@ -463,11 +634,33 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                 </div>
                             </div>
                         )}
-                        <button onClick={() => setShowOnboarding(true)}
-                            className="text-sm font-semibold text-brand-primary hover:underline flex items-center gap-1.5">
-                            <i className="fas fa-magic text-xs"></i>
-                            تحديث الهوية بالذكاء الاصطناعي
-                        </button>
+                        <div className="flex items-center gap-4 flex-wrap">
+                            <button onClick={() => setShowOnboarding(true)}
+                                className="text-sm font-semibold text-brand-primary hover:underline flex items-center gap-1.5">
+                                <i className="fas fa-magic text-xs"></i>
+                                تحديث الهوية بالذكاء الاصطناعي
+                            </button>
+                            <span className="text-dark-border text-xs">|</span>
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="text-sm font-semibold text-brand-pink hover:underline flex items-center gap-1.5"
+                            >
+                                <i className="fas fa-file-import text-xs"></i>
+                                استيراد من وثيقة
+                            </button>
+                        </div>
+                        {showImportModal && (
+                            <BrandImportModal
+                                onClose={() => setShowImportModal(false)}
+                                existingBrandId={brandId}
+                                onImported={async () => {
+                                    setShowImportModal(false);
+                                    addNotification(NotificationType.Success, 'تم تحديث بيانات البراند من الوثيقة');
+                                    // Reload profile to reflect updates
+                                    window.location.reload();
+                                }}
+                            />
+                        )}
                     </div>
                 )}
 
@@ -913,6 +1106,126 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                         </div>
                     );
                 })()}
+
+                {/* ── Learning Library Tab ────────────────────────────────── */}
+                {activeTab === 'documents' && (
+                    <div className="space-y-5">
+                        {showImportModal && activeTab === 'documents' && (
+                            <BrandImportModal
+                                onClose={() => setShowImportModal(false)}
+                                existingBrandId={brandId}
+                                onImported={async () => {
+                                    setShowImportModal(false);
+                                    await loadDocuments();
+                                    addNotification(NotificationType.Success, 'تم إضافة الوثائق إلى مكتبة التعلم');
+                                }}
+                            />
+                        )}
+
+                        <div className="flex items-center justify-between flex-wrap gap-3">
+                            <div>
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <i className="fas fa-book-open text-brand-pink" />
+                                    مكتبة التعلم
+                                </h2>
+                                <p className="text-dark-text-secondary text-sm mt-0.5">
+                                    الوثائق التي تُغذّي ذكاء البراند — كلما أضفت أكثر، تعلّم أكثر
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowImportModal(true)}
+                                className="flex items-center gap-2 bg-gradient-to-r from-brand-pink to-brand-purple text-white font-bold py-2 px-5 rounded-lg hover:opacity-90 text-sm"
+                            >
+                                <i className="fas fa-plus text-xs" />
+                                إضافة وثائق جديدة
+                            </button>
+                        </div>
+
+                        {isLoadingDocs ? (
+                            <div className="flex justify-center py-12">
+                                <div className="w-8 h-8 border-4 border-brand-pink border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : documents.length === 0 ? (
+                            <div className="text-center py-14 space-y-4">
+                                <div className="text-5xl">📚</div>
+                                <p className="text-white font-semibold text-lg">لا توجد وثائق بعد</p>
+                                <p className="text-dark-text-secondary text-sm max-w-sm mx-auto">
+                                    ارفع كتاب البراند، وثائق المنتجات، أمثلة المحتوى — الـ AI سيتعلم منها كلها
+                                </p>
+                                <button
+                                    onClick={() => setShowImportModal(true)}
+                                    className="mx-auto flex items-center gap-2 bg-dark-bg border border-dashed border-brand-pink/40 text-brand-pink hover:border-brand-pink font-medium py-2.5 px-6 rounded-lg text-sm transition-colors"
+                                >
+                                    <i className="fas fa-file-import text-xs" />
+                                    استيراد أول وثيقة
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid gap-3">
+                                {documents.map(doc => {
+                                    const completenessColor = doc.completenessScore >= 75 ? 'text-green-400' : doc.completenessScore >= 50 ? 'text-yellow-400' : 'text-orange-400';
+                                    const typeLabel = DOC_TYPE_LABELS[doc.docType] ?? doc.docType;
+                                    const date = new Date(doc.createdAt).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' });
+                                    return (
+                                        <div key={doc.id} className="bg-dark-bg rounded-xl border border-dark-border p-4 flex gap-4 items-start">
+                                            <div className="text-3xl flex-shrink-0 mt-0.5">📄</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-2 flex-wrap">
+                                                    <div>
+                                                        <p className="font-semibold text-white text-sm">{doc.title}</p>
+                                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                                            <span className="text-[10px] bg-brand-pink/15 text-brand-pink px-2 py-0.5 rounded-full">{typeLabel}</span>
+                                                            <span className="text-[10px] text-dark-text-secondary">{(doc.charCount / 1000).toFixed(1)}K حرف</span>
+                                                            <span className="text-[10px] text-dark-text-secondary">{date}</span>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeleteDocument(doc.id)}
+                                                        className="text-dark-text-secondary hover:text-red-400 text-xs transition-colors flex-shrink-0"
+                                                        title="حذف الوثيقة"
+                                                    >
+                                                        <i className="fas fa-trash-alt" />
+                                                    </button>
+                                                </div>
+
+                                                {doc.extractedSummary && (
+                                                    <p className="text-xs text-dark-text-secondary mt-2 leading-relaxed line-clamp-2">{doc.extractedSummary}</p>
+                                                )}
+
+                                                <div className="flex items-center gap-4 mt-3 flex-wrap">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className={`text-sm font-bold ${completenessColor}`}>{doc.completenessScore}%</span>
+                                                        <span className="text-[10px] text-dark-text-secondary">اكتمال</span>
+                                                    </div>
+                                                    {doc.knowledgeEntriesSaved > 0 && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-blue-400">
+                                                            <i className="fas fa-database text-[8px]" />
+                                                            {doc.knowledgeEntriesSaved} معرفة
+                                                        </div>
+                                                    )}
+                                                    {doc.memoryEntriesSaved > 0 && (
+                                                        <div className="flex items-center gap-1 text-[10px] text-purple-400">
+                                                            <i className="fas fa-brain text-[8px]" />
+                                                            {doc.memoryEntriesSaved} ذاكرة AI
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {documents.length > 0 && (
+                            <div className="p-3 bg-dark-bg rounded-lg border border-dark-border text-xs text-dark-text-secondary text-center">
+                                {documents.length} وثيقة •{' '}
+                                {documents.reduce((s, d) => s + d.knowledgeEntriesSaved, 0)} إدخال معرفة •{' '}
+                                {documents.reduce((s, d) => s + d.memoryEntriesSaved, 0)} مثال في الذاكرة
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {activeTab === 'ai-memory' && (
                     <div className="space-y-4">

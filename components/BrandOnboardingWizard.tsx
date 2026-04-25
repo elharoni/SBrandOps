@@ -3,6 +3,7 @@ import { NotificationType } from '../types';
 import { addBrand } from '../services/brandService';
 import { updateBrandProfile } from '../services/brandHubService';
 import { useLanguage } from '../context/LanguageContext';
+import { BrandImportModal } from './BrandImportModal';
 
 interface BrandOnboardingWizardProps {
     onComplete: (brandId: string) => void;
@@ -108,6 +109,7 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
     const { t, language } = useLanguage();
     const [currentStep, setCurrentStep] = useState<Step>('info');
     const [isSaving, setIsSaving] = useState(false);
+    const [showImport, setShowImport] = useState(false);
 
     const [brandName, setBrandName] = useState('');
     const [industry, setIndustry] = useState('');
@@ -196,6 +198,16 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
     const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
     return (
+        <>
+        {showImport && (
+            <BrandImportModal
+                onClose={() => setShowImport(false)}
+                onImported={(brandId) => {
+                    setShowImport(false);
+                    onComplete(brandId);
+                }}
+            />
+        )}
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm" dir={ar ? 'rtl' : 'ltr'}>
             <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-light-border dark:border-dark-border">
 
@@ -253,6 +265,37 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                     {/* STEP 1: Brand Info */}
                     {currentStep === 'info' && (
                         <div className="space-y-6 animate-fade-in">
+
+                            {/* Import from file card */}
+                            <button
+                                type="button"
+                                onClick={() => setShowImport(true)}
+                                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-brand-primary/40 hover:border-brand-primary hover:bg-brand-primary/5 transition-all text-right group"
+                            >
+                                <div className="w-11 h-11 rounded-xl bg-brand-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-brand-primary/20 transition-colors">
+                                    <i className="fas fa-file-import text-brand-primary text-lg" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-light-text dark:text-dark-text text-sm">
+                                        {ar ? 'استيراد من ملف' : 'Import from File'}
+                                    </p>
+                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                                        {ar
+                                            ? 'لديك وثيقة براند من ChatGPT أو Claude؟ استوردها وسيملأ الـ AI كل شيء في دقائق'
+                                            : 'Have a brand document from ChatGPT or Claude? Import it and AI fills everything in minutes'}
+                                    </p>
+                                </div>
+                                <i className="fas fa-chevron-left text-brand-primary/50 group-hover:text-brand-primary transition-colors flex-shrink-0 text-sm" />
+                            </button>
+
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 border-t border-light-border dark:border-dark-border" />
+                                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary flex-shrink-0">
+                                    {ar ? 'أو أدخل يدوياً' : 'or enter manually'}
+                                </span>
+                                <div className="flex-1 border-t border-light-border dark:border-dark-border" />
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-semibold text-light-text dark:text-dark-text mb-2">
                                     {ar ? 'اسم العلامة التجارية' : 'Brand Name'}
@@ -601,5 +644,6 @@ export const BrandOnboardingWizard: React.FC<BrandOnboardingWizardProps> = ({ on
                 </div>
             </div>
         </div>
+        </>
     );
 };

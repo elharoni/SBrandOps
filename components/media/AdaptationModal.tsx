@@ -2,6 +2,7 @@
 // Adaptation Engine — توليد variants من Master piece
 
 import React, { useState } from 'react';
+import { useModalClose } from '../../hooks/useModalClose';
 import { NotificationType, MediaProjectPiece } from '../../types';
 import { createProjectPiece } from '../../services/mediaProjectService';
 import { useLanguage } from '../../context/LanguageContext';
@@ -69,6 +70,7 @@ export const AdaptationModal: React.FC<AdaptationModalProps> = ({
 }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
+    useModalClose(onClose);
 
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [isCreating, setIsCreating] = useState(false);
@@ -130,8 +132,8 @@ export const AdaptationModal: React.FC<AdaptationModalProps> = ({
     const filtered = VARIANT_PRESETS.filter(p => p.category === activeCategory);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <div className="relative flex w-full max-w-lg flex-col rounded-3xl border border-dark-border bg-dark-card shadow-2xl max-h-[85vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative flex w-full max-w-lg flex-col rounded-3xl border border-dark-border bg-dark-card shadow-2xl max-h-[85vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-dark-border px-6 py-5 flex-shrink-0">
                     <div>

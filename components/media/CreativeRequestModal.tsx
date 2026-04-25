@@ -2,6 +2,7 @@
 // Creative Request Modal — intake form لبدء مشروع ميديا جديد
 
 import React, { useState } from 'react';
+import { useModalClose } from '../../hooks/useModalClose';
 import {
     CreativeRequestForm,
     MediaProjectGoal,
@@ -74,6 +75,7 @@ export const CreativeRequestModal: React.FC<CreativeRequestModalProps> = ({
 
     const [form, setForm] = useState<CreativeRequestForm>(BLANK);
     const [isSaving, setIsSaving] = useState(false);
+    useModalClose(onClose);
     const [step, setStep] = useState<1 | 2>(1);
 
     const set = <K extends keyof CreativeRequestForm>(key: K, val: CreativeRequestForm[K]) =>
@@ -107,8 +109,8 @@ export const CreativeRequestModal: React.FC<CreativeRequestModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-            <div className="relative flex w-full max-w-2xl flex-col rounded-3xl border border-dark-border bg-dark-card shadow-2xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative flex w-full max-w-2xl flex-col rounded-3xl border border-dark-border bg-dark-card shadow-2xl max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-dark-border px-6 py-5 flex-shrink-0">
                     <div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CrmLifecycleStage } from '../../../types';
 import { LIFECYCLE_STAGE_CONFIG, createCustomer } from '../../../services/crmService';
+import { useModalClose } from '../../../hooks/useModalClose';
 
 interface AddCustomerModalProps {
     brandId: string;
@@ -14,6 +15,7 @@ export const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ brandId, onC
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+    useModalClose(onClose);
     const [stage, setStage] = useState<CrmLifecycleStage>(CrmLifecycleStage.Lead);
     const [source, setSource] = useState('Manual');
     const [loading, setLoading] = useState(false);

@@ -230,6 +230,24 @@ async function getConnectedSourceSummaries(
 
 // --- Main Service Functions ---
 
+export async function syncAnalytics(brandId: string): Promise<void> {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    const { data: session } = await supabase.auth.getSession();
+    const jwt = session?.session?.access_token;
+    if (!jwt) return;
+
+    await fetch(`${supabaseUrl}/functions/v1/analytics-aggregator`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`,
+            'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({ brand_id: brandId }),
+    });
+}
+
 export async function getAnalyticsData(
     brandId: string,
     filters: { period: string, platforms: SocialPlatform[] },
@@ -308,10 +326,48 @@ export async function getAnalyticsData(
         const { data: sentimentRows, error: sentimentError } = await sentimentQuery;
         if (sentimentError) throw sentimentError;
 
-        // Aggregate total followers per platform
-        const totalFollowers = accounts.reduce((sum, account) => sum + (account.followers || 0), 0);
-        const totalImpressions = (postAnalytics || []).reduce((sum, p) => sum + (p.impressions || 0), 0);
-        const totalEngagement = (postAnalytics || []).reduce((sum, p) => sum + (p.engagement || 0), 0);
+        // 6. Read page-level metrics from analytics_snapshots (populated by analytics-aggregator cron)
+        let snapshotsQuery = supabase
+            .from('analytics_snapshots')
+            .select('platform, metric_name, metric_value, period_start')
+            .eq('brand_id', brandId)
+            .gte('period_start', sinceDate.toISOString())
+            .in('metric_name', ['impressions', 'reach', 'post_impressions', 'page_fans', 'engaged_users', 'follower_count']);
+
+        if (hasPlatformFilter) {
+            snapshotsQuery = snapshotsQuery.in('platform', selectedPlatforms);
+        }
+
+        const { data: snapshots } = await snapshotsQuery;
+
+        // Aggregate page-level impressions + engagement from snapshots
+        let snapshotImpressions = 0;
+        let snapshotEngagement = 0;
+        let snapshotFollowers = 0;
+
+        for (const row of snapshots ?? []) {
+            const val = Number(row.metric_value) || 0;
+            if (row.metric_name === 'impressions' || row.metric_name === 'post_impressions') {
+                snapshotImpressions += val;
+            }
+            if (row.metric_name === 'engaged_users') {
+                snapshotEngagement += val;
+            }
+            // Use most recent page_fans / follower_count as a fallback for followers
+            if ((row.metric_name === 'page_fans' || row.metric_name === 'follower_count') && val > snapshotFollowers) {
+                snapshotFollowers = val;
+            }
+        }
+
+        // Aggregate total followers per platform — prefer DB value, fall back to snapshots
+        const dbFollowers = accounts.reduce((sum, account) => sum + (account.followers || 0), 0);
+        const totalFollowers = dbFollowers > 0 ? dbFollowers : snapshotFollowers;
+
+        // Merge post-level + page-level impressions/engagement
+        const postImpressions = (postAnalytics || []).reduce((sum, p) => sum + (p.impressions || 0), 0);
+        const postEngagement = (postAnalytics || []).reduce((sum, p) => sum + (p.engagement || 0), 0);
+        const totalImpressions = postImpressions + snapshotImpressions;
+        const totalEngagement = postEngagement + snapshotEngagement;
 
         // Top posts by engagement
         const postEngagementMap: Record<string, { content: string; engagement: number }> = {};
@@ -345,6 +401,11 @@ export async function getAnalyticsData(
             rate: data.impressions > 0 ? parseFloat(((data.engagement / data.impressions) * 100).toFixed(2)) : 0,
         }));
 
+        const platformBreakdown: Record<string, { impressions: number; engagement: number }> = {};
+        Object.entries(platformEngMap).forEach(([platform, data]) => {
+            platformBreakdown[platform] = { impressions: data.impressions, engagement: data.engagement };
+        });
+
         // Build follower growth timeline
         const growthMap: Record<string, Record<string, number>> = {};
         if (!historyError && followerHistory) {
@@ -369,6 +430,7 @@ export async function getAnalyticsData(
             topPosts,
             followerGrowth,
             engagementRate,
+            platformBreakdown,
         };
 
     } catch (error) {

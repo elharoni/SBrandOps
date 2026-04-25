@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { SocialAsset, SocialPlatform, AssetPurpose, PLATFORM_ASSETS } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useModalClose } from '../hooks/useModalClose';
 
 type Step = 'assets' | 'purpose';
 
@@ -41,6 +42,7 @@ export const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
 }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
+    useModalClose(onClose);
     const [step, setStep] = useState<Step>('assets');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [selectedPurposes, setSelectedPurposes] = useState<AssetPurpose[]>([AssetPurpose.Publishing, AssetPurpose.Analytics]);

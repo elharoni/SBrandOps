@@ -1,6 +1,6 @@
 
 import { supabase } from './supabaseClient';
-import { BrandHubProfile, PostPerformance, AIPostAnalysis, IdeaTestPlan, AdCreative, CampaignGoal, BrandVoiceAnalysis, HashtagSuggestion, BrandConsistencyEvaluation, SocialSearchAnalysisResult, AIContentIdea, SocialPlatform, OperationalError, AIErrorAnalysis, AnalyticsData, AIAnalyticsInsights, BrainstormedIdea, InboxConversation, ConversationIntent, ConversationSentiment, BrandProfileAnalysis, AIQualityCheckResult, ContentGoal, AdPlatform, AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan, PlanObjectiveType, SeoKeyword, SeoArticle, BrandBrainContext, ConversationScenario, ConversationReply, OccasionOpportunity } from '../types';
+import { BrandHubProfile, PostPerformance, AIPostAnalysis, IdeaTestPlan, AdCreative, CampaignGoal, BrandVoiceAnalysis, HashtagSuggestion, BrandConsistencyEvaluation, SocialSearchAnalysisResult, AIContentIdea, SocialPlatform, OperationalError, AIErrorAnalysis, AnalyticsData, AIAnalyticsInsights, BrainstormedIdea, InboxConversation, ConversationIntent, ConversationSentiment, BrandProfileAnalysis, AIQualityCheckResult, ContentGoal, AdPlatform, AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan, PlanObjectiveType, SeoKeyword, SeoArticle, BrandBrainContext, ConversationScenario, ConversationReply, OccasionOpportunity, AISupportResponse } from '../types';
 import { buildBrandSystemPrompt } from './brandBrainService';
 import type { Occasion } from '../data/occasions';
 
@@ -53,7 +53,7 @@ async function callAIImageProxy(params: {
 }
 
 // --- Image Generation ---
-export type AIImageProvider = 'google' | 'pollinations' | 'gemini-native';
+export type AIImageProvider = 'google' | 'pollinations' | 'gemini-native' | 'openai';
 
 export async function generateImageFromPrompt(
     prompt: string,
@@ -94,6 +94,20 @@ export async function generateImageFromPrompt(
                 },
             });
             if (error) throw new Error(error.message ?? 'Gemini image proxy error');
+            return (data as { images: string[] })?.images ?? [];
+        }
+
+        if (provider === 'openai') {
+            const { data, error } = await supabase.functions.invoke('ai-proxy', {
+                body: {
+                    mode: 'openai-image',
+                    model: 'gpt-image-1',
+                    prompt,
+                    count: clampedCount,
+                    aspect_ratio: aspectRatio,
+                },
+            });
+            if (error) throw new Error(error.message ?? 'OpenAI image proxy error');
             return (data as { images: string[] })?.images ?? [];
         }
 
@@ -475,6 +489,351 @@ export async function generateInitialBrandProfile(description: string, brandName
     return JSON.parse(response.text);
 }
 
+export interface BrandImportData {
+    // ── Core identity ─────────────────────────────────────────────────────────
+    name: string;
+    industry: string;
+    country?: string;
+    website?: string;
+    missionStatement?: string;
+    visionStatement?: string;
+    brandStory?: string;
+    brandArchetype?: string; // Hero, Sage, Creator, Caregiver, Explorer, Jester, Lover, Ruler, Innocent, Outlaw, Magician, Regular Guy
+    brandColors: string[];   // color names or hex codes mentioned
+    brandHashtags: string[]; // official/recommended hashtags
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+    values: string[];
+    keySellingPoints: string[];
+    styleGuidelines: string[];
+
+    // ── Content strategy ──────────────────────────────────────────────────────
+    contentPillars: string[];    // main topics the brand posts about
+    postingStrategy?: string;    // recommended frequency / timing
+
+    // ── Voice ─────────────────────────────────────────────────────────────────
+    brandVoice: {
+        toneDescription: string[];
+        keywords: string[];
+        negativeKeywords: string[];
+        toneStrength: number;
+        toneSentiment: number;
+        voiceGuidelines: { dos: string[]; donts: string[] };
+    };
+
+    // ── Audiences ─────────────────────────────────────────────────────────────
+    brandAudiences: {
+        personaName: string;
+        description: string;
+        keyEmotions: string[];
+        painPoints: string[];
+    }[];
+
+    // ── Knowledge base ────────────────────────────────────────────────────────
+    knowledgeEntries: {
+        type: 'product' | 'faq' | 'policy' | 'competitor' | 'scenario_script';
+        title: string;
+        content: string;
+    }[];
+
+    // ── Sample content → goes to brand_memory ─────────────────────────────────
+    sampleContent: {
+        text: string;
+        platform?: string;
+        contentType: 'post' | 'caption' | 'slogan' | 'tagline' | 'ad_copy' | 'bio' | 'story';
+    }[];
+
+    // ── Document metadata ─────────────────────────────────────────────────────
+    documentTitle?: string;
+    documentSummary?: string;
+}
+
+// Calculates how complete the extracted data is (0–100)
+export function calcBrandImportCompleteness(d: BrandImportData): number {
+    const checks = [
+        !!d.name,
+        !!d.industry,
+        !!d.country,
+        !!d.website,
+        !!d.missionStatement,
+        !!d.visionStatement,
+        !!d.brandArchetype,
+        d.values.length > 0,
+        d.keySellingPoints.length > 0,
+        d.styleGuidelines.length > 0,
+        d.brandColors.length > 0,
+        d.brandHashtags.length > 0,
+        d.contentPillars.length > 0,
+        d.brandVoice.toneDescription.length > 0,
+        d.brandVoice.keywords.length > 0,
+        d.brandVoice.negativeKeywords.length > 0,
+        d.brandVoice.voiceGuidelines.dos.length > 0,
+        d.brandAudiences.length > 0,
+        d.knowledgeEntries.length > 0,
+        d.sampleContent.length > 0,
+    ];
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
+export async function extractBrandFromDocument(documentText: string): Promise<BrandImportData> {
+    const prompt = `أنت خبير تحليل هوية البراند ومستشار تسويقي متخصص. لديك وثيقة تحتوي على معلومات عن براند — قد تكون من ChatGPT أو Claude أو كتاب براند أو وثيقة استراتيجية أو أي مصدر آخر.
+
+مهمتك: استخراج **كل** المعلومات الموجودة بأقصى دقة ممكنة وتصنيفها في الهيكل المحدد.
+
+**قواعد الاستخراج:**
+1. استخرج فقط ما هو موجود فعلاً في الوثيقة — لا تخترع أو تفترض
+2. احتفظ بلغة النص الأصلية (عربي يبقى عربي، إنجليزي يبقى إنجليزي)
+3. country: رمز ISO-2 فقط (SA, EG, AE, US, MA, JO, KW, BH, QA, OM...)
+4. toneStrength: 0.1–1.0 (قوة الأسلوب — 0.1 هادئ جداً، 1.0 جريء جداً)
+5. toneSentiment: 0.0–1.0 (0.0 = رسمي بارد، 1.0 = دافئ عاطفي جداً)
+6. brandArchetype: اختر من (Hero, Sage, Creator, Caregiver, Explorer, Jester, Lover, Ruler, Innocent, Outlaw, Magician, Regular)
+7. sampleContent: **مهم جداً** — أي منشور، كابشن، سلوجان، جملة إعلانية، بايو موجودة في الوثيقة استخرجها هنا — هذه تُعلّم الـ AI أسلوب الكتابة الحقيقي للبراند
+8. knowledgeEntries: كل منتج/خدمة/سؤال شائع/سياسة/منافس كإدخال منفصل مع وصف كامل
+9. contentPillars: المحاور أو الموضوعات الرئيسية التي يتحدث عنها البراند
+10. documentTitle: اقترح عنواناً وصفياً للوثيقة
+11. documentSummary: ملخص في جملة أو اثنتين لما تحتويه الوثيقة
+
+الوثيقة:
+"""
+${documentText.slice(0, 20000)}
+"""`;
+
+    const audienceItemSchema = {
+        type: Type.OBJECT,
+        properties: {
+            personaName: { type: Type.STRING },
+            description: { type: Type.STRING },
+            keyEmotions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            painPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+        },
+        required: ['personaName', 'description', 'keyEmotions', 'painPoints'],
+    };
+
+    const knowledgeItemSchema = {
+        type: Type.OBJECT,
+        properties: {
+            type: { type: Type.STRING },
+            title: { type: Type.STRING },
+            content: { type: Type.STRING },
+        },
+        required: ['type', 'title', 'content'],
+    };
+
+    const sampleContentItemSchema = {
+        type: Type.OBJECT,
+        properties: {
+            text: { type: Type.STRING },
+            platform: { type: Type.STRING },
+            contentType: { type: Type.STRING },
+        },
+        required: ['text', 'contentType'],
+    };
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-pro',
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                name:              { type: Type.STRING },
+                industry:          { type: Type.STRING },
+                country:           { type: Type.STRING },
+                website:           { type: Type.STRING },
+                missionStatement:  { type: Type.STRING },
+                visionStatement:   { type: Type.STRING },
+                brandStory:        { type: Type.STRING },
+                brandArchetype:    { type: Type.STRING },
+                brandColors:       { type: Type.ARRAY, items: { type: Type.STRING } },
+                brandHashtags:     { type: Type.ARRAY, items: { type: Type.STRING } },
+                values:            { type: Type.ARRAY, items: { type: Type.STRING } },
+                keySellingPoints:  { type: Type.ARRAY, items: { type: Type.STRING } },
+                styleGuidelines:   { type: Type.ARRAY, items: { type: Type.STRING } },
+                contentPillars:    { type: Type.ARRAY, items: { type: Type.STRING } },
+                postingStrategy:   { type: Type.STRING },
+                brandVoice: {
+                    type: Type.OBJECT,
+                    properties: {
+                        toneDescription: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        keywords:        { type: Type.ARRAY, items: { type: Type.STRING } },
+                        negativeKeywords:{ type: Type.ARRAY, items: { type: Type.STRING } },
+                        toneStrength:    { type: Type.NUMBER },
+                        toneSentiment:   { type: Type.NUMBER },
+                        voiceGuidelines: {
+                            type: Type.OBJECT,
+                            properties: {
+                                dos:   { type: Type.ARRAY, items: { type: Type.STRING } },
+                                donts: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            },
+                            required: ['dos', 'donts'],
+                        },
+                    },
+                    required: ['toneDescription', 'keywords', 'negativeKeywords', 'toneStrength', 'toneSentiment', 'voiceGuidelines'],
+                },
+                brandAudiences:   { type: Type.ARRAY, items: audienceItemSchema },
+                knowledgeEntries: { type: Type.ARRAY, items: knowledgeItemSchema },
+                sampleContent:    { type: Type.ARRAY, items: sampleContentItemSchema },
+                documentTitle:    { type: Type.STRING },
+                documentSummary:  { type: Type.STRING },
+            },
+            required: ['name', 'industry', 'values', 'keySellingPoints', 'styleGuidelines',
+                       'brandVoice', 'brandAudiences', 'knowledgeEntries', 'sampleContent',
+                       'brandColors', 'brandHashtags', 'contentPillars'],
+        },
+        feature: 'brand_import',
+    });
+
+    const raw = JSON.parse(response.text) as BrandImportData;
+
+    // Normalize arrays that might be missing
+    raw.brandColors     = raw.brandColors     ?? [];
+    raw.brandHashtags   = raw.brandHashtags   ?? [];
+    raw.contentPillars  = raw.contentPillars  ?? [];
+    raw.sampleContent   = raw.sampleContent   ?? [];
+    raw.knowledgeEntries = raw.knowledgeEntries ?? [];
+
+    return raw;
+}
+
+// Shared JSON schema for brand extraction (used by both text and file variants)
+const BRAND_EXTRACTION_SCHEMA = {
+    type: Type.OBJECT,
+    properties: {
+        name:              { type: Type.STRING },
+        industry:          { type: Type.STRING },
+        country:           { type: Type.STRING },
+        website:           { type: Type.STRING },
+        missionStatement:  { type: Type.STRING },
+        visionStatement:   { type: Type.STRING },
+        brandStory:        { type: Type.STRING },
+        brandArchetype:    { type: Type.STRING },
+        brandColors:       { type: Type.ARRAY, items: { type: Type.STRING } },
+        brandHashtags:     { type: Type.ARRAY, items: { type: Type.STRING } },
+        values:            { type: Type.ARRAY, items: { type: Type.STRING } },
+        keySellingPoints:  { type: Type.ARRAY, items: { type: Type.STRING } },
+        styleGuidelines:   { type: Type.ARRAY, items: { type: Type.STRING } },
+        contentPillars:    { type: Type.ARRAY, items: { type: Type.STRING } },
+        postingStrategy:   { type: Type.STRING },
+        brandVoice: {
+            type: Type.OBJECT,
+            properties: {
+                toneDescription: { type: Type.ARRAY, items: { type: Type.STRING } },
+                keywords:        { type: Type.ARRAY, items: { type: Type.STRING } },
+                negativeKeywords:{ type: Type.ARRAY, items: { type: Type.STRING } },
+                toneStrength:    { type: Type.NUMBER },
+                toneSentiment:   { type: Type.NUMBER },
+                voiceGuidelines: {
+                    type: Type.OBJECT,
+                    properties: {
+                        dos:   { type: Type.ARRAY, items: { type: Type.STRING } },
+                        donts: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    },
+                    required: ['dos', 'donts'],
+                },
+            },
+            required: ['toneDescription', 'keywords', 'negativeKeywords', 'toneStrength', 'toneSentiment', 'voiceGuidelines'],
+        },
+        brandAudiences: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    personaName: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    keyEmotions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    painPoints:  { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+                required: ['personaName', 'description', 'keyEmotions', 'painPoints'],
+            },
+        },
+        knowledgeEntries: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    type:    { type: Type.STRING },
+                    title:   { type: Type.STRING },
+                    content: { type: Type.STRING },
+                },
+                required: ['type', 'title', 'content'],
+            },
+        },
+        sampleContent: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    text:        { type: Type.STRING },
+                    platform:    { type: Type.STRING },
+                    contentType: { type: Type.STRING },
+                },
+                required: ['text', 'contentType'],
+            },
+        },
+        documentTitle:   { type: Type.STRING },
+        documentSummary: { type: Type.STRING },
+    },
+    required: ['name', 'industry', 'values', 'keySellingPoints', 'styleGuidelines',
+               'brandVoice', 'brandAudiences', 'knowledgeEntries', 'sampleContent',
+               'brandColors', 'brandHashtags', 'contentPillars'],
+};
+
+const BRAND_EXTRACTION_INSTRUCTION = `أنت خبير تحليل هوية البراند ومستشار تسويقي متخصص. المستخدم يشاركك وثيقة تحتوي على معلومات براند (كتاب براند، وثيقة استراتيجية، أو تقرير من ChatGPT/Claude).
+
+مهمتك: استخراج **كل** المعلومات بأقصى دقة ممكنة.
+
+**قواعد الاستخراج:**
+1. استخرج فقط ما هو موجود فعلاً — لا تخترع
+2. احتفظ بلغة النص الأصلية (عربي يبقى عربي)
+3. country: رمز ISO-2 فقط (SA, EG, AE, US, MA, JO, KW...)
+4. toneStrength: 0.1–1.0، toneSentiment: 0.0–1.0
+5. brandArchetype: من (Hero, Sage, Creator, Caregiver, Explorer, Jester, Lover, Ruler, Innocent, Outlaw, Magician, Regular)
+6. sampleContent: **مهم جداً** — أي منشور، كابشن، سلوجان، جملة إعلانية، بايو موجودة في الوثيقة
+7. knowledgeEntries: كل منتج/خدمة/سؤال/سياسة/منافس كإدخال منفصل
+8. documentTitle: عنوان وصفي للوثيقة
+9. documentSummary: ملخص في جملة أو اثنتين`;
+
+function normalizeBrandImportData(raw: BrandImportData): BrandImportData {
+    raw.brandColors      = raw.brandColors      ?? [];
+    raw.brandHashtags    = raw.brandHashtags    ?? [];
+    raw.contentPillars   = raw.contentPillars   ?? [];
+    raw.sampleContent    = raw.sampleContent    ?? [];
+    raw.knowledgeEntries = raw.knowledgeEntries ?? [];
+    return raw;
+}
+
+/**
+ * Extracts brand data from a binary file (PDF, DOCX, etc.) by sending it
+ * directly to Gemini as inline_data. Gemini natively reads PDF and DOCX.
+ */
+export async function extractBrandFromFileData(
+    base64Data: string,
+    mimeType: string,
+): Promise<BrandImportData> {
+    const contents = [
+        {
+            role: 'user',
+            parts: [
+                {
+                    inline_data: {
+                        mime_type: mimeType,
+                        data: base64Data,
+                    },
+                },
+                { text: BRAND_EXTRACTION_INSTRUCTION },
+            ],
+        },
+    ];
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        contents,
+        schema: BRAND_EXTRACTION_SCHEMA,
+        feature: 'brand_import_file',
+    });
+
+    return normalizeBrandImportData(JSON.parse(response.text) as BrandImportData);
+}
+
 export async function evaluateContentConsistency(content: string, brandProfile: BrandHubProfile): Promise<BrandConsistencyEvaluation> {
      const prompt = `
     Evaluate the consistency of the provided content against the brand profile.
@@ -691,46 +1050,6 @@ export async function expandOnTopic(topic: string, mainIdea: string): Promise<st
 }
 
 export async function brainstormContentIdeas(topic: string, brandProfile: BrandHubProfile): Promise<BrainstormedIdea[]> {
-    if (topic === "summer campaign") {
-        return Promise.resolve([
-            {
-                title: "صيف بارد، نوم أعمق",
-                description: "سلسلة من 3 صور كاروسيل تشرح كيف تساعد تقنية جل التبريد في وسائدنا على التغلب على حرارة الصيف والحصول على نوم مريح.",
-                platform: SocialPlatform.Instagram,
-                format: "Carousel",
-                angle: "Educational"
-            },
-            {
-                title: "استعد لمغامرات الصيف بنوم هانئ",
-                description: "فيديو قصير (ريل) يعرض لقطات سريعة لأشخاص يستمتعون بأنشطة صيفية (بحر، سفر) ثم ينتقل لمشهد نوم مريح، مع رسالة \"طاقة يومك تبدأ من راحة ليلتك\".",
-                platform: SocialPlatform.TikTok,
-                format: "Reel",
-                angle: "Aspirational"
-            },
-            {
-                title: "ما هي أكبر مشكلة تواجهك في النوم صيفًا؟",
-                description: "استطلاع رأي تفاعلي على ستوري انستغرام (Poll Sticker) يسأل المتابعين عن مشاكلهم (الحر، الأرق، الإزعاج) ويقدم حلولاً سريعة.",
-                platform: SocialPlatform.Instagram,
-                format: "Story",
-                angle: "Interactive"
-            },
-            {
-                title: "عرض الصيف: انتعش بنوم أفضل",
-                description: "تصميم ثابت وجذاب يعلن عن خصم خاص على المنتجات المزودة بتقنية التبريد، مع التركيز على الفائدة المباشرة: \"تغلب على حر الصيف\".",
-                platform: SocialPlatform.Facebook,
-                format: "Static",
-                angle: "Sales-focused"
-            },
-            {
-                title: "علم البرودة: كيف نعمل؟",
-                description: "فيديو قصير يظهر لقطات مقربة (Behind-the-scenes) لطبقة جل التبريد وكيفية دمجها في الميموري فوم، لبناء الثقة وإظهار الجودة.",
-                platform: SocialPlatform.Instagram,
-                format: "Reel",
-                angle: "Behind-the-scenes"
-            }
-        ]);
-    }
-
     const prompt = `
     Brainstorm 5 creative content ideas about "${topic}" for the brand "${brandProfile.brandName}".
     For each idea, provide a title, a short description, a suggested platform, a format (e.g., Reel, Carousel, Story), and a creative angle (e.g., "Educational", "Humorous", "Behind-the-scenes").
@@ -769,69 +1088,94 @@ export async function brainstormContentIdeas(topic: string, brandProfile: BrandH
 // --- Social Search & Error Center ---
 
 export async function analyzeSocialSearchQuery(query: string): Promise<SocialSearchAnalysisResult> {
-    console.log(`Analyzing social search for: ${query}`);
-    await new Promise(res => setTimeout(res, 2000));
+    const prompt = `
+أنت محلل سوشيال ميديا خبير. حلّل الكلمة/الموضوع التالي من منظور تسويق رقمي وأعطِ تقريراً استراتيجياً مبنياً على معرفتك بديناميكيات المنصات الاجتماعية.
 
-    const normalizedQuery = query.trim();
-    const compactQuery = normalizedQuery.replace(/\s+/g, ' ').trim();
-    const keywordRoot = compactQuery.split(' ')[0] || 'brand';
-    const competitorBase = keywordRoot.replace(/[^a-zA-Z0-9؀-ۿ]/g, '') || 'brand';
-    const mockResult: SocialSearchAnalysisResult = {
-        aiSummary: `Search signals for "${compactQuery}" are strongest on Instagram and LinkedIn, with conversations leaning positive around quality, positioning, and buyer confidence. The clearest opportunity is to publish proof-based content that differentiates your offer from fast-growing competitors.`,
-        sentiment: { positive: 68, neutral: 22, negative: 10 },
-        contentIdeas: [
-            {
-                type: 'Reel',
-                title: `Why customers choose ${competitorBase}`,
-                description: `Create a short comparison-style reel that frames why buyers mention ${compactQuery} and what differentiates your offer in practice.`,
+الكلمة/الموضوع: "${query}"
+
+المطلوب:
+1. aiSummary: ملخص تحليلي (3-4 جمل) عن الإشارات التسويقية حول هذا الموضوع
+2. sentiment: توزيع تقديري للمشاعر (positive + neutral + negative = 100)
+3. contentIdeas: 3 أفكار محتوى قابلة للتنفيذ (نوع + عنوان + وصف)
+4. platformPerformance: تقييم لـ 3 منصات (Instagram / LinkedIn / X) مع معدل تفاعل تقديري ونمو أسبوعي
+5. topHashtags: 3 هاشتاقات مقترحة مع معدل نمو تقديري
+6. relatedKeywords: 4 كلمات/مصطلحات ذات صلة
+
+أعد JSON فقط.
+`;
+
+    try {
+        const response = await callAIProxy({
+            model: 'gemini-2.5-flash',
+            prompt,
+            schema: {
+                type: Type.OBJECT,
+                properties: {
+                    aiSummary: { type: Type.STRING },
+                    sentiment: {
+                        type: Type.OBJECT,
+                        properties: {
+                            positive: { type: Type.NUMBER },
+                            neutral:  { type: Type.NUMBER },
+                            negative: { type: Type.NUMBER },
+                        },
+                        required: ['positive', 'neutral', 'negative'],
+                    },
+                    contentIdeas: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                type:        { type: Type.STRING },
+                                title:       { type: Type.STRING },
+                                description: { type: Type.STRING },
+                            },
+                            required: ['type', 'title', 'description'],
+                        },
+                    },
+                    platformPerformance: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                platform:       { type: Type.STRING },
+                                resultsCount:   { type: Type.NUMBER },
+                                engagementRate: { type: Type.STRING },
+                                weeklyGrowth:   { type: Type.NUMBER },
+                                topCompetitors: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            },
+                            required: ['platform', 'resultsCount', 'engagementRate', 'weeklyGrowth'],
+                        },
+                    },
+                    topHashtags: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                tag:    { type: Type.STRING },
+                                growth: { type: Type.NUMBER },
+                            },
+                            required: ['tag', 'growth'],
+                        },
+                    },
+                    relatedKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                },
+                required: ['aiSummary', 'sentiment', 'contentIdeas', 'platformPerformance', 'topHashtags', 'relatedKeywords'],
             },
-            {
-                type: 'Static',
-                title: `Top objections around ${compactQuery}`,
-                description: `Turn the most repeated questions and concerns into a single static post with a clear CTA and proof point.`,
-            },
-            {
-                type: 'Campaign',
-                title: `Category proof campaign`,
-                description: `Bundle testimonials, product proof, and one strong competitor differentiator into a weekly content campaign.`,
-            },
-        ],
-        platformPerformance: [
-            {
-                platform: SocialPlatform.Instagram,
-                resultsCount: 1420,
-                engagementRate: '5.8%',
-                weeklyGrowth: 14,
-                topCompetitors: [`${competitorBase} Pro`, `${competitorBase} Plus`],
-            },
-            {
-                platform: SocialPlatform.LinkedIn,
-                resultsCount: 760,
-                engagementRate: '4.1%',
-                weeklyGrowth: 9,
-                topCompetitors: [`${competitorBase} Labs`, `${competitorBase} Pro`],
-            },
-            {
-                platform: SocialPlatform.X,
-                resultsCount: 640,
-                engagementRate: '2.3%',
-                weeklyGrowth: -3,
-                topCompetitors: [`${competitorBase} Plus`, `${competitorBase} Now`],
-            },
-        ],
-        topHashtags: [
-            { tag: `#${competitorBase}`, growth: 19 },
-            { tag: '#socialproof', growth: 13 },
-            { tag: '#buyersguide', growth: 9 },
-        ],
-        relatedKeywords: [
-            `${compactQuery} review`,
-            `${compactQuery} comparison`,
-            `${compactQuery} best option`,
-            `${compactQuery} audience`,
-        ],
-    };
-    return mockResult;
+            feature: 'social_search',
+        });
+
+        const result = JSON.parse(response.text) as SocialSearchAnalysisResult;
+        // map platform strings to SocialPlatform enum values
+        result.platformPerformance = (result.platformPerformance ?? []).map(p => ({
+            ...p,
+            platform: (p.platform as unknown as SocialPlatform) ?? SocialPlatform.Instagram,
+        }));
+        return result;
+    } catch (err) {
+        console.error('analyzeSocialSearchQuery failed:', err);
+        throw err;
+    }
 }
 
 
@@ -2365,4 +2709,90 @@ ${piecesList}
     });
 
     return JSON.parse(response.text);
+}
+
+// ── Support Chat AI ────────────────────────────────────────────────────────────
+
+export async function answerSupportQuery(
+    userMessage: string,
+    conversationHistory: { role: 'user' | 'ai'; content: string }[],
+    language: 'ar' | 'en',
+): Promise<AISupportResponse> {
+    const historyText = conversationHistory
+        .slice(-6)
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n');
+
+    const prompt = `You are a helpful support assistant for SBrandOps, an AI-powered brand management and social media platform.
+
+PLATFORM FEATURES:
+- Campaign Brain: AI-powered marketing campaign creation (goals, strategy, content, scheduling)
+- Brand Hub: Brand identity, voice, audience management
+- Brand Knowledge Base: FAQs, products, policies storage
+- Content Engine: AI social media content creation
+- Publisher & Scheduler: Multi-platform post publishing
+- Analytics: Performance and growth analytics
+- Inbox: Unified social media messages inbox
+- CRM: Customer management, sales pipeline, support tickets
+- Integrations: Facebook, Instagram, X, LinkedIn, TikTok connections
+- Design Ops: AI image and design generation
+- SEO: Search engine optimization tools
+- Ads Intelligence: Paid advertising management
+
+COMMON ISSUES & SOLUTIONS:
+- Facebook/Instagram not connecting: Ensure page is linked to Business Manager and Meta App is approved. Check that correct permissions (pages_manage_posts, instagram_basic) are granted.
+- AI not responding: User may have hit daily token limit. Check usage in dashboard.
+- Analytics not showing: Data loads 24-48h after account connection.
+- Login issues: Clear cookies and retry, or use password reset.
+- Images not generating: Ensure a brand is selected and prompt is not empty.
+- Posts not publishing: Check that social accounts are still connected in Integrations page.
+
+ESCALATE (suggest ticket) when:
+- Payment or billing issues
+- Data loss
+- Security concerns
+- Persistent technical errors after trying solutions
+- Account access problems
+
+CONVERSATION HISTORY:
+${historyText || 'No previous messages'}
+
+USER MESSAGE: ${userMessage}
+
+INSTRUCTIONS:
+- Reply in ${language === 'ar' ? 'Arabic' : 'English'} only
+- Be concise (2-4 sentences max)
+- If you can solve it, explain how step by step
+- If unsure or needs human help, set suggestTicket to "yes"
+- canResolve: "yes" if you gave a complete actionable solution, "no" otherwise
+- suggestTicket: "yes" only for billing, data loss, security, or repeated unresolved errors
+- category: classify the issue type
+- priority: assess urgency level`;
+
+    const response = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                reply:         { type: Type.STRING },
+                canResolve:    { type: Type.STRING, enum: ['yes', 'no'] },
+                suggestTicket: { type: Type.STRING, enum: ['yes', 'no'] },
+                category:      { type: Type.STRING, enum: ['technical', 'billing', 'feature', 'bug', 'other'] },
+                priority:      { type: Type.STRING, enum: ['low', 'medium', 'high', 'urgent'] },
+            },
+            required: ['reply', 'canResolve', 'suggestTicket', 'category', 'priority'],
+        },
+        feature:  'support_chat',
+        brand_id: null,
+    });
+
+    const raw = JSON.parse(response.text.trim());
+    return {
+        reply:         raw.reply,
+        canResolve:    raw.canResolve    === 'yes',
+        suggestTicket: raw.suggestTicket === 'yes',
+        category:      raw.category      ?? 'other',
+        priority:      raw.priority      ?? 'medium',
+    } as AISupportResponse;
 }

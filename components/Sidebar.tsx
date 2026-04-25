@@ -31,6 +31,13 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
         ],
     },
     {
+        id: 'campaign-brain-section',
+        label: ar ? 'الحملات الذكية' : 'Smart Campaigns',
+        items: [
+            { id: 'campaign-brain', icon: 'fa-brain', label: ar ? 'Campaign Brain' : 'Campaign Brain' },
+        ],
+    },
+    {
         id: 'content-engine-section',
         label: ar ? 'محرك المحتوى' : 'Content Engine',
         items: [
@@ -72,9 +79,10 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
         id: 'inbox-section',
         label: ar ? 'الرسائل والردود' : 'Inbox & Replies',
         items: [
-            { id: 'inbox',       icon: 'fa-inbox',      label: ar ? 'صندوق الرسائل'  : 'Message Inbox'    },
-            { id: 'crm/tickets', icon: 'fa-ticket-alt', label: ar ? 'تذاكر الدعم'    : 'Support Tickets'  },
-            { id: 'workflow',    icon: 'fa-diagram-project', label: ar ? 'الفلوهات والأتمتة' : 'Flows & Automation' },
+            { id: 'inbox',           icon: 'fa-inbox',         label: ar ? 'صندوق الرسائل'    : 'Message Inbox'       },
+            { id: 'crm/tickets',     icon: 'fa-ticket-alt',    label: ar ? 'تذاكر الدعم'      : 'Support Tickets'     },
+            { id: 'support-inbox',   icon: 'fa-headset',       label: ar ? 'صندوق وارد الدعم' : 'Support Inbox'       },
+            { id: 'workflow',        icon: 'fa-robot',           label: ar ? 'البوت الذكي'       : 'Smart Bot'          },
         ],
     },
     {

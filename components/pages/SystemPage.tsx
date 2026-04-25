@@ -1,7 +1,8 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActiveSession, ApiKey, NotificationType, PaymentRecord, SubscriptionPlan, User, UserRole } from '../../types';
 import { manageBillingSubscription } from '../../services/billingManagementService';
 import { useLanguage } from '../../context/LanguageContext';
+import { checkAllMigrations, type MigrationGroup } from '../../services/dbHealthService';
 
 interface SystemPageProps {
     brandId: string;
@@ -20,7 +21,7 @@ interface SystemPageProps {
     addNotification: (type: NotificationType, message: string) => void;
 }
 
-type SystemTab = 'users' | 'billing' | 'security' | 'api';
+type SystemTab = 'users' | 'billing' | 'security' | 'api' | 'database';
 type BillingAction = 'portal' | 'pause' | 'cancel' | 'resume' | 'change_billing_cycle';
 
 const ROLE_OPTIONS = Object.values(UserRole);
@@ -555,16 +556,226 @@ const ApiKeysPanel: React.FC<Pick<SystemPageProps, 'apiKeys' | 'onGenerateApiKey
     );
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Database Health Panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SQL_HINTS: Record<string, string> = {
+    '030': 'supabase db push  -- or run supabase/migrations/030_campaign_brain.sql in SQL Editor',
+    '031': 'supabase db push  -- or run supabase/migrations/031_brand_documents.sql',
+    '032': 'supabase db push  -- or run supabase/migrations/032_captions_media_assets.sql',
+    '033': 'supabase db push  -- or run supabase/migrations/033_support_chat.sql',
+};
+
+const DbHealthPanel: React.FC = () => {
+    const [groups, setGroups]     = useState<MigrationGroup[]>([]);
+    const [loading, setLoading]   = useState(false);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    const runCheck = useCallback(async () => {
+        setLoading(true);
+        try {
+            const results = await checkAllMigrations();
+            setGroups(results);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { runCheck(); }, [runCheck]);
+
+    const applied  = groups.filter(g => g.status === 'applied').length;
+    const missing  = groups.filter(g => g.status === 'missing').length;
+    const partial  = groups.filter(g => g.status === 'partial').length;
+    const pct      = groups.length > 0 ? Math.round((applied / groups.length) * 100) : 0;
+
+    const statusIcon = (s: MigrationGroup['status']) =>
+        s === 'applied'  ? <i className="fas fa-circle-check text-green-500" /> :
+        s === 'partial'  ? <i className="fas fa-circle-half-stroke text-yellow-500" /> :
+        s === 'missing'  ? <i className="fas fa-circle-xmark text-red-500" /> :
+                           <i className="fas fa-spinner fa-spin text-brand-primary" />;
+
+    const statusLabel = (g: MigrationGroup) =>
+        g.status === 'applied'  ? 'مطبّق' :
+        g.status === 'partial'  ? `جزئي (${g.appliedCount}/${g.tables.length} جداول)` :
+        g.status === 'missing'  ? 'غير مطبّق' : 'جارٍ الفحص...';
+
+    return (
+        <div className="space-y-5">
+            {/* Header + Overall score */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="font-bold text-light-text dark:text-dark-text">
+                        <i className="fas fa-database text-brand-primary mr-2" />
+                        حالة قاعدة البيانات
+                    </h3>
+                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                        فحص حالة كل Migration بالاستعلام الفعلي عن الجداول في Supabase
+                    </p>
+                </div>
+                <button
+                    onClick={runCheck}
+                    disabled={loading}
+                    className="flex items-center gap-2 rounded-xl bg-brand-primary/10 px-3 py-1.5 text-xs font-semibold text-brand-primary hover:bg-brand-primary/20 disabled:opacity-50"
+                >
+                    <i className={`fas fa-rotate-right ${loading ? 'fa-spin' : ''}`} />
+                    فحص الآن
+                </button>
+            </div>
+
+            {/* Summary cards */}
+            {groups.length > 0 && (
+                <div className="grid grid-cols-4 gap-3">
+                    {[
+                        { label: 'مطبّق', value: applied,         color: 'text-green-500',  bg: 'bg-green-50 dark:bg-green-900/20',  icon: 'fa-circle-check' },
+                        { label: 'جزئي',  value: partial,         color: 'text-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-900/20', icon: 'fa-circle-half-stroke' },
+                        { label: 'ناقص',  value: missing,         color: 'text-red-500',    bg: 'bg-red-50 dark:bg-red-900/20',       icon: 'fa-circle-xmark' },
+                        { label: 'الاكتمال', value: `${pct}%`,   color: pct === 100 ? 'text-green-500' : pct > 60 ? 'text-brand-primary' : 'text-orange-500', bg: 'bg-brand-primary/5', icon: 'fa-chart-pie' },
+                    ].map(s => (
+                        <div key={s.label} className={`rounded-2xl border border-light-border p-4 dark:border-dark-border ${s.bg} text-center`}>
+                            <i className={`fas ${s.icon} text-lg ${s.color} mb-1`} />
+                            <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{s.label}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Overall progress bar */}
+            {groups.length > 0 && (
+                <div>
+                    <div className="flex justify-between text-xs mb-1">
+                        <span className="text-light-text-secondary dark:text-dark-text-secondary">تقدم تطبيق Migrations</span>
+                        <span className={`font-semibold ${pct === 100 ? 'text-green-500' : 'text-brand-primary'}`}>{pct}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-light-bg dark:bg-dark-bg">
+                        <div
+                            className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-brand-primary'}`}
+                            style={{ width: `${pct}%` }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Migration groups list */}
+            <div className="space-y-2">
+                {loading && groups.length === 0 ? (
+                    <div className="flex items-center justify-center gap-3 py-12 text-light-text-secondary dark:text-dark-text-secondary">
+                        <i className="fas fa-spinner fa-spin text-brand-primary" />
+                        <span className="text-sm">يفحص قاعدة البيانات...</span>
+                    </div>
+                ) : groups.map(g => (
+                    <div key={g.id} className="rounded-2xl border border-light-border bg-light-card dark:border-dark-border dark:bg-dark-card overflow-hidden">
+                        <button
+                            onClick={() => setExpandedId(expandedId === g.id ? null : g.id)}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 text-right"
+                        >
+                            {statusIcon(g.status)}
+                            <div className="flex-1 min-w-0 text-right">
+                                <p className="text-sm font-semibold text-light-text dark:text-dark-text">{g.label}</p>
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary truncate">{g.description}</p>
+                            </div>
+                            <span className={`shrink-0 text-xs font-semibold rounded-full px-2.5 py-0.5 ${
+                                g.status === 'applied' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                g.status === 'partial' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                                g.status === 'missing' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                'bg-light-bg text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary'
+                            }`}>
+                                {statusLabel(g)}
+                            </span>
+                            <i className={`fas fa-chevron-down text-xs text-light-text-secondary dark:text-dark-text-secondary transition-transform ${expandedId === g.id ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {expandedId === g.id && (
+                            <div className="border-t border-light-border dark:border-dark-border px-5 pb-4 pt-3 space-y-3">
+                                {/* Tables list */}
+                                <div>
+                                    <p className="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary mb-2">الجداول:</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {g.tables.map(t => (
+                                            <span
+                                                key={t}
+                                                className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-mono bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text"
+                                            >
+                                                {g.status === 'applied' && <i className="fas fa-check text-green-500 text-[9px]" />}
+                                                {g.status === 'missing' && <i className="fas fa-xmark text-red-500 text-[9px]" />}
+                                                {t}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Edge functions if any */}
+                                {g.edgeFunctions && g.edgeFunctions.length > 0 && (
+                                    <div>
+                                        <p className="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary mb-2">Edge Functions مطلوبة:</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {g.edgeFunctions.map(fn => (
+                                                <span key={fn} className="flex items-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 text-[11px] font-mono text-blue-600 dark:text-blue-300">
+                                                    <i className="fas fa-bolt text-[9px]" />
+                                                    {fn}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Fix hint if missing/partial */}
+                                {(g.status === 'missing' || g.status === 'partial') && SQL_HINTS[g.id] && (
+                                    <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+                                        <p className="text-xs font-semibold text-red-700 dark:text-red-300 mb-1">
+                                            <i className="fas fa-terminal mr-1" />
+                                            طريقة التطبيق:
+                                        </p>
+                                        <code className="block text-[11px] font-mono text-red-600 dark:text-red-400 break-all">
+                                            {SQL_HINTS[g.id]}
+                                        </code>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* Quick instructions */}
+            <div className="rounded-2xl border border-light-border bg-light-card dark:border-dark-border dark:bg-dark-card p-5">
+                <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-3">
+                    <i className="fas fa-terminal text-brand-primary mr-2" />
+                    تطبيق جميع الـ Migrations دفعة واحدة
+                </p>
+                <div className="space-y-2">
+                    {[
+                        { cmd: 'npm install -g supabase', desc: 'تثبيت Supabase CLI' },
+                        { cmd: 'supabase login', desc: 'تسجيل الدخول' },
+                        { cmd: 'supabase link --project-ref YOUR_PROJECT_ID', desc: 'ربط المشروع' },
+                        { cmd: 'supabase db push', desc: 'تطبيق جميع الـ Migrations تلقائياً' },
+                    ].map((step, i) => (
+                        <div key={i} className="flex items-start gap-3 rounded-xl bg-light-bg dark:bg-dark-bg p-3">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-[10px] font-bold text-brand-primary">{i + 1}</span>
+                            <div>
+                                <code className="text-xs font-mono text-brand-primary">{step.cmd}</code>
+                                <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary mt-0.5">{step.desc}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const SystemPage: React.FC<SystemPageProps> = props => {
     const { language } = useLanguage();
     const ar = language === 'ar';
     const [activeTab, setActiveTab] = useState<SystemTab>('users');
 
     const tabs = useMemo(() => ([
-        { id: 'users' as const, label: ar ? 'المستخدمون' : 'Users' },
-        { id: 'billing' as const, label: ar ? 'الفوترة' : 'Billing' },
+        { id: 'users'    as const, label: ar ? 'المستخدمون' : 'Users' },
+        { id: 'billing'  as const, label: ar ? 'الفوترة' : 'Billing' },
         { id: 'security' as const, label: ar ? 'الأمان' : 'Security' },
-        { id: 'api' as const, label: ar ? 'مفاتيح API' : 'API Keys' },
+        { id: 'api'      as const, label: ar ? 'مفاتيح API' : 'API Keys' },
+        { id: 'database' as const, label: ar ? 'قاعدة البيانات' : 'Database' },
     ]), [ar]);
 
     const renderContent = () => {
@@ -577,6 +788,8 @@ export const SystemPage: React.FC<SystemPageProps> = props => {
                 return <SecurityPanel {...props} />;
             case 'api':
                 return <ApiKeysPanel {...props} />;
+            case 'database':
+                return <DbHealthPanel />;
             default:
                 return null;
         }

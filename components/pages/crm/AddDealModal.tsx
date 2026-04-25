@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CrmPipelineStage, CrmDeal } from '../../../types';
 import { createDeal } from '../../../services/crmService';
+import { useModalClose } from '../../../hooks/useModalClose';
 
 interface AddDealModalProps {
     brandId: string;
@@ -14,6 +15,7 @@ export const AddDealModal: React.FC<AddDealModalProps> = ({ brandId, onClose, on
     const [company, setCompany] = useState('');
     const [amount, setAmount] = useState<number | ''>('');
     const [probability, setProbability] = useState<number | ''>(20);
+    useModalClose(onClose);
     const [stage, setStage] = useState<CrmPipelineStage>('Qualify');
     const [loading, setLoading] = useState(false);
 

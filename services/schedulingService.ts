@@ -8,11 +8,19 @@ export interface SchedulingParams {
     goal: string;
     preferredDays?: string[];
     preferredTime?: string;
+    brandIndustry?: string;
+    brandName?: string;
 }
 
 export async function getOptimalPostingTimes(params: SchedulingParams): Promise<ScheduleSuggestion[]> {
+    const brandContext = params.brandName && params.brandIndustry
+        ? `براند "${params.brandName}" في مجال "${params.brandIndustry}"`
+        : params.brandName
+            ? `براند "${params.brandName}"`
+            : 'براند تجاري';
+
     let prompt = `
-    أنت خبير في استراتيجيات وسائل التواصل الاجتماعي لبراند منتجات راحة منزلية. بناءً على المعلومات التالية، اقترح أفضل 3 أوقات وتواريخ للنشر خلال الأسبوع القادم.
+    أنت خبير في استراتيجيات وسائل التواصل الاجتماعي لـ ${brandContext}. بناءً على المعلومات التالية، اقترح أفضل 3 أوقات وتواريخ للنشر خلال الأسبوع القادم.
     مهمتك هي الموازنة بين تفضيلات المستخدم وأوقات الذروة الطبيعية لكل منصة لتقديم أفضل الاقتراحات الممكنة.
 
     المعلومات الأساسية:

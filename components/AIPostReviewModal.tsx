@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useModalClose } from '../hooks/useModalClose';
 import { PostPerformance, AIPostAnalysis, BrandHubProfile } from '../types';
 import { analyzePostWithAI } from '../services/geminiService';
 
@@ -6,6 +7,7 @@ interface AIPostReviewModalProps {
   onClose: () => void;
   post: PostPerformance;
   brandProfile: BrandHubProfile;
+  onApplyRecommendations?: (recommendations: string[]) => void;
 }
 
 const ScoreCircle: React.FC<{ score: number }> = ({ score }) => {
@@ -54,10 +56,11 @@ const AnalysisSection: React.FC<{ title: string, items: string[], icon: string, 
 );
 
 
-export const AIPostReviewModal: React.FC<AIPostReviewModalProps> = ({ onClose, post, brandProfile }) => {
+export const AIPostReviewModal: React.FC<AIPostReviewModalProps> = ({ onClose, post, brandProfile, onApplyRecommendations }) => {
     const [analysis, setAnalysis] = useState<AIPostAnalysis | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string|null>(null);
+    useModalClose(onClose);
 
     useEffect(() => {
         const fetchAnalysis = async () => {
@@ -77,8 +80,8 @@ export const AIPostReviewModal: React.FC<AIPostReviewModalProps> = ({ onClose, p
     }, [post, brandProfile]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-dark-card rounded-lg shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b border-dark-border flex justify-between items-center">
           <h2 className="text-xl font-bold text-white">مراجعة المنشور بالذكاء الاصطناعي</h2>
           <button onClick={onClose} className="text-dark-text-secondary hover:text-white">&times;</button>
@@ -103,8 +106,17 @@ export const AIPostReviewModal: React.FC<AIPostReviewModalProps> = ({ onClose, p
               </div>
           )}
         </div>
-        <div className="p-4 border-t border-dark-border text-end">
-            <button onClick={onClose} className="bg-brand-primary hover:bg-brand-secondary text-white font-bold py-2 px-4 rounded-lg">
+        <div className="p-4 border-t border-dark-border flex items-center justify-between gap-3">
+            {analysis && onApplyRecommendations && (
+                <button
+                    onClick={() => { onApplyRecommendations(analysis.recommendations); onClose(); }}
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors"
+                >
+                    <i className="fas fa-wand-magic-sparkles text-xs" />
+                    تطبيق التوصيات على المحتوى
+                </button>
+            )}
+            <button onClick={onClose} className="ms-auto bg-dark-bg hover:bg-dark-border text-dark-text font-bold py-2 px-4 rounded-lg text-sm transition-colors">
                 إغلاق
             </button>
         </div>

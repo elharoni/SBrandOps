@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { SocialPlatform, PLATFORM_ASSETS, SocialAsset } from '../types';
 import { getPlatformAssets } from '../services/socialAccountService';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface ConnectAccountModalProps {
     onClose: () => void;
@@ -15,6 +16,7 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ onClos
     const [selectedAsset, setSelectedAsset] = useState<SocialAsset | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    useModalClose(onClose);
 
     const handlePlatformSelect = (platform: SocialPlatform) => {
         setSelectedPlatform(platform);
@@ -56,8 +58,8 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ onClos
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-light-card dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-light-card dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 
                 {/* Header */}
                 <div className="p-5 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-light-bg/50 dark:bg-dark-bg/50">

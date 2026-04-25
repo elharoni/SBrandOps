@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { SocialPlatform, AssetPurpose } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { useModalClose } from '../hooks/useModalClose';
 
 export interface IntentResult {
     purpose: AssetPurpose;
@@ -108,6 +109,7 @@ export const ConnectionIntentModal: React.FC<Props> = ({ isOpen, onClose, onSele
     const { language } = useLanguage();
     const ar = language === 'ar';
     const [selected, setSelected] = useState<IntentOption | null>(null);
+    useModalClose(isOpen ? onClose : undefined);
 
     if (!isOpen) return null;
 

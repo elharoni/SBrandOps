@@ -18,7 +18,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
-const MAX_BODY_BYTES = 256 * 1024; // 256 KB — covers image payloads
+const MAX_BODY_BYTES = 8 * 1024 * 1024; // 8 MB — covers PDF/DOCX brand documents
 
 const ALLOWED_TEXT_MODELS = new Set([
   'gemini-2.5-flash',
@@ -36,6 +36,10 @@ const ALLOWED_IMAGE_MODELS = new Set([
 const ALLOWED_GEMINI_IMAGE_MODELS = new Set([
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash',
+]);
+
+const ALLOWED_OPENAI_IMAGE_MODELS = new Set([
+  'gpt-image-1',
 ]);
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -90,7 +94,16 @@ async function checkDailySpendCap(userId: string): Promise<{ exceeded: boolean; 
   return { exceeded: used >= DAILY_TOKEN_LIMIT, used };
 }
 
-async function getGeminiApiKey(): Promise<string | null> {
+// Looks up service-specific key first (e.g. 'gemini-design'), falls back to generic 'gemini'
+async function getGeminiApiKey(service: 'content' | 'design' | 'video' = 'content'): Promise<string | null> {
+  const { data: specific } = await supabase
+    .from('ai_provider_keys')
+    .select('key_value')
+    .eq('provider', `gemini-${service}`)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (specific?.key_value) return specific.key_value;
+
   const { data } = await supabase
     .from('ai_provider_keys')
     .select('key_value')
@@ -98,6 +111,25 @@ async function getGeminiApiKey(): Promise<string | null> {
     .eq('is_active', true)
     .maybeSingle();
   return data?.key_value ?? Deno.env.get('GEMINI_API_KEY') ?? null;
+}
+
+// Looks up service-specific key first (e.g. 'openai-image'), falls back to generic 'openai'
+async function getOpenAIApiKey(service: 'image' | 'video' = 'image'): Promise<string | null> {
+  const { data: specific } = await supabase
+    .from('ai_provider_keys')
+    .select('key_value')
+    .eq('provider', `openai-${service}`)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (specific?.key_value) return specific.key_value;
+
+  const { data } = await supabase
+    .from('ai_provider_keys')
+    .select('key_value')
+    .eq('provider', 'openai')
+    .eq('is_active', true)
+    .maybeSingle();
+  return data?.key_value ?? Deno.env.get('OPENAI_API_KEY') ?? null;
 }
 
 // ── Text generation ───────────────────────────────────────────────────────────
@@ -209,6 +241,54 @@ async function handleGeminiImageGeneration(
   return results;
 }
 
+// ── Image generation (OpenAI gpt-image-1) ────────────────────────────────────
+
+async function handleOpenAIImageGeneration(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  count: number,
+  aspectRatio: string,
+): Promise<string[]> {
+  // Map aspect ratio to supported OpenAI sizes
+  const sizeMap: Record<string, string> = {
+    '1:1':  '1024x1024',
+    '16:9': '1536x1024',
+    '4:3':  '1536x1024',
+    '9:16': '1024x1536',
+    '3:4':  '1024x1536',
+  };
+  const size = sizeMap[aspectRatio] ?? '1024x1024';
+
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      prompt,
+      n: count,
+      size,
+      quality: 'high',
+      output_format: 'png',
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? `OpenAI image API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  return (data.data ?? [])
+    .map((item: { b64_json?: string }) =>
+      item.b64_json ? `data:image/png;base64,${item.b64_json}` : null,
+    )
+    .filter(Boolean) as string[];
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
@@ -272,6 +352,30 @@ Deno.serve(async (req: Request) => {
         correlationId,
         corsHeaders,
       );
+    }
+
+    if (mode === 'openai-image') {
+      const openaiKey = await getOpenAIApiKey();
+      if (!openaiKey) {
+        return jsonError('No active OpenAI API key configured', 503, correlationId, corsHeaders);
+      }
+      const mdl = model ?? 'gpt-image-1';
+      if (!ALLOWED_OPENAI_IMAGE_MODELS.has(mdl)) {
+        return jsonError(`OpenAI image model not allowed: ${mdl}`, 400, correlationId, corsHeaders);
+      }
+      if (!prompt) {
+        return jsonError('prompt is required for image generation', 400, correlationId, corsHeaders);
+      }
+      const clampedCount = Math.min(Math.max(1, Number(count)), 4);
+      const images = await handleOpenAIImageGeneration(openaiKey, mdl, String(prompt), clampedCount, aspect_ratio);
+      return new Response(JSON.stringify({ images }), {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'X-Correlation-Id': correlationId,
+        },
+      });
     }
 
     const apiKey = await getGeminiApiKey();
