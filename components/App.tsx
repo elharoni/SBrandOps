@@ -141,6 +141,7 @@ const AppShell: React.FC = () => {
     const {
         brands, activeBrand, isLoading: brandsLoading,
         fetchBrands, createBrand, switchBrand, deleteBrand, updateBrand,
+        setBrands, setActiveBrand,
     } = useBrandStore();
 
     // ── Zustand: UI Store ─────────────────────────────────────────────────────
@@ -205,8 +206,15 @@ const AppShell: React.FC = () => {
     // ── Effects ───────────────────────────────────────────────────────────────
 
     useEffect(() => {
-        if (isAuthenticated && viewMode === 'brand') fetchBrands();
-    }, [isAuthenticated, viewMode, fetchBrands]);
+        if (isAuthenticated && viewMode === 'brand') {
+            fetchBrands();
+        } else if (!isAuthenticated) {
+            // Clear brand data immediately on logout to prevent data leakage
+            // between accounts when switching without a full page refresh.
+            setBrands([]);
+            setActiveBrand(null);
+        }
+    }, [isAuthenticated, viewMode, fetchBrands, setBrands, setActiveBrand]);
 
     useEffect(() => {
         if (isAuthenticated && user) {
