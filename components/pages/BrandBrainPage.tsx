@@ -178,9 +178,9 @@ export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandNa
             title="عقل البراند الذكي"
             description={`تفاصيل أداء الذكاء الاصطناعي وقاعدة المعرفة${brandName ? ` لـ ${brandName}` : ''}`}
             stats={[
-                { label: 'إجمالي التقييمات', value: totalEvals.toString() },
-                { label: 'معدل الاستخدام',   value: `${Math.round(avgUsed * 100)}%` },
-                { label: 'إدخالات المعرفة',  value: knowledge.length.toString() },
+                { label: 'إجمالي التقييمات', value: totalEvals.toString(), icon: 'fa-chart-bar' },
+                { label: 'معدل الاستخدام',   value: `${Math.round(avgUsed * 100)}%`, icon: 'fa-circle-check' },
+                { label: 'إدخالات المعرفة',  value: knowledge.length.toString(), icon: 'fa-brain' },
             ]}
             actions={
                 <div className="flex items-center gap-1 rounded-xl bg-light-bg dark:bg-dark-bg p-1 border border-light-border dark:border-dark-border">

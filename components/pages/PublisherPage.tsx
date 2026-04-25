@@ -107,11 +107,13 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
             label: copy.modeLabel,
             value: props.postToEdit ? copy.editMode : copy.newPost,
             tone: 'text-brand-primary',
+            icon: props.postToEdit ? 'fa-pen-to-square' : 'fa-file-circle-plus',
         },
         {
             label: copy.briefLabel,
             value: props.publisherBrief ? copy.connectedBrief : copy.noBrief,
             tone: props.publisherBrief ? 'text-emerald-400' : undefined,
+            icon: props.publisherBrief ? 'fa-file-check' : 'fa-file-lines',
         },
     ]), [copy.briefLabel, copy.connectedBrief, copy.editMode, copy.modeLabel, copy.newPost, copy.noBrief, props.postToEdit, props.publisherBrief]);
 

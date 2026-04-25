@@ -8,6 +8,8 @@ export interface UploadResult {
 
 /**
  * رفع ملف إلى Supabase Storage
+ * المسار: {userId}/{folder}/{timestamp}_{random}.{ext}
+ * الـ RLS policy تفرض أن أول segment يطابق auth.uid() للكتابة.
  */
 export async function uploadFile(
     file: File,
@@ -15,9 +17,12 @@ export async function uploadFile(
     folder: string = 'posts'
 ): Promise<UploadResult> {
     try {
-        // إنشاء اسم فريد للملف
+        // الحصول على userId لعزل ملفات كل مستخدم
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id ?? 'anonymous';
+
         const fileExt = file.name.split('.').pop();
-        const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const fileName = `${userId}/${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
         // رفع الملف
         const { data, error } = await supabase.storage

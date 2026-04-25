@@ -70,7 +70,8 @@
       "Bash(python3 -)",
       "Bash(python -)",
       "Read(//e//**)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Read(//e/sbrandops/functions/**)"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

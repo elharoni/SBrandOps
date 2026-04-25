@@ -708,10 +708,10 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                 </div>
             }
             stats={[
-                { label: t.analytics.impressions, value: liveData.overallStats.impressions.toLocaleString() },
-                { label: t.analytics.engagement, value: liveData.overallStats.engagement.toLocaleString() },
-                { label: t.analytics.posts, value: liveData.overallStats.postsPublished.toLocaleString() },
-                { label: t.analytics.engagementRate, value: `${averageEngagementRate.toFixed(2)}%`, tone: 'text-brand-primary' },
+                { label: t.analytics.impressions, value: liveData.overallStats.impressions.toLocaleString(), icon: 'fa-eye' },
+                { label: t.analytics.engagement, value: liveData.overallStats.engagement.toLocaleString(), icon: 'fa-heart' },
+                { label: t.analytics.posts, value: liveData.overallStats.postsPublished.toLocaleString(), icon: 'fa-newspaper' },
+                { label: t.analytics.engagementRate, value: `${averageEngagementRate.toFixed(2)}%`, tone: 'text-brand-primary', icon: 'fa-chart-line' },
             ]}
         >
             {/* ── Mobile Signal Cards (lg:hidden) ─────────────────────────── */}

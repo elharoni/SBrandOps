@@ -603,8 +603,8 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
             title="إدارة الرسائل (Inbox)"
             description="متابعة رسائل كافة المنصات، تحليل نية العملاء، والرد بكفاءة عبر الذكاء الاصطناعي."
             stats={[
-                { label: 'الرسائل غير المقروءة', value: unreadCount.toString(), tone: 'text-brand-pink' },
-                { label: 'إجمالي المحادثات', value: conversations.length.toString() }
+                { label: 'الرسائل غير المقروءة', value: unreadCount.toString(), tone: 'text-brand-pink', icon: 'fa-envelope-open' },
+                { label: 'إجمالي المحادثات', value: conversations.length.toString(), icon: 'fa-comments' }
             ]}
         >
             <PageSection className="space-y-4 pt-0">
