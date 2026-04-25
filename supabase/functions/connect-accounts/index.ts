@@ -190,11 +190,15 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // ── JWT verification ──────────────────────────────────────────────────────
-  const userOrError = await verifyJWT(req, correlationId, corsHeaders);
-  if (userOrError instanceof Response) return userOrError;
-
+  // ── JWT verification + all request logic inside one try-catch ───────────
+  // verifyJWT must be inside try-catch so any unexpected throw returns a
+  // proper JSON response with CORS headers (not a dropped connection that
+  // the browser sees as "Failed to fetch").
   try {
+    const userOrError = await verifyJWT(req, correlationId, corsHeaders);
+    if (userOrError instanceof Response) return userOrError;
+    const authenticatedUser = userOrError;
+
     if (req.method !== 'POST') {
       return new Response(JSON.stringify({ error: 'Method not allowed' }), {
         status: 405,
@@ -218,7 +222,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Brand ownership check ─────────────────────────────────────────────
-    const ownershipError = await assertBrandOwnership(supabase, userOrError.id, body.brand_id, correlationId);
+    const ownershipError = await assertBrandOwnership(supabase, authenticatedUser.id, body.brand_id, correlationId);
     if (ownershipError) return ownershipError;
 
     // ── Token exchange: short-lived → long-lived (Facebook / Instagram) ──
@@ -333,7 +337,7 @@ Deno.serve(async (req: Request) => {
     console.log(JSON.stringify({
       correlationId,
       event: 'connect-accounts',
-      userId:             userOrError.id,
+      userId:             authenticatedUser.id,
       inserted:           socialData?.length ?? 0,
       oauth_tokens_saved: oauthRows.length,
       platform:           body.platform,
