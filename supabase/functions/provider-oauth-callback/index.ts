@@ -45,7 +45,7 @@ Deno.serve(async request => {
   // ── JWT verification ──────────────────────────────────────────────────────
   // This function is called from the frontend after an OAuth redirect.
   // All callers must supply a valid user JWT.
-  const userOrError = await verifyJWT(request, correlationId);
+  const userOrError = await verifyJWT(request, correlationId, corsHeaders);
   if (userOrError instanceof Response) return userOrError;
 
   if (request.method !== 'POST') {
@@ -66,7 +66,7 @@ Deno.serve(async request => {
   }
 
   // ── Brand ownership check ─────────────────────────────────────────────────
-  const ownershipError = await assertBrandOwnership(supabase, userOrError.id, body.brand_id!, correlationId);
+  const ownershipError = await assertBrandOwnership(supabase, userOrError.id, body.brand_id!, correlationId, corsHeaders);
   if (ownershipError) return ownershipError;
 
   const now = new Date().toISOString();

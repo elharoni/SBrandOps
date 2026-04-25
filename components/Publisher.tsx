@@ -988,8 +988,21 @@ export const Publisher: React.FC<PublisherProps> = ({
             )}
 
             {showPublishStatus && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-3xl rounded-3xl border border-dark-border bg-dark-bg p-5 shadow-[0_40px_120px_-60px_rgba(0,0,0,1)]">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+                    onClick={() => setShowPublishStatus(false)}
+                >
+                    <div
+                        className="w-full max-w-3xl rounded-3xl border border-dark-border bg-dark-bg p-5 shadow-[0_40px_120px_-60px_rgba(0,0,0,1)] relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setShowPublishStatus(false)}
+                            className="absolute top-4 left-4 text-dark-text-secondary hover:text-white transition-colors"
+                            aria-label="إغلاق"
+                        >
+                            <i className="fas fa-times text-lg"></i>
+                        </button>
                         <PlatformStatusDisplay
                             statuses={publishStatuses}
                             onRetry={handleRetryPlatform}
@@ -997,6 +1010,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                             onEditPost={handleEditCurrentPost}
                             onNotifyFailure={handlePublishFailureNotice}
                             onConnectAccount={onNavigateToIntegrations ? () => { setShowPublishStatus(false); onNavigateToIntegrations(); } : undefined}
+                            onClose={() => setShowPublishStatus(false)}
                         />
                     </div>
                 </div>

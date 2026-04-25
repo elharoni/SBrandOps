@@ -8,6 +8,7 @@ interface PlatformStatusDisplayProps {
     onEditPost: () => void;
     onNotifyFailure: (platform: SocialPlatform, error: string | null | undefined) => void;
     onConnectAccount?: (platform: SocialPlatform) => void;
+    onClose?: () => void;
 }
 
 const StatusIndicator: React.FC<{ status: PlatformPostStatus }> = ({ status }) => {
@@ -57,7 +58,7 @@ const getStatusStyling = (status: PlatformPostStatus): string => {
     }
 };
 
-export const PlatformStatusDisplay: React.FC<PlatformStatusDisplayProps> = ({ statuses, onRetry, onCreateNewPost, onEditPost, onNotifyFailure, onConnectAccount }) => {
+export const PlatformStatusDisplay: React.FC<PlatformStatusDisplayProps> = ({ statuses, onRetry, onCreateNewPost, onEditPost, onNotifyFailure, onConnectAccount, onClose }) => {
     
     const total = statuses.size;
     const publishedCount = [...statuses.values()].filter(s => s.status === PlatformPostStatus.Published).length;
@@ -86,10 +87,17 @@ export const PlatformStatusDisplay: React.FC<PlatformStatusDisplayProps> = ({ st
                         </div>
                     )}
                     {failedCount === 0 && (
-                        <button onClick={onCreateNewPost} className="mt-3 w-full bg-brand-secondary hover:bg-brand-secondary/80 text-white font-bold py-2 rounded-lg">
-                            <i className="fas fa-plus me-2"></i>
-                            إنشاء منشور جديد
-                        </button>
+                        <div className="mt-3 flex gap-2">
+                            {onClose && (
+                                <button onClick={onClose} className="flex-1 bg-dark-border hover:bg-dark-border/70 text-dark-text font-bold py-2 rounded-lg">
+                                    إغلاق
+                                </button>
+                            )}
+                            <button onClick={onCreateNewPost} className="flex-1 bg-brand-secondary hover:bg-brand-secondary/80 text-white font-bold py-2 rounded-lg">
+                                <i className="fas fa-plus me-2"></i>
+                                إنشاء منشور جديد
+                            </button>
+                        </div>
                     )}
                 </div>
             )}

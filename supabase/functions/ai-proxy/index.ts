@@ -219,7 +219,7 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const userOrError = await verifyJWT(req, correlationId);
+  const userOrError = await verifyJWT(req, correlationId, corsHeaders);
   if (userOrError instanceof Response) return userOrError;
 
   if (req.method !== 'POST') {

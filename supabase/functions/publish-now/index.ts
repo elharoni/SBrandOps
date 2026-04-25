@@ -379,7 +379,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── JWT verification ────────────────────────────────────────────────────────
-  const userOrError = await verifyJWT(req, correlationId);
+  const userOrError = await verifyJWT(req, correlationId, corsHeaders);
   if (userOrError instanceof Response) return userOrError;
 
   try {
@@ -416,7 +416,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Brand ownership check ───────────────────────────────────────────────
-    const ownershipError = await assertBrandOwnership(supabase, userOrError.id, brand_id, correlationId);
+    const ownershipError = await assertBrandOwnership(supabase, userOrError.id, brand_id, correlationId, corsHeaders);
     if (ownershipError) return ownershipError;
 
     const results = await handlePublish(brand_id, post_id ?? null, post as ScheduledPostInput);

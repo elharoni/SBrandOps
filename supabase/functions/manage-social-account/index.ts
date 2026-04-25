@@ -37,7 +37,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── JWT verification ──────────────────────────────────────────────────────
-  const userOrError = await verifyJWT(req, correlationId);
+  const userOrError = await verifyJWT(req, correlationId, corsHeaders);
   if (userOrError instanceof Response) return userOrError;
 
   try {

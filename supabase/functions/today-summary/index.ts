@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
 
   const correlationId = crypto.randomUUID();
 
-  const user = await verifyJWT(req, correlationId);
+  const user = await verifyJWT(req, correlationId, corsHeaders);
   if (user instanceof Response) return user;
 
   let brand_id: string;
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const ownershipError = await assertBrandOwnership(supabase, user.id, brand_id, correlationId);
+  const ownershipError = await assertBrandOwnership(supabase, user.id, brand_id, correlationId, corsHeaders);
   if (ownershipError) return ownershipError;
 
   const now = new Date();
