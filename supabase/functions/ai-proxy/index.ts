@@ -40,6 +40,8 @@ const ALLOWED_GEMINI_IMAGE_MODELS = new Set([
 
 const ALLOWED_OPENAI_IMAGE_MODELS = new Set([
   'gpt-image-1',
+  'dall-e-3',
+  'dall-e-2',
 ]);
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -359,7 +361,7 @@ Deno.serve(async (req: Request) => {
       if (!openaiKey) {
         return jsonError('No active OpenAI API key configured', 503, correlationId, corsHeaders);
       }
-      const mdl = model ?? 'gpt-image-1';
+      const mdl = model === 'gpt-image-1' ? 'dall-e-3' : (model ?? 'dall-e-3');
       if (!ALLOWED_OPENAI_IMAGE_MODELS.has(mdl)) {
         return jsonError(`OpenAI image model not allowed: ${mdl}`, 400, correlationId, corsHeaders);
       }

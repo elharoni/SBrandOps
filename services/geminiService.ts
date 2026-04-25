@@ -101,7 +101,7 @@ export async function generateImageFromPrompt(
             const { data, error } = await supabase.functions.invoke('ai-proxy', {
                 body: {
                     mode: 'openai-image',
-                    model: 'gpt-image-1',
+                    model: 'dall-e-3',
                     prompt,
                     count: clampedCount,
                     aspect_ratio: aspectRatio,
