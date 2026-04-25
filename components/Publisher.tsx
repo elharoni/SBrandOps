@@ -124,6 +124,7 @@ interface PublisherProps {
     brandProfile: BrandHubProfile;
     brandId?: string;
     publisherBrief?: PublisherBrief | null;
+    onNavigateToIntegrations?: () => void;
 }
 export const Publisher: React.FC<PublisherProps> = ({
     addNotification,
@@ -134,6 +135,7 @@ export const Publisher: React.FC<PublisherProps> = ({
     brandProfile,
     brandId,
     publisherBrief,
+    onNavigateToIntegrations,
 }) => {
     const [state, dispatch] = usePublisherState();
     const { post, postToEditId, activePreviewTab, hashtagSuggestions, isSuggestingHashtags } = state;
@@ -959,6 +961,10 @@ export const Publisher: React.FC<PublisherProps> = ({
                         caption={post.content}
                         platforms={post.platforms}
                         onClose={() => setShowCaptionAnalyzer(false)}
+                        onApplyCaption={(newCaption) => {
+                            dispatch({ type: 'UPDATE_FIELD', payload: { field: 'content', value: newCaption } });
+                            setShowCaptionAnalyzer(false);
+                        }}
                         brandProfile={brandProfile}
                     />
                 </Suspense>
@@ -990,6 +996,7 @@ export const Publisher: React.FC<PublisherProps> = ({
                             onCreateNewPost={handleCreateNewPost}
                             onEditPost={handleEditCurrentPost}
                             onNotifyFailure={handlePublishFailureNotice}
+                            onConnectAccount={onNavigateToIntegrations ? () => { setShowPublishStatus(false); onNavigateToIntegrations(); } : undefined}
                         />
                     </div>
                 </div>

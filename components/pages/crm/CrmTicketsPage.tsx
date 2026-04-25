@@ -51,7 +51,7 @@ export const CrmTicketsPage: React.FC<CrmTicketsPageProps> = ({ brandId }) => {
             title="تذاكر الدعم"
             description="إدارة العملاء وحل الشكاوى وتلبية الاستفسارات الواردة."
             stats={[
-                { label: 'إجمالي التذاكر', value: MOCK_TICKETS.length.toString() }
+                { label: 'إجمالي التذاكر', value: MOCK_TICKETS.length.toString(), icon: 'fa-ticket' }
             ]}
             actions={
                 <button className="btn rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-primary/20 transition-all hover:-translate-y-0.5 active:scale-95">

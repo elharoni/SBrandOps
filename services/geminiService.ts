@@ -231,6 +231,45 @@ export async function analyzeCaptionForBrandVoice(caption: string, brandProfile:
 }
 
 
+export async function generateImprovedCaption(
+    originalCaption: string,
+    suggestions: string[],
+    brandProfile: BrandHubProfile
+): Promise<string> {
+    const prompt = `
+    You are a professional copywriter. Rewrite the following social media caption by applying the improvement suggestions listed below.
+    Keep the same language as the original caption (Arabic or English).
+    Maintain the same general message and intent, but improve it based on the brand voice profile.
+
+    Original Caption:
+    "${originalCaption}"
+
+    Brand Voice Profile:
+    - Tone: ${brandProfile.brandVoice.toneDescription.join(', ')}
+    - Keywords to use: ${brandProfile.brandVoice.keywords.join(', ')}
+    - Keywords to avoid: ${brandProfile.brandVoice.negativeKeywords.join(', ')}
+
+    Improvement Suggestions to Apply:
+    ${suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+    Return ONLY the improved caption text, nothing else. No explanations, no labels.
+    `;
+    const response = await callAIProxy({
+        model: "gemini-2.5-flash",
+        prompt,
+        schema: {
+            type: Type.OBJECT,
+            properties: {
+                improvedCaption: { type: Type.STRING, description: "The rewritten improved caption." }
+            },
+            required: ['improvedCaption']
+        },
+        feature: 'caption_improve',
+    });
+    return JSON.parse(response.text).improvedCaption;
+}
+
+
 export async function suggestHashtags(caption: string, platforms: SocialPlatform[]): Promise<HashtagSuggestion[]> {
     const prompt = `
     Based on the following caption, suggest relevant hashtags grouped by category (e.g., General, Niche, Location-based).

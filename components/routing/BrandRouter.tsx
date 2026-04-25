@@ -355,6 +355,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     publisherBrief={publisherBrief}
                     onLoadBrief={handleLoadPublisherBrief}
                     onGenerateFromBrief={handleGenerateFromBrief}
+                    onNavigate={onNavigate}
                 />
             );
 

@@ -113,8 +113,8 @@ export const CrmDashboardPage: React.FC<CrmDashboardPageProps> = ({ brandId, onN
             title="لوحة القيادة والمؤشرات"
             description="نظرة مركزية على أداء المبيعات، ومعدلات الاحتفاظ، والفرص البيعية الذكية."
             stats={[
-                { label: 'إجمالي العملاء', value: stats.totalCustomers.toLocaleString('ar') },
-                { label: 'متوسط LTV', value: formatCurrency(stats.avgLtv), tone: 'text-green-500' },
+                { label: 'إجمالي العملاء', value: stats.totalCustomers.toLocaleString('ar'), icon: 'fa-users' },
+                { label: 'متوسط LTV', value: formatCurrency(stats.avgLtv), tone: 'text-green-500', icon: 'fa-sack-dollar' },
             ]}
             actions={
                 <button onClick={() => void load()} className="btn rounded-xl bg-light-card border border-light-border dark:bg-dark-card dark:border-dark-border px-4 py-2 font-bold text-xs text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary active:scale-95 transition-all shadow-inner">

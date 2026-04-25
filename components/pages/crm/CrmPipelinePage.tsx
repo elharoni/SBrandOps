@@ -101,8 +101,8 @@ export const CrmPipelinePage: React.FC<CrmPipelinePageProps> = ({ brandId, brand
             title="مسار المبيعات"
             description="تتبع وتحريك الصفقات المحتملة عبر مسار المبيعات بسهولة."
             stats={[
-                { label: 'إجمالي الصفقات', value: deals.length.toString() },
-                { label: 'القيمة الإجمالية', value: `${deals.reduce((s,d) => s + d.amount, 0).toLocaleString()} ر.س` }
+                { label: 'إجمالي الصفقات', value: deals.length.toString(), icon: 'fa-handshake' },
+                { label: 'القيمة الإجمالية', value: `${deals.reduce((s,d) => s + d.amount, 0).toLocaleString()} ر.س`, icon: 'fa-coins' }
             ]}
             actions={
                 <button onClick={() => setIsAddDealOpen(true)} className="btn rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-primary/20 transition-all hover:-translate-y-0.5 active:scale-95">

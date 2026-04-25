@@ -272,7 +272,7 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ brandId, onViewCus
             title="قاعدة العملاء"
             description="إدارة العملاء، التصنيفات، والمراحل البيعية."
             stats={[
-                { label: 'إجمالي العملاء', value: total.toLocaleString('ar') }
+                { label: 'إجمالي العملاء', value: total.toLocaleString('ar'), icon: 'fa-users' }
             ]}
             actions={
                 <div className="flex items-center gap-3">

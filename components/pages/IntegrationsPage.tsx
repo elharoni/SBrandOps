@@ -1282,10 +1282,10 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     </>
                 )}
                 stats={[
-                    { label: ar ? 'اتصالات فعالة' : 'Live connections', value: formatNumber(liveConnectionsCount, locale) },
-                    { label: ar ? 'تحتاج متابعة' : 'Need attention', value: formatNumber(attentionCount, locale), tone: attentionCount > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300' },
-                    { label: ar ? 'تمت مزامنتها خلال 24 ساعة' : 'Synced in 24h', value: formatNumber(recentSyncCount, locale) },
-                    { label: ar ? 'قريبًا' : 'Coming soon', value: formatNumber(comingSoonCount, locale) },
+                    { label: ar ? 'اتصالات فعالة' : 'Live connections', value: formatNumber(liveConnectionsCount, locale), icon: 'fa-plug' },
+                    { label: ar ? 'تحتاج متابعة' : 'Need attention', value: formatNumber(attentionCount, locale), tone: attentionCount > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300', icon: 'fa-triangle-exclamation' },
+                    { label: ar ? 'تمت مزامنتها خلال 24 ساعة' : 'Synced in 24h', value: formatNumber(recentSyncCount, locale), icon: 'fa-rotate' },
+                    { label: ar ? 'قريبًا' : 'Coming soon', value: formatNumber(comingSoonCount, locale), icon: 'fa-clock' },
                 ]}
             >
                 {/* ── First Sync Summary Banner ─────────────────────────── */}

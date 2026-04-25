@@ -63,29 +63,70 @@ async function withRetry<T>(operation: () => Promise<T>, retries = 2): Promise<T
 async function publishToFacebook(account: any, post: ScheduledPostInput): Promise<PublishResult> {
   if (!account.access_token) return { platform: 'Facebook', success: false, error: 'No token' };
 
-  const body: Record<string, unknown> = {
-    message: post.content,
-    access_token: account.access_token,
-  };
-  if (post.media_urls?.length) body.link = post.media_urls[0];
+  const pageId = account.platform_account_id ?? 'me';
 
-  const response = await fetch('https://graph.facebook.com/v19.0/me/feed', {
+  if (post.media_urls?.length === 1) {
+    // Single photo post — upload directly via /photos
+    const response = await fetch(`https://graph.facebook.com/v19.0/${pageId}/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: post.media_urls[0],
+        message: post.content,
+        access_token: account.access_token,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || result.error) {
+      return { platform: 'Facebook', success: false, error: result.error?.message || 'Facebook photo upload error' };
+    }
+    const postId = result.post_id || result.id;
+    return { platform: 'Facebook', success: true, post_id: postId, platform_url: `https://facebook.com/${postId}` };
+  }
+
+  if (post.media_urls && post.media_urls.length > 1) {
+    // Multiple photos — upload each unpublished, then attach to a feed post
+    const photoIds: string[] = [];
+    for (const mediaUrl of post.media_urls) {
+      const photoRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: mediaUrl, published: false, access_token: account.access_token }),
+      });
+      const photo = await photoRes.json();
+      if (!photoRes.ok || photo.error) {
+        return { platform: 'Facebook', success: false, error: photo.error?.message || 'Facebook photo upload error' };
+      }
+      photoIds.push(photo.id);
+    }
+
+    const response = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: post.content,
+        attached_media: photoIds.map(id => ({ media_fbid: id })),
+        access_token: account.access_token,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || result.error) {
+      return { platform: 'Facebook', success: false, error: result.error?.message || 'Facebook API error' };
+    }
+    return { platform: 'Facebook', success: true, post_id: result.id, platform_url: `https://facebook.com/${result.id}` };
+  }
+
+  // Text-only post
+  const response = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ message: post.content, access_token: account.access_token }),
   });
   const result = await response.json();
-
   if (!response.ok || result.error) {
     return { platform: 'Facebook', success: false, error: result.error?.message || 'Facebook API error' };
   }
-
-  return {
-    platform: 'Facebook',
-    success: true,
-    post_id: result.id,
-    platform_url: `https://facebook.com/${result.id}`,
-  };
+  return { platform: 'Facebook', success: true, post_id: result.id, platform_url: `https://facebook.com/${result.id}` };
 }
 
 async function publishToInstagram(account: any, post: ScheduledPostInput): Promise<PublishResult> {

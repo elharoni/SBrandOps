@@ -7,6 +7,7 @@ interface PlatformStatusDisplayProps {
     onCreateNewPost: () => void;
     onEditPost: () => void;
     onNotifyFailure: (platform: SocialPlatform, error: string | null | undefined) => void;
+    onConnectAccount?: (platform: SocialPlatform) => void;
 }
 
 const StatusIndicator: React.FC<{ status: PlatformPostStatus }> = ({ status }) => {
@@ -56,7 +57,7 @@ const getStatusStyling = (status: PlatformPostStatus): string => {
     }
 };
 
-export const PlatformStatusDisplay: React.FC<PlatformStatusDisplayProps> = ({ statuses, onRetry, onCreateNewPost, onEditPost, onNotifyFailure }) => {
+export const PlatformStatusDisplay: React.FC<PlatformStatusDisplayProps> = ({ statuses, onRetry, onCreateNewPost, onEditPost, onNotifyFailure, onConnectAccount }) => {
     
     const total = statuses.size;
     const publishedCount = [...statuses.values()].filter(s => s.status === PlatformPostStatus.Published).length;
@@ -120,9 +121,15 @@ export const PlatformStatusDisplay: React.FC<PlatformStatusDisplayProps> = ({ st
                                         <button onClick={() => onNotifyFailure(platform, platformStatus.error)} className="text-xs font-bold text-yellow-400 hover:underline">
                                             إعلام
                                         </button>
-                                        <button onClick={() => onRetry(platform)} className="text-xs font-bold text-brand-primary hover:underline">
-                                            إعادة المحاولة
-                                        </button>
+                                        {platformStatus.error === 'No connected account' && onConnectAccount ? (
+                                            <button onClick={() => onConnectAccount(platform)} className="text-xs font-bold text-emerald-400 hover:underline">
+                                                ربط الحساب
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => onRetry(platform)} className="text-xs font-bold text-brand-primary hover:underline">
+                                                إعادة المحاولة
+                                            </button>
+                                        )}
                                     </div>
                                 </>
                             )}

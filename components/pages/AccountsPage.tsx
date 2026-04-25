@@ -392,9 +392,9 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, o
                 </div>
             )}
             stats={[
-                { label: ar ? 'إجمالي الحسابات' : 'Total accounts', value: accounts.length.toString() },
-                { label: ar ? 'جاهزة للنشر' : 'Ready to publish', value: accounts.filter((account) => account.status === AccountStatus.Connected).length.toString(), tone: 'text-emerald-600 dark:text-emerald-300' },
-                { label: ar ? 'تحتاج إعادة توثيق' : 'Need re-auth', value: actionRequired.toString(), tone: 'text-amber-600 dark:text-amber-300' },
+                { label: ar ? 'إجمالي الحسابات' : 'Total accounts', value: accounts.length.toString(), icon: 'fa-plug' },
+                { label: ar ? 'جاهزة للنشر' : 'Ready to publish', value: accounts.filter((account) => account.status === AccountStatus.Connected).length.toString(), tone: 'text-emerald-600 dark:text-emerald-300', icon: 'fa-circle-check' },
+                { label: ar ? 'تحتاج إعادة توثيق' : 'Need re-auth', value: actionRequired.toString(), tone: 'text-amber-600 dark:text-amber-300', icon: 'fa-triangle-exclamation' },
             ]}
         >
             {accounts.length > 0 && <AccountsStatsBar accounts={accounts} />}

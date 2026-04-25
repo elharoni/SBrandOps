@@ -17,9 +17,10 @@ interface PublisherPageProps {
     publisherBrief?: PublisherBrief | null;
     onLoadBrief: (brief: PublisherBrief) => void;
     onGenerateFromBrief: (brief: PublisherBrief) => void;
+    onNavigate?: (page: string) => void;
 }
 
-export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
+export const PublisherPage: React.FC<PublisherPageProps> = ({ onNavigate, ...props }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
     const [savedBriefs, setSavedBriefs] = useState<PublisherBrief[]>([]);
@@ -124,7 +125,7 @@ export const PublisherPage: React.FC<PublisherPageProps> = (props) => {
             description={copy.description}
             stats={stats}
         >
-            <Publisher {...props} publisherBrief={props.publisherBrief} />
+            <Publisher {...props} publisherBrief={props.publisherBrief} onNavigateToIntegrations={onNavigate ? () => onNavigate('integrations') : undefined} />
 
             <PageSection
                 title={copy.libraryTitle}

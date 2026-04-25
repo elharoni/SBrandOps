@@ -391,9 +391,9 @@ export const SocialSearchPage: React.FC<SocialSearchPageProps> = ({ brandId, onS
             title={copy.title}
             description={copy.description}
             stats={snapshot ? [
-                { label: copy.mentions, value: snapshot.totalMentions.toLocaleString(ar ? 'ar-EG' : 'en-US') },
-                { label: copy.topPlatform, value: snapshot.topPlatform, tone: 'text-brand-primary' },
-                { label: copy.competitorCount, value: String(snapshot.competitorCount) },
+                { label: copy.mentions, value: snapshot.totalMentions.toLocaleString(ar ? 'ar-EG' : 'en-US'), icon: 'fa-at' },
+                { label: copy.topPlatform, value: snapshot.topPlatform, tone: 'text-brand-primary', icon: 'fa-star' },
+                { label: copy.competitorCount, value: String(snapshot.competitorCount), icon: 'fa-chess' },
             ] : []}
         >
             <PageSection title={copy.marketSnapshot} description={copy.presets}>

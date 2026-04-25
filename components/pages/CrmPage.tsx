@@ -160,9 +160,9 @@ export const CrmPage: React.FC<CrmPageProps> = ({ brandId, brandConnections, bra
             title="CRM & Customer Operations"
             description="إدارة العملاء، الطلبات، الشرائح، والأتمتة من مساحة واحدة أخف وأوضح تشغيليًا."
             stats={[
-                { label: 'الوحدة النشطة', value: activePage.label, tone: 'text-brand-primary' },
-                { label: 'الوحدات الجاهزة', value: `${CRM_NAV.length}` },
-                { label: 'الوضع', value: subPage === 'customer-profile' ? 'ملف عميل' : 'تشغيل مباشر' },
+                { label: 'الوحدة النشطة', value: activePage.label, tone: 'text-brand-primary', icon: 'fa-layer-group' },
+                { label: 'الوحدات الجاهزة', value: `${CRM_NAV.length}`, icon: 'fa-check-double' },
+                { label: 'الوضع', value: subPage === 'customer-profile' ? 'ملف عميل' : 'تشغيل مباشر', icon: 'fa-circle-info' },
             ]}
         >
             <PageSection
