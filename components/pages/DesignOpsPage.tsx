@@ -158,7 +158,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
     const [variantCount,     setVariantCount]     = useState<1|2|3>(3);
     const [cta,              setCta]              = useState('');
     const [useBrandColors,   setUseBrandColors]   = useState(true);
-    const [imageProvider,    setImageProvider]    = useState<AIImageProvider>('gemini-native');
+    const [imageProvider,    setImageProvider]    = useState<AIImageProvider>('openai');
     const [editingAsset,     setEditingAsset]     = useState<DesignAsset | null>(null);
 
     // ── Generation state ─────────────────────────────────────────────────────
@@ -328,7 +328,9 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                         </div>
                         <div>
                             <h1 className="text-lg font-bold text-light-text dark:text-dark-text">استوديو التصميم</h1>
-                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{brandName} • Imagen 4.0 + Gemini Flash</p>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                {brandName} • {imageProvider === 'openai' ? 'ChatGPT (DALL-E 3)' : imageProvider === 'gemini-native' ? 'Gemini 2.0' : 'Imagen 4.0'}
+                            </p>
                         </div>
                     </div>
                     <button
@@ -425,6 +427,55 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                         <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary mt-1.5 me-1 text-end">
                             Cmd+Enter للتوليد السريع
                         </p>
+                    </div>
+
+                    {/* ── AI Provider Selector ── */}
+                    <div className="px-5 py-4 border-y border-light-border dark:border-dark-border bg-light-bg/30 dark:bg-dark-bg/30">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs font-bold text-light-text dark:text-dark-text">محرك التصميم (AI Provider)</p>
+                            <span className="text-[10px] text-brand-secondary font-medium">اختر الذكاء الاصطناعي المفضل</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setImageProvider('openai')}
+                                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                    imageProvider === 'openai'
+                                        ? 'border-brand-primary bg-brand-primary/10 shadow-sm shadow-brand-primary/20'
+                                        : 'border-light-border dark:border-dark-border hover:border-brand-primary/40 bg-light-card dark:bg-dark-card'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${imageProvider === 'openai' ? 'bg-brand-primary text-white' : 'bg-light-bg dark:bg-dark-bg text-light-text-secondary'}`}>
+                                        <i className="fas fa-robot text-xs"></i>
+                                    </div>
+                                    <div className="text-start">
+                                        <p className={`text-xs font-bold ${imageProvider === 'openai' ? 'text-brand-primary' : 'text-light-text dark:text-dark-text'}`}>ChatGPT</p>
+                                        <p className="text-[9px] text-light-text-secondary dark:text-dark-text-secondary">DALL-E 3 • جودة فنية</p>
+                                    </div>
+                                </div>
+                                {imageProvider === 'openai' && <i className="fas fa-check-circle text-brand-primary text-xs"></i>}
+                            </button>
+
+                            <button
+                                onClick={() => setImageProvider('gemini-native')}
+                                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                    imageProvider === 'gemini-native'
+                                        ? 'border-brand-primary bg-brand-primary/10 shadow-sm shadow-brand-primary/20'
+                                        : 'border-light-border dark:border-dark-border hover:border-brand-primary/40 bg-light-card dark:bg-dark-card'
+                                }`}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${imageProvider === 'gemini-native' ? 'bg-brand-primary text-white' : 'bg-light-bg dark:bg-dark-bg text-light-text-secondary'}`}>
+                                        <i className="fas fa-sparkles text-xs"></i>
+                                    </div>
+                                    <div className="text-start">
+                                        <p className={`text-xs font-bold ${imageProvider === 'gemini-native' ? 'text-brand-primary' : 'text-light-text dark:text-dark-text'}`}>Gemini</p>
+                                        <p className="text-[9px] text-light-text-secondary dark:text-dark-text-secondary">Google • ذكاء عربي عالي</p>
+                                    </div>
+                                </div>
+                                {imageProvider === 'gemini-native' && <i className="fas fa-check-circle text-brand-primary text-xs"></i>}
+                            </button>
+                        </div>
                     </div>
 
                     {/* ── Platform Format Picker ── */}
@@ -619,7 +670,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                                 <>
                                     <i className="fas fa-wand-magic-sparkles"></i>
                                     <span>توليد {variantCount} تصميم{variantCount > 1 ? 'ات' : ''}</span>
-                                    <span className="opacity-70 font-normal">• Gemini عربي</span>
+                                    <span className="opacity-70 font-normal">• {imageProvider === 'openai' ? 'بواسطة ChatGPT' : 'بواسطة Gemini'}</span>
                                 </>
                             )}
                         </button>
