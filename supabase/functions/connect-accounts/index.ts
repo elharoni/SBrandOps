@@ -95,7 +95,7 @@ async function exchangeToLongLivedToken(
     url.searchParams.set('client_secret', appSecret);
     url.searchParams.set('fb_exchange_token', shortToken);
 
-    const resp = await fetch(url.toString());
+    const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) return { token: shortToken, expiresAt: null };
 
     const data = await resp.json();
@@ -124,7 +124,7 @@ async function fetchServerPageToken(
     url.searchParams.set('fields', 'access_token');
     url.searchParams.set('access_token', longLivedUserToken);
 
-    const resp = await fetch(url.toString());
+    const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) return null;
     const data = await resp.json();
     return data.access_token ?? null;
@@ -161,6 +161,18 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
+  // ── Request info (debug) ─────────────────────────────────────────────────
+  const requestOrigin = req.headers.get('Origin');
+  const hasAuth = Boolean(req.headers.get('Authorization'));
+  console.log(JSON.stringify({
+    correlationId,
+    event: 'request-info',
+    method: req.method,
+    origin: requestOrigin,
+    hasAuth,
+    corsAllowOrigin: corsHeaders['Access-Control-Allow-Origin'],
+  }));
+
   // ── Config pre-flight check ───────────────────────────────────────────────
   const encKey      = Deno.env.get('OAUTH_ENCRYPTION_KEY');
   const fbAppId     = Deno.env.get('FACEBOOK_APP_ID');
@@ -196,6 +208,12 @@ Deno.serve(async (req: Request) => {
   // the browser sees as "Failed to fetch").
   try {
     const userOrError = await verifyJWT(req, correlationId, corsHeaders);
+    console.log(JSON.stringify({
+      correlationId,
+      event: 'jwt-result',
+      isResponse: userOrError instanceof Response,
+      status: userOrError instanceof Response ? userOrError.status : 'authenticated',
+    }));
     if (userOrError instanceof Response) return userOrError;
     const authenticatedUser = userOrError;
 
@@ -222,8 +240,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Brand ownership check ─────────────────────────────────────────────
-    const ownershipError = await assertBrandOwnership(supabase, authenticatedUser.id, body.brand_id, correlationId);
+    console.log(JSON.stringify({ correlationId, event: 'ownership-check-start', brand_id: body.brand_id, user_id: authenticatedUser.id }));
+    const ownershipError = await assertBrandOwnership(supabase, authenticatedUser.id, body.brand_id, correlationId, corsHeaders);
     if (ownershipError) return ownershipError;
+    console.log(JSON.stringify({ correlationId, event: 'ownership-check-ok' }));
 
     // ── Token exchange: short-lived → long-lived (Facebook / Instagram) ──
     // Page tokens derived from a long-lived user token are permanent.

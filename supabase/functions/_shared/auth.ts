@@ -96,26 +96,31 @@ export async function assertBrandOwnership(
   userId: string,
   brandId: string,
   correlationId?: string,
+  corsHeaders?: Record<string, string>,
 ): Promise<Response | undefined> {
   if (!brandId) {
-    return errorResponse('brand_id is required', 400, correlationId);
+    return errorResponse('brand_id is required', 400, correlationId, corsHeaders);
   }
 
-  // brands table: owner_id column holds the creator's user UUID.
-  // brand_members table (if exists): user_id + brand_id for team members.
-  // Try user_id first (common column name), fall back to owner_id
+  // Try user_id column first, then owner_id as fallback
   const { data: brand, error } = await supabase
     .from('brands')
-    .select('id')
+    .select('id, user_id')
     .eq('id', brandId)
-    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) {
-    return errorResponse('Failed to verify brand ownership', 500, correlationId);
+    console.error(JSON.stringify({ event: 'ownership-db-error', error: error.message, brandId, userId }));
+    return errorResponse(`Failed to verify brand ownership: ${error.message}`, 500, correlationId, corsHeaders);
   }
 
   if (!brand) {
+    console.error(JSON.stringify({ event: 'ownership-brand-not-found', brandId, userId }));
+    return errorResponse('Brand not found', 404, correlationId, corsHeaders);
+  }
+
+  const brandOwner = (brand as any).user_id ?? (brand as any).owner_id;
+  if (brandOwner !== userId) {
     // Check team membership as fallback
     const { data: member } = await supabase
       .from('brand_members')
@@ -125,7 +130,8 @@ export async function assertBrandOwnership(
       .maybeSingle();
 
     if (!member) {
-      return errorResponse('Forbidden: you do not have access to this brand', 403, correlationId);
+      console.error(JSON.stringify({ event: 'ownership-forbidden', brandId, userId, brandOwner }));
+      return errorResponse('Forbidden: you do not have access to this brand', 403, correlationId, corsHeaders);
     }
   }
 

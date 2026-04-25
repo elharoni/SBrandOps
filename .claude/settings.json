@@ -69,7 +69,8 @@
       "Bash(xargs -I {} bash -c 'echo \"=== {} ===\" && head -50 {} | tail -30')",
       "Bash(python3 -)",
       "Bash(python -)",
-      "Read(//e//**)"
+      "Read(//e//**)",
+      "Bash(npx vite *)"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

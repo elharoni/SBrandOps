@@ -1189,14 +1189,18 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 || msg.includes('503')
                 || msg.includes('Server misconfiguration')
                 || msg.includes('non-2xx');   // generic Supabase gateway error → almost always missing secrets
-            const isAuthError = msg.includes('401') || msg.includes('403')
-                || msg.includes('Unauthorized') || msg.includes('Forbidden');
+            const isSessionExpired = msg.includes('401') || msg.includes('انتهت الجلسة') || msg.includes('Not authenticated');
+            const isForbidden = msg.includes('403') || msg.includes('Forbidden') || msg.includes('do not have access');
             let userMsg: string;
             if (isServerConfig) {
                 userMsg = ar
                     ? 'خطأ في إعداد الخادم — افتح Supabase Dashboard → Edge Functions → Secrets وأضف:\n• OAUTH_ENCRYPTION_KEY\n• FACEBOOK_APP_ID\n• FACEBOOK_APP_SECRET'
                     : 'Server config error — open Supabase Dashboard → Edge Functions → Secrets and add OAUTH_ENCRYPTION_KEY, FACEBOOK_APP_ID, FACEBOOK_APP_SECRET. See SUPABASE_SECRETS_SETUP.md.';
-            } else if (isAuthError) {
+            } else if (isForbidden) {
+                userMsg = ar
+                    ? 'ليس لديك صلاحية على هذا البراند — تأكد أنك مسجل دخول بنفس الحساب الذي أنشأ البراند.'
+                    : 'You do not have access to this brand — make sure you are signed in with the account that created it.';
+            } else if (isSessionExpired) {
                 userMsg = ar ? 'انتهت الجلسة — يرجى تسجيل الدخول مرة أخرى.' : 'Session expired — please sign in again.';
             } else {
                 userMsg = ar
