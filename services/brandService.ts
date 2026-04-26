@@ -28,7 +28,13 @@ export async function getBrands(): Promise<Brand[]> {
 
 // ── addBrand ──────────────────────────────────────────────────────────────────
 // Requires authenticated user — user_id is NOT NULL in schema_v2
-export async function addBrand(name: string, industry?: string, logoUrl?: string): Promise<Brand> {
+export async function addBrand(
+    name: string,
+    industry?: string,
+    logoUrl?: string,
+    country?: string,
+    websiteUrl?: string,
+): Promise<Brand> {
     // Get current user ID — required by schema NOT NULL constraint & RLS
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -57,8 +63,10 @@ export async function addBrand(name: string, industry?: string, logoUrl?: string
         name,
         user_id: user.id,
     };
-    if (industry) insertData.industry = industry;
-    if (logoUrl)  insertData.logo_url  = logoUrl;
+    if (industry)    insertData.industry    = industry;
+    if (logoUrl)     insertData.logo_url    = logoUrl;
+    if (country)     insertData.country     = country;
+    if (websiteUrl)  insertData.website_url = websiteUrl;
 
     const { data, error } = await supabase
         .from('brands')
@@ -103,11 +111,16 @@ export async function deleteBrand(brandId: string): Promise<void> {
 }
 
 // ── updateBrand ───────────────────────────────────────────────────────────────
-export async function updateBrand(brandId: string, updates: { name?: string; industry?: string; logoUrl?: string }): Promise<Brand> {
+export async function updateBrand(
+    brandId: string,
+    updates: { name?: string; industry?: string; logoUrl?: string; country?: string; websiteUrl?: string },
+): Promise<Brand> {
     const payload: Record<string, unknown> = {};
-    if (updates.name)     payload.name      = updates.name;
-    if (updates.industry) payload.industry  = updates.industry;
-    if (updates.logoUrl)  payload.logo_url  = updates.logoUrl;
+    if (updates.name)       payload.name        = updates.name;
+    if (updates.industry)   payload.industry    = updates.industry;
+    if (updates.logoUrl)    payload.logo_url    = updates.logoUrl;
+    if (updates.country)    payload.country     = updates.country;
+    if (updates.websiteUrl) payload.website_url = updates.websiteUrl;
 
     const { data, error } = await supabase
         .from('brands')

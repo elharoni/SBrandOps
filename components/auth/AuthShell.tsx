@@ -68,24 +68,30 @@ export const AuthShell: React.FC<{ children: React.ReactNode }> = ({ children })
 );
 
 /**
- * AuthLogoBlock — the centered logo + tagline shown above the auth card.
- * Uses gradient variant (primary digital use per brand guidelines).
+ * AuthLogoBlock — centered logo above the auth card.
+ * Uses stacked-gradient PNG: includes mark + "SBrandOps" wordmark
+ * + "One System. Smarter Growth." tagline — all in one official asset.
+ * No separate subtitle needed; the image contains the tagline.
+ *
+ * Optional overlay subtitle only for non-default contexts (e.g. "استعادة كلمة المرور").
  */
-export const AuthLogoBlock: React.FC<{ subtitle?: string }> = ({
-  subtitle = 'One System. Smarter Growth.',
-}) => (
+export const AuthLogoBlock: React.FC<{ subtitle?: string }> = ({ subtitle }) => (
   <div className="text-center mb-8 flex flex-col items-center">
     <SBrandOpsLogo
       variant="gradient"
       layout="stacked"
       size="xl"
-      alt="SBrandOps"
+      alt="SBrandOps — One System. Smarter Growth."
+      /* Stacked PNG is wide-panoramic: fix height to ~88px for auth prominence */
+      style={{ height: 88, width: 'auto' }}
     />
-    <p
-      className="mt-3 text-sm font-medium tracking-wide"
-      style={{ color: '#A8B0C3' }}
-    >
-      {subtitle}
-    </p>
+    {subtitle && (
+      <p
+        className="mt-2 text-sm font-medium tracking-wide"
+        style={{ color: '#A8B0C3' }}
+      >
+        {subtitle}
+      </p>
+    )}
   </div>
 );

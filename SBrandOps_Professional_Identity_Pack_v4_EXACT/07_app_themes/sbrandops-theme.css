@@ -1,0 +1,23 @@
+:root {
+  --sbo-deep-navy: #070B1F;
+  --sbo-navy-900: #0D1329;
+  --sbo-navy-800: #161B33;
+  --sbo-slate-700: #1F2540;
+  --sbo-cyan: #06B6D4;
+  --sbo-blue: #2563EB;
+  --sbo-indigo: #4F46E5;
+  --sbo-purple: #7C3AED;
+  --sbo-white: #FFFFFF;
+  --sbo-soft-white: #E6EAF2;
+  --sbo-gray-300: #A8B0C3;
+  --sbo-gradient-primary: linear-gradient(135deg,#06B6D4 0%,#2563EB 38%,#4F46E5 68%,#7C3AED 100%);
+  --sbo-font: Inter, Sora, "Plus Jakarta Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+  --sbo-radius-card: 20px;
+  --sbo-radius-button: 14px;
+  --sbo-shadow-card: 0 16px 50px rgba(6,182,212,.10);
+  --sbo-shadow-glow: 0 0 40px rgba(37,99,235,.28);
+}
+.sbo-bg { background: var(--sbo-deep-navy); color: var(--sbo-white); font-family: var(--sbo-font); }
+.sbo-gradient-text { background: var(--sbo-gradient-primary); -webkit-background-clip: text; background-clip:text; color: transparent; }
+.sbo-card { background: rgba(13,19,41,.78); border:1px solid rgba(230,234,242,.10); border-radius:var(--sbo-radius-card); box-shadow:var(--sbo-shadow-card); }
+.sbo-button-primary { background: var(--sbo-gradient-primary); color:white; border:0; border-radius:var(--sbo-radius-button); padding:12px 20px; font-weight:700; }

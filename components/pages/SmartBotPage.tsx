@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Brand, BrandHubProfile, NotificationType,
-    BotPersona, BotMessage,
+    BotPersona, BotConversation, BotMessage,
     BotScenario, BotPersonality, BotLanguage, BotTrigger,
 } from '../../types';
 import {
-    getBotPersonas, createBotPersona, updateBotPersonaStatus,
-    deleteBotPersona, buildBotSystemPrompt, getBotReply,
+    getBotPersonas, createBotPersona, updateBotPersona, updateBotPersonaStatus,
+    deleteBotPersona, getBotConversations, saveBotConversation,
+    incrementConversationCount, buildBotSystemPrompt, getBotReply, generateBrandFAQ,
 } from '../../services/smartBotService';
 
 // ── Template Definitions ──────────────────────────────────────────────────────
@@ -182,7 +183,9 @@ const BOT_TEMPLATES: BotTemplate[] = [
     },
 ];
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type TabId = 'templates' | 'mybots' | 'conversations';
 
 interface SmartBotPageProps {
     brandId: string;
@@ -191,10 +194,9 @@ interface SmartBotPageProps {
     addNotification: (type: NotificationType, msg: string) => void;
 }
 
-// ── Wizard State ──────────────────────────────────────────────────────────────
-
 interface WizardState {
     step: 1 | 2 | 3 | 4;
+    editingId: string | null;
     template: BotTemplate | null;
     name: string;
     emoji: string;
@@ -210,7 +212,7 @@ interface WizardState {
 }
 
 const DEFAULT_WIZARD: WizardState = {
-    step: 1, template: null,
+    step: 1, editingId: null, template: null,
     name: '', emoji: '🤖',
     personality: 'professional', language: 'arabic', persuasionLevel: 2,
     extraKnowledge: '', greetingMessage: '', closingMessage: '',
@@ -223,49 +225,80 @@ const DEFAULT_WIZARD: WizardState = {
 export const SmartBotPage: React.FC<SmartBotPageProps> = ({
     brandId, brand, brandProfile, addNotification,
 }) => {
-    const [tab, setTab] = useState<'templates' | 'mybots' | 'conversations'>('templates');
-    const [personas, setPersonas]     = useState<BotPersona[]>([]);
-    const [loading, setLoading]       = useState(true);
-    const [showBuilder, setShowBuilder] = useState(false);
-    const [wizard, setWizard]         = useState<WizardState>(DEFAULT_WIZARD);
+    const [tab, setTab] = useState<TabId>('templates');
+    const [personas, setPersonas]           = useState<BotPersona[]>([]);
+    const [loading, setLoading]             = useState(true);
+    const [showBuilder, setShowBuilder]     = useState(false);
+    const [wizard, setWizard]               = useState<WizardState>(DEFAULT_WIZARD);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [conversations, setConversations] = useState<BotConversation[]>([]);
+    const [convoLoading, setConvoLoading]   = useState(false);
+    const [generatingFAQ, setGeneratingFAQ] = useState(false);
 
     // Demo chat
-    const [showDemo, setShowDemo]             = useState(false);
-    const [demoPersona, setDemoPersona]       = useState<BotPersona | null>(null);
-    const [demoTemplate, setDemoTemplate]     = useState<BotTemplate | null>(null);
-    const [chatMessages, setChatMessages]     = useState<BotMessage[]>([]);
-    const [chatInput, setChatInput]           = useState('');
-    const [botTyping, setBotTyping]           = useState(false);
+    const [showDemo, setShowDemo]               = useState(false);
+    const [demoPersona, setDemoPersona]         = useState<BotPersona | null>(null);
+    const [demoTemplate, setDemoTemplate]       = useState<BotTemplate | null>(null);
+    const [chatMessages, setChatMessages]       = useState<BotMessage[]>([]);
+    const [chatInput, setChatInput]             = useState('');
+    const [botTyping, setBotTyping]             = useState(false);
     const [demoSystemPrompt, setDemoSystemPrompt] = useState('');
+    const [demoSaved, setDemoSaved]             = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     const brandName = brandProfile?.brandName || brand?.name || 'البراند';
 
+    // ── Effects ──────────────────────────────────────────────────────────────
+
     useEffect(() => {
-        getBotPersonas(brandId).then(p => { setPersonas(p); setLoading(false); });
+        getBotPersonas(brandId).then(p => {
+            setPersonas(p);
+            setLoading(false);
+            if (p.length > 0) setTab('mybots');
+        });
     }, [brandId]);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages, botTyping]);
 
-    // ── Open builder from template ───────────────────────────────────────────
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            if (showDemo) setShowDemo(false);
+            else if (showBuilder) setShowBuilder(false);
+            else if (deleteConfirm) setDeleteConfirm(null);
+        };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [showDemo, showBuilder, deleteConfirm]);
 
-    const openBuilder = (template: BotTemplate) => {
-        setWizard({
-            ...DEFAULT_WIZARD,
-            template,
-            name: template.personaName,
-            emoji: template.emoji,
-            personality: template.defaultPersonality,
-            greetingMessage: template.greetingTemplate.replace('[اسم البراند]', brandName),
-            closingMessage: template.closingTemplate,
-        });
-        setShowBuilder(true);
-    };
+    useEffect(() => {
+        if (tab !== 'conversations') return;
+        setConvoLoading(true);
+        getBotConversations(brandId).then(c => { setConversations(c); setConvoLoading(false); });
+    }, [tab, brandId]);
 
-    // ── Open demo chat (from template preview) ───────────────────────────────
+    // ── Demo open / close ─────────────────────────────────────────────────────
+
+    const closeDemo = useCallback(async () => {
+        setShowDemo(false);
+        if (demoPersona && demoPersona.id !== 'demo' && chatMessages.length > 1 && !demoSaved) {
+            setDemoSaved(true);
+            try {
+                await saveBotConversation(brandId, demoPersona.id, chatMessages);
+                await incrementConversationCount(brandId, demoPersona.id);
+                setPersonas(prev => prev.map(p =>
+                    p.id === demoPersona.id ? { ...p, conversationCount: p.conversationCount + 1 } : p
+                ));
+            } catch { /* non-critical */ }
+        }
+        setChatMessages([]);
+        setChatInput('');
+        setDemoPersona(null);
+        setDemoTemplate(null);
+        setDemoSaved(false);
+    }, [demoPersona, chatMessages, demoSaved, brandId]);
 
     const openTemplateDemo = (template: BotTemplate) => {
         const draftPersona: BotPersona = {
@@ -287,36 +320,68 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
             conversionRate: 0,
             createdAt: new Date().toISOString(),
         };
-        const systemPrompt = buildBotSystemPrompt(draftPersona, brand ?? null, brandProfile);
-        setDemoSystemPrompt(systemPrompt);
+        setDemoSystemPrompt(buildBotSystemPrompt(draftPersona, brand ?? null, brandProfile));
         setDemoPersona(draftPersona);
         setDemoTemplate(template);
-        const greeting: BotMessage = {
+        setDemoSaved(false);
+        setChatMessages([{
             id: crypto.randomUUID(),
             role: 'bot',
             content: draftPersona.greetingMessage,
             timestamp: new Date().toISOString(),
-        };
-        setChatMessages([greeting]);
+        }]);
         setShowDemo(true);
     };
 
     const openPersonaDemo = (p: BotPersona) => {
-        const systemPrompt = buildBotSystemPrompt(p, brand ?? null, brandProfile);
-        setDemoSystemPrompt(systemPrompt);
+        setDemoSystemPrompt(buildBotSystemPrompt(p, brand ?? null, brandProfile));
         setDemoPersona(p);
         setDemoTemplate(null);
-        const greeting: BotMessage = {
+        setDemoSaved(false);
+        setChatMessages([{
             id: crypto.randomUUID(),
             role: 'bot',
             content: p.greetingMessage || `أهلاً! أنا ${p.name}، كيف أقدر أساعدك؟`,
             timestamp: new Date().toISOString(),
-        };
-        setChatMessages([greeting]);
+        }]);
         setShowDemo(true);
     };
 
-    // ── Send message in demo ─────────────────────────────────────────────────
+    // ── Builder open ──────────────────────────────────────────────────────────
+
+    const openBuilder = (template: BotTemplate) => {
+        setWizard({
+            ...DEFAULT_WIZARD,
+            template,
+            name: template.personaName,
+            emoji: template.emoji,
+            personality: template.defaultPersonality,
+            greetingMessage: template.greetingTemplate.replace('[اسم البراند]', brandName),
+            closingMessage: template.closingTemplate,
+        });
+        setShowBuilder(true);
+    };
+
+    const openEditor = (p: BotPersona) => {
+        const template = BOT_TEMPLATES.find(t => t.scenario === p.scenario) ?? BOT_TEMPLATES[0];
+        setWizard({
+            ...DEFAULT_WIZARD,
+            editingId: p.id,
+            template,
+            name: p.name,
+            emoji: p.avatarEmoji,
+            personality: p.personality,
+            language: p.language,
+            persuasionLevel: p.persuasionLevel,
+            greetingMessage: p.greetingMessage,
+            closingMessage: p.closingMessage,
+            trigger: p.trigger,
+            triggerKeywords: p.triggerKeywords.join(', '),
+        });
+        setShowBuilder(true);
+    };
+
+    // ── Send demo message ──────────────────────────────────────────────────────
 
     const sendDemoMessage = useCallback(async () => {
         if (!chatInput.trim() || botTyping || !demoPersona) return;
@@ -348,7 +413,7 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
         }
     }, [chatInput, botTyping, demoPersona, demoSystemPrompt, chatMessages, addNotification]);
 
-    // ── Wizard save ──────────────────────────────────────────────────────────
+    // ── Wizard save ───────────────────────────────────────────────────────────
 
     const handleSaveBot = async () => {
         if (!wizard.template) return;
@@ -370,7 +435,7 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                 brandProfile,
                 wizard.extraKnowledge
             );
-            const created = await createBotPersona(brandId, {
+            const personaData = {
                 name:            wizard.name,
                 avatarEmoji:     wizard.emoji,
                 scenario:        wizard.template.scenario,
@@ -382,27 +447,61 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                 closingMessage:  wizard.closingMessage,
                 trigger:         wizard.trigger,
                 triggerKeywords: wizard.triggerKeywords.split(',').map(k => k.trim()).filter(Boolean),
-                status:          'active',
-            });
-            setPersonas(prev => [created, ...prev]);
+                status:          'active' as const,
+            };
+
+            if (wizard.editingId) {
+                const updated = await updateBotPersona(brandId, wizard.editingId, personaData);
+                setPersonas(prev => prev.map(x => x.id === wizard.editingId ? updated : x));
+                addNotification(NotificationType.Success, `✅ تم تحديث بوت "${updated.name}"`);
+            } else {
+                const created = await createBotPersona(brandId, personaData);
+                setPersonas(prev => [created, ...prev]);
+                addNotification(NotificationType.Success, `✅ تم إنشاء بوت "${created.name}" وتفعيله`);
+            }
+
             setShowBuilder(false);
             setWizard(DEFAULT_WIZARD);
-            addNotification(NotificationType.Success, `✅ تم إنشاء بوت "${created.name}" وتفعيله`);
             setTab('mybots');
-        } catch (err: any) {
-            addNotification(NotificationType.Error, err.message || 'فشل إنشاء البوت');
+        } catch (err: unknown) {
+            addNotification(NotificationType.Error, (err as Error).message || 'فشل حفظ البوت');
         } finally {
             setWizard(w => ({ ...w, saving: false }));
         }
     };
+
+    // ── Other handlers ────────────────────────────────────────────────────────
 
     const handleToggleStatus = async (p: BotPersona) => {
         const next = p.status === 'active' ? 'paused' : 'active';
         try {
             await updateBotPersonaStatus(brandId, p.id, next);
             setPersonas(prev => prev.map(x => x.id === p.id ? { ...x, status: next } : x));
-        } catch (err: any) {
-            addNotification(NotificationType.Error, err.message);
+        } catch (err: unknown) {
+            addNotification(NotificationType.Error, (err as Error).message);
+        }
+    };
+
+    const handleDuplicate = async (p: BotPersona) => {
+        try {
+            const created = await createBotPersona(brandId, {
+                name:            `نسخة من ${p.name}`,
+                avatarEmoji:     p.avatarEmoji,
+                scenario:        p.scenario,
+                personality:     p.personality,
+                language:        p.language,
+                persuasionLevel: p.persuasionLevel,
+                systemPrompt:    p.systemPrompt,
+                greetingMessage: p.greetingMessage,
+                closingMessage:  p.closingMessage,
+                trigger:         p.trigger,
+                triggerKeywords: p.triggerKeywords,
+                status:          'draft',
+            });
+            setPersonas(prev => [created, ...prev]);
+            addNotification(NotificationType.Success, `✅ تم نسخ البوت — "${created.name}"`);
+        } catch (err: unknown) {
+            addNotification(NotificationType.Error, (err as Error).message);
         }
     };
 
@@ -411,10 +510,22 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
             await deleteBotPersona(brandId, p.id);
             setPersonas(prev => prev.filter(x => x.id !== p.id));
             addNotification(NotificationType.Success, `تم حذف بوت "${p.name}"`);
-        } catch (err: any) {
-            addNotification(NotificationType.Error, err.message);
+        } catch (err: unknown) {
+            addNotification(NotificationType.Error, (err as Error).message);
         } finally {
             setDeleteConfirm(null);
+        }
+    };
+
+    const handleGenerateFAQ = async () => {
+        setGeneratingFAQ(true);
+        try {
+            const faq = await generateBrandFAQ(brand ?? null, brandProfile);
+            setWizard(w => ({ ...w, extraKnowledge: faq }));
+        } catch {
+            addNotification(NotificationType.Error, 'فشل توليد المعلومات — تحقق من إعدادات AI');
+        } finally {
+            setGeneratingFAQ(false);
         }
     };
 
@@ -470,7 +581,7 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                         bg: 'bg-violet-500/10',
                     },
                     {
-                        label: 'محادثات اليوم',
+                        label: 'إجمالي المحادثات',
                         value: personas.reduce((s, p) => s + p.conversationCount, 0),
                         icon: 'fa-comments',
                         color: 'text-blue-500',
@@ -500,14 +611,14 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
 
             {/* ── Tabs ────────────────────────────────────────────────────── */}
             <div className="flex gap-1 border-b border-light-border dark:border-dark-border">
-                {[
-                    { id: 'templates',     label: 'التامبلتس',      icon: 'fa-th-large' },
-                    { id: 'mybots',        label: `بوتاتي (${personas.length})`, icon: 'fa-robot' },
-                    { id: 'conversations', label: 'المحادثات',      icon: 'fa-comments' },
-                ].map(t => (
+                {([
+                    { id: 'templates',     label: 'التامبلتس',                       icon: 'fa-th-large' },
+                    { id: 'mybots',        label: `بوتاتي (${personas.length})`,     icon: 'fa-robot' },
+                    { id: 'conversations', label: 'المحادثات',                       icon: 'fa-comments' },
+                ] as { id: TabId; label: string; icon: string }[]).map(t => (
                     <button
                         key={t.id}
-                        onClick={() => setTab(t.id as any)}
+                        onClick={() => setTab(t.id)}
                         className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold border-b-2 transition-colors ${
                             tab === t.id
                                 ? 'border-violet-500 text-violet-600 dark:text-violet-400'
@@ -523,13 +634,11 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
             {/* ── Tab: Templates ──────────────────────────────────────────── */}
             {tab === 'templates' && (
                 <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-bold text-light-text dark:text-dark-text">اختر سيناريو البوت</p>
-                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
-                                كل سيناريو مبني على استراتيجيات مبيعات عالمية — جاهز للإطلاق في دقيقتين
-                            </p>
-                        </div>
+                    <div>
+                        <p className="text-sm font-bold text-light-text dark:text-dark-text">اختر سيناريو البوت</p>
+                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                            كل سيناريو مبني على استراتيجيات مبيعات عالمية — جاهز للإطلاق في دقيقتين
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -538,7 +647,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                 key={template.id}
                                 className={`bg-light-card dark:bg-dark-card rounded-2xl border ${template.borderColor} dark:border-opacity-50 overflow-hidden hover:shadow-lg transition-all group`}
                             >
-                                {/* Card header gradient */}
                                 <div className={`bg-gradient-to-r ${template.gradient} p-4`}>
                                     <div className="flex items-start justify-between">
                                         <div>
@@ -553,13 +661,11 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                     </div>
                                 </div>
 
-                                {/* Card body */}
                                 <div className="p-4 space-y-3">
                                     <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary leading-relaxed">
                                         {template.description}
                                     </p>
 
-                                    {/* Metrics */}
                                     <div className="flex gap-3">
                                         {template.metrics.map(m => (
                                             <div key={m.label} className="flex-1 bg-light-bg dark:bg-dark-bg rounded-xl p-2.5 text-center border border-light-border dark:border-dark-border">
@@ -569,7 +675,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                         ))}
                                     </div>
 
-                                    {/* Tags */}
                                     <div className="flex flex-wrap gap-1.5">
                                         {template.tags.map(tag => (
                                             <span key={tag} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary">
@@ -578,7 +683,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                         ))}
                                     </div>
 
-                                    {/* Sample convo preview */}
                                     <div className="bg-light-bg dark:bg-dark-bg rounded-xl p-3 border border-light-border dark:border-dark-border space-y-1.5">
                                         <p className="text-[10px] font-bold text-light-text-secondary dark:text-dark-text-secondary mb-2">معاينة محادثة:</p>
                                         {template.sampleConvo.slice(0, 2).map((msg, i) => (
@@ -594,7 +698,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                         ))}
                                     </div>
 
-                                    {/* Action buttons */}
                                     <div className="flex gap-2 pt-1">
                                         <button
                                             onClick={() => openTemplateDemo(template)}
@@ -644,12 +747,10 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                         personas.map(p => (
                             <div key={p.id} className="bg-light-card dark:bg-dark-card rounded-2xl border border-light-border dark:border-dark-border p-5 hover:border-violet-500/30 transition-all">
                                 <div className="flex items-start gap-4">
-                                    {/* Avatar */}
                                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/20 flex items-center justify-center text-2xl flex-shrink-0">
                                         {p.avatarEmoji}
                                     </div>
 
-                                    {/* Info */}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2 mb-1">
                                             <h3 className="font-bold text-light-text dark:text-dark-text">{p.name}</h3>
@@ -667,14 +768,12 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                             </span>
                                         </div>
 
-                                        {/* Metrics row */}
                                         <div className="flex flex-wrap gap-4 text-xs text-light-text-secondary dark:text-dark-text-secondary">
                                             <span><i className="fas fa-comments me-1" />{p.conversationCount} محادثة</span>
                                             <span><i className="fas fa-chart-line me-1" />{p.conversionRate}% تحويل</span>
                                             <span><i className="fas fa-globe me-1" />{p.language === 'arabic' ? 'عربي' : p.language === 'english' ? 'إنجليزي' : 'ثنائي'}</span>
                                         </div>
 
-                                        {/* Greeting preview */}
                                         {p.greetingMessage && (
                                             <div className="mt-2 text-xs text-light-text-secondary dark:text-dark-text-secondary bg-light-bg dark:bg-dark-bg rounded-lg px-3 py-2 border border-light-border dark:border-dark-border max-w-md truncate">
                                                 <i className="fas fa-quote-left text-[8px] me-1 opacity-50" />
@@ -684,8 +783,7 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        {/* Toggle */}
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <button
                                             onClick={() => handleToggleStatus(p)}
                                             className={`relative w-11 h-6 rounded-full transition-colors ${p.status === 'active' ? 'bg-green-500' : 'bg-light-border dark:bg-dark-border'}`}
@@ -699,6 +797,20 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                             title="تجربة البوت"
                                         >
                                             <i className="fas fa-play text-xs" />
+                                        </button>
+                                        <button
+                                            onClick={() => openEditor(p)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg text-light-text-secondary dark:text-dark-text-secondary hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                                            title="تعديل"
+                                        >
+                                            <i className="fas fa-edit text-xs" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDuplicate(p)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg text-light-text-secondary dark:text-dark-text-secondary hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition"
+                                            title="نسخ البوت"
+                                        >
+                                            <i className="fas fa-copy text-xs" />
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(p.id)}
@@ -717,18 +829,58 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
 
             {/* ── Tab: Conversations ───────────────────────────────────────── */}
             {tab === 'conversations' && (
-                <div className="text-center py-16 bg-light-card dark:bg-dark-card rounded-2xl border border-dashed border-light-border dark:border-dark-border">
-                    <div className="text-5xl mb-4">💬</div>
-                    <p className="text-light-text dark:text-dark-text font-bold text-lg mb-1">المحادثات الحية</p>
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm max-w-sm mx-auto">
-                        بعد ربط حسابات السوشيال ميديا، ستظهر هنا كل المحادثات التي يديرها البوت مع عملائك في الوقت الفعلي.
-                    </p>
-                    <button
-                        onClick={() => setTab('mybots')}
-                        className="mt-4 px-5 py-2 border border-light-border dark:border-dark-border rounded-xl text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:border-violet-500/50 transition"
-                    >
-                        استعرض البوتات
-                    </button>
+                <div className="space-y-3">
+                    {convoLoading ? (
+                        <div className="text-center py-12 text-light-text-secondary dark:text-dark-text-secondary">
+                            <i className="fas fa-spinner fa-spin text-2xl mb-2" />
+                            <p>جاري التحميل...</p>
+                        </div>
+                    ) : conversations.length === 0 ? (
+                        <div className="text-center py-16 bg-light-card dark:bg-dark-card rounded-2xl border border-dashed border-light-border dark:border-dark-border">
+                            <div className="text-5xl mb-4">💬</div>
+                            <p className="text-light-text dark:text-dark-text font-bold text-lg mb-1">لا توجد محادثات بعد</p>
+                            <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm max-w-sm mx-auto">
+                                جرّب أحد بوتاتك في التجربة المباشرة وستُحفظ المحادثة هنا تلقائياً.
+                            </p>
+                            <button
+                                onClick={() => setTab('mybots')}
+                                className="mt-4 px-5 py-2 border border-light-border dark:border-dark-border rounded-xl text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:border-violet-500/50 transition"
+                            >
+                                استعرض البوتات
+                            </button>
+                        </div>
+                    ) : (
+                        conversations.map(c => {
+                            const persona = personas.find(p => p.id === c.personaId);
+                            return (
+                                <div key={c.id} className="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-4 flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-xl flex-shrink-0">
+                                        {persona?.avatarEmoji || '🤖'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <p className="text-sm font-bold text-light-text dark:text-dark-text">{c.customerName}</p>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                c.status === 'converted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                c.status === 'escalated' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                                                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                            }`}>
+                                                {c.status === 'converted' ? '✅ تحويل' : c.status === 'escalated' ? '⚠️ تصعيد' : c.status === 'closed' ? '◎ مغلقة' : '● نشطة'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                            {persona?.name || 'بوت'} • {c.messages.length} رسالة • {new Date(c.createdAt).toLocaleDateString('ar-SA')}
+                                        </p>
+                                        {c.messages.length > 0 && (
+                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1 truncate bg-light-bg dark:bg-dark-bg rounded-lg px-2 py-1.5 border border-light-border dark:border-dark-border">
+                                                {c.messages[c.messages.length - 1]?.content}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             )}
 
@@ -737,11 +889,12 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowBuilder(false)}>
                     <div className="bg-light-card dark:bg-dark-card rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
 
-                        {/* Modal Header */}
                         <div className={`bg-gradient-to-r ${wizard.template.gradient} p-5 rounded-t-2xl flex items-center justify-between`}>
                             <div>
                                 <div className="text-2xl mb-0.5">{wizard.emoji}</div>
-                                <h2 className="text-white font-bold">إعداد بوت: {wizard.template.nameAr}</h2>
+                                <h2 className="text-white font-bold">
+                                    {wizard.editingId ? 'تعديل بوت:' : 'إعداد بوت:'} {wizard.template.nameAr}
+                                </h2>
                                 <p className="text-white/70 text-xs">الخطوة {wizard.step} من 4</p>
                             </div>
                             <button onClick={() => setShowBuilder(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition">
@@ -749,7 +902,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                             </button>
                         </div>
 
-                        {/* Progress bar */}
                         <div className="h-1 bg-light-border dark:bg-dark-border">
                             <div
                                 className={`h-full bg-gradient-to-r ${wizard.template.gradient} transition-all duration-300`}
@@ -757,7 +909,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                             />
                         </div>
 
-                        {/* Modal Body */}
                         <div className="p-5 overflow-y-auto flex-1 space-y-4">
 
                             {/* Step 1: Persona */}
@@ -862,7 +1013,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                 <>
                                     <p className="text-sm font-bold text-light-text dark:text-dark-text">الخطوة 2: معرفة البراند</p>
 
-                                    {/* Auto-loaded indicator */}
                                     <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-3 space-y-1">
                                         <p className="text-xs font-bold text-green-700 dark:text-green-400">
                                             <i className="fas fa-check-circle me-1.5" />
@@ -879,9 +1029,22 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary mb-1.5">
-                                            معلومات إضافية (منتجات، أسعار، عروض، FAQ)
-                                        </label>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary">
+                                                معلومات إضافية (منتجات، أسعار، عروض، FAQ)
+                                            </label>
+                                            <button
+                                                onClick={handleGenerateFAQ}
+                                                disabled={generatingFAQ}
+                                                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[11px] font-bold hover:bg-violet-500/20 transition disabled:opacity-50"
+                                            >
+                                                {generatingFAQ ? (
+                                                    <><i className="fas fa-spinner fa-spin text-[10px]" />جاري التوليد...</>
+                                                ) : (
+                                                    <><i className="fas fa-magic text-[10px]" />توليد من البراند</>
+                                                )}
+                                            </button>
+                                        </div>
                                         <textarea
                                             value={wizard.extraKnowledge}
                                             onChange={e => setWizard(w => ({ ...w, extraKnowledge: e.target.value }))}
@@ -930,14 +1093,14 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
 
                                     <div className="space-y-2">
                                         {([
-                                            { v: 'dm-received',    l: 'عند استقبال رسالة مباشرة (DM)',  icon: 'fa-envelope',    desc: 'يرد تلقائياً على كل DM جديد' },
-                                            { v: 'keyword-match',  l: 'عند ذكر كلمة مفتاحية',           icon: 'fa-key',         desc: 'يتدخل عند وجود كلمة محددة في الرسالة' },
-                                            { v: 'comment-reply',  l: 'عند التعليق على منشور',          icon: 'fa-comment',     desc: 'يرد على تعليقات المنشورات' },
+                                            { v: 'dm-received',    l: 'عند استقبال رسالة مباشرة (DM)',  icon: 'fa-envelope',     desc: 'يرد تلقائياً على كل DM جديد' },
+                                            { v: 'keyword-match',  l: 'عند ذكر كلمة مفتاحية',           icon: 'fa-key',          desc: 'يتدخل عند وجود كلمة محددة في الرسالة' },
+                                            { v: 'comment-reply',  l: 'عند التعليق على منشور',          icon: 'fa-comment',      desc: 'يرد على تعليقات المنشورات' },
                                             { v: 'manual',         l: 'يدوي (تشغيل من لوحة التحكم)',    icon: 'fa-hand-pointer', desc: 'أنت من يقرر متى يبدأ البوت' },
                                         ] as const).map(opt => (
                                             <button
                                                 key={opt.v}
-                                                onClick={() => setWizard(w => ({ ...w, trigger: opt.v as BotTrigger }))}
+                                                onClick={() => setWizard(w => ({ ...w, trigger: opt.v }))}
                                                 className={`w-full flex items-start gap-3 p-3 rounded-xl border text-start transition ${
                                                     wizard.trigger === opt.v
                                                         ? 'border-violet-500 bg-violet-500/8 text-violet-600 dark:text-violet-400'
@@ -967,7 +1130,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                         </div>
                                     )}
 
-                                    {/* Summary */}
                                     <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 rounded-xl p-4 space-y-1.5">
                                         <p className="text-xs font-bold text-violet-700 dark:text-violet-400 mb-2">ملخص البوت</p>
                                         <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">الاسم:</span> {wizard.emoji} {wizard.name}</p>
@@ -978,11 +1140,10 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                             )}
                         </div>
 
-                        {/* Modal Footer */}
                         <div className="flex items-center justify-between gap-3 p-5 border-t border-light-border dark:border-dark-border">
                             {wizard.step > 1 ? (
                                 <button
-                                    onClick={() => setWizard(w => ({ ...w, step: (w.step - 1) as any }))}
+                                    onClick={() => setWizard(w => ({ ...w, step: (w.step - 1) as 1 | 2 | 3 | 4 }))}
                                     className="px-4 py-2 text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text transition"
                                 >
                                     <i className="fas fa-arrow-right me-1.5" />
@@ -994,7 +1155,7 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
 
                             {wizard.step < 4 ? (
                                 <button
-                                    onClick={() => setWizard(w => ({ ...w, step: (w.step + 1) as any }))}
+                                    onClick={() => setWizard(w => ({ ...w, step: (w.step + 1) as 1 | 2 | 3 | 4 }))}
                                     className={`flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r ${wizard.template.gradient} text-white font-bold text-sm hover:opacity-90 transition`}
                                 >
                                     التالي
@@ -1007,7 +1168,9 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                     className={`flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r ${wizard.template.gradient} text-white font-bold text-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition`}
                                 >
                                     {wizard.saving ? (
-                                        <><i className="fas fa-spinner fa-spin" />جاري الإنشاء...</>
+                                        <><i className="fas fa-spinner fa-spin" />جاري الحفظ...</>
+                                    ) : wizard.editingId ? (
+                                        <><i className="fas fa-save" />حفظ التعديلات</>
                                     ) : (
                                         <><i className="fas fa-rocket" />إطلاق البوت 🚀</>
                                     )}
@@ -1020,13 +1183,12 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
 
             {/* ── Demo Chat Modal ──────────────────────────────────────────── */}
             {showDemo && demoPersona && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setShowDemo(false)}>
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={closeDemo}>
                     <div
                         className="bg-light-bg dark:bg-dark-bg w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
                         style={{ height: '85vh', maxHeight: '700px' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* Chat Header */}
                         <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-3 flex items-center gap-3">
                             <div className="text-2xl">{demoPersona.avatarEmoji}</div>
                             <div className="flex-1 min-w-0">
@@ -1035,16 +1197,31 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                     {demoTemplate ? `تجربة سيناريو: ${demoTemplate.nameAr}` : 'تجربة مباشرة'} • Gemini AI
                                 </p>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5">
                                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                                 <span className="text-white/70 text-[10px]">نشط</span>
                             </div>
-                            <button onClick={() => setShowDemo(false)} className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition">
+                            <button
+                                onClick={() => {
+                                    const greeting: BotMessage = {
+                                        id: crypto.randomUUID(),
+                                        role: 'bot',
+                                        content: demoPersona.greetingMessage || `أهلاً! أنا ${demoPersona.name}، كيف أقدر أساعدك؟`,
+                                        timestamp: new Date().toISOString(),
+                                    };
+                                    setChatMessages([greeting]);
+                                    setChatInput('');
+                                }}
+                                className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition"
+                                title="مسح المحادثة"
+                            >
+                                <i className="fas fa-eraser text-xs" />
+                            </button>
+                            <button onClick={closeDemo} className="w-7 h-7 flex items-center justify-center rounded-xl bg-white/20 text-white hover:bg-white/30 transition">
                                 <i className="fas fa-times text-xs" />
                             </button>
                         </div>
 
-                        {/* Notice banner */}
                         <div className="bg-violet-50 dark:bg-violet-900/20 border-b border-violet-200/50 dark:border-violet-700/50 px-4 py-2">
                             <p className="text-[10px] text-violet-700 dark:text-violet-400 text-center">
                                 <i className="fas fa-robot me-1" />
@@ -1052,7 +1229,6 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                             </p>
                         </div>
 
-                        {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
                             {chatMessages.map(msg => (
                                 <div key={msg.id} className={`flex ${msg.role === 'bot' ? 'justify-start' : 'justify-end'}`}>
@@ -1080,7 +1256,22 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                             <div ref={chatEndRef} />
                         </div>
 
-                        {/* Input */}
+                        {/* CTA after 3 customer messages */}
+                        {chatMessages.filter(m => m.role === 'customer').length >= 3 && demoTemplate && (
+                            <div className="px-4 py-3 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border-t border-violet-200/50 dark:border-violet-700/50">
+                                <p className="text-[11px] text-violet-700 dark:text-violet-400 text-center mb-2 font-bold">
+                                    🚀 أعجبك هذا البوت؟ أنشئه الآن لبراندك
+                                </p>
+                                <button
+                                    onClick={() => { closeDemo(); openBuilder(demoTemplate); }}
+                                    className="w-full py-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-xs font-bold hover:opacity-90 transition"
+                                >
+                                    <i className="fas fa-plus me-1.5" />
+                                    إنشاء هذا البوت لبراندك
+                                </button>
+                            </div>
+                        )}
+
                         <div className="p-3 border-t border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card">
                             <div className="flex gap-2 items-end">
                                 <textarea

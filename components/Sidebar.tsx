@@ -1,10 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { NavItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ProgressRing, CompletionStep } from './shared/ProgressRing';
 import { SBrandOpsLogo, LogoVariant } from './SBrandOpsLogo';
+import { BRAND_PAGE_ROUTES } from '../config/routes';
 
 interface NavSection {
     id: string;
@@ -139,6 +140,40 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
     },
 ];
 
+// Stable module-level map: child page id → parent menu id.
+const CHILD_TO_PARENT: Record<string, string> = {
+    'brand-knowledge': 'brand-brain', 'brand-brain-review': 'brand-brain', 'brand-analysis': 'brand-brain',
+    'content-studio': 'content-hub',  'idea-ops': 'content-hub',  'content-ops': 'content-hub', 'marketing-plans': 'content-hub',
+    'media-ops': 'media-hub',         'design-ops': 'media-hub',  'ai-video': 'media-hub',
+    'crm/dashboard': 'crm', 'crm/customers': 'crm', 'crm/pipeline': 'crm', 'crm/tickets': 'crm',
+    'social-ops/publisher': 'social-ops', 'social-ops/scheduled': 'social-ops',
+    'social-ops/accounts': 'social-ops',  'social-ops/social-search': 'social-ops',
+};
+
+const getDefaultOpenMenus = (page: string): string[] => {
+    const defaults: string[] = ['social-ops'];
+    const parent = CHILD_TO_PARENT[page];
+    if (parent && !defaults.includes(parent)) defaults.push(parent);
+    return defaults;
+};
+
+// Quick Create options shown in the dropdown
+const CREATE_OPTIONS = [
+    { id: 'social-ops/publisher', icon: 'fa-paper-plane',         labelAr: 'منشور جديد',      labelEn: 'New Post'       },
+    { id: 'content-studio',       icon: 'fa-wand-magic-sparkles', labelAr: 'استوديو المحتوى', labelEn: 'Content Studio' },
+    { id: 'campaign-brain',       icon: 'fa-bullseye',            labelAr: 'حملة جديدة',      labelEn: 'New Campaign'   },
+    { id: 'ai-video',             icon: 'fa-film',                labelAr: 'فيديو جديد',      labelEn: 'New Video'      },
+] as const;
+
+interface PopoutState {
+    id: string;
+    label: string;
+    children: NavItem[];
+    top: number;
+    // left edge (LTR) or right edge (RTL) in viewport px — used to position the panel
+    edge: number;
+}
+
 interface SidebarProps {
     activePage: string;
     onNavigate: (page: string) => void;
@@ -162,31 +197,74 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     const { user } = useAuth();
     const { theme } = useTheme();
     const ar = language === 'ar';
-    const logoVariant: LogoVariant = theme === 'dark' ? 'white' : 'blue';
+    const logoVariant: LogoVariant = theme === 'dark' ? 'gradient' : 'blue';
     const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || (ar ? 'مستخدم' : 'User');
     const userEmail = user?.email || '';
     const navSections = useMemo(() => getNavSections(t, ar), [t, ar]);
-
-    // Map each child page to its parent menu id so the correct section
-    // auto-expands when the user lands on a child page via URL or deep link.
-    const CHILD_TO_PARENT: Record<string, string> = {
-        'brand-knowledge': 'brand-brain', 'brand-brain-review': 'brand-brain', 'brand-analysis': 'brand-brain',
-        'content-studio': 'content-hub', 'idea-ops': 'content-hub', 'content-ops': 'content-hub', 'marketing-plans': 'content-hub',
-        'media-ops': 'media-hub', 'design-ops': 'media-hub', 'ai-video': 'media-hub',
-        'crm/dashboard': 'crm', 'crm/customers': 'crm', 'crm/pipeline': 'crm', 'crm/tickets': 'crm',
-        'social-ops/publisher': 'social-ops', 'social-ops/scheduled': 'social-ops',
-        'social-ops/accounts': 'social-ops', 'social-ops/social-search': 'social-ops',
-    };
-    const getDefaultOpenMenus = (page: string): string[] => {
-        const defaults: string[] = ['social-ops'];
-        const parent = CHILD_TO_PARENT[page];
-        if (parent && !defaults.includes(parent)) defaults.push(parent);
-        return defaults;
-    };
     const [openMenus, setOpenMenus] = useState<string[]>(() => getDefaultOpenMenus(activePage));
 
-    // When the active page changes externally (direct URL / programmatic navigate),
-    // ensure the parent menu is open so the active item is visible.
+    // ── Collapsed sidebar flyout ───────────────────────────────────────────────
+    const [popout, setPopout] = useState<PopoutState | null>(null);
+    const popoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const openPopout = (item: NavItem, e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!isCollapsed || !item.children) return;
+        clearTimeout(popoutTimer.current);
+        const rect = e.currentTarget.getBoundingClientRect();
+        setPopout({
+            id: item.id,
+            label: item.label,
+            children: item.children,
+            top: rect.top,
+            edge: ar ? rect.left : rect.right,
+        });
+    };
+
+    const scheduleClosePopout = () => {
+        popoutTimer.current = setTimeout(() => setPopout(null), 150);
+    };
+
+    const cancelClosePopout = () => {
+        clearTimeout(popoutTimer.current);
+    };
+
+    // Clear flyout when sidebar expands
+    useEffect(() => {
+        if (!isCollapsed) setPopout(null);
+    }, [isCollapsed]);
+
+    // ── Quick Create dropdown ─────────────────────────────────────────────────
+    const [createOpen, setCreateOpen] = useState(false);
+    const createBtnRef = useRef<HTMLButtonElement>(null);
+    const [createPos, setCreatePos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+    useEffect(() => {
+        if (!createOpen) return;
+        const handler = (e: MouseEvent) => {
+            const target = e.target as Node;
+            const btnEl = createBtnRef.current;
+            // Close if click is outside both the trigger button and the floating dropdown
+            if (btnEl && !btnEl.contains(target)) setCreateOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [createOpen]);
+
+    const handleCreateClick = () => {
+        // In collapsed mode, clicking just opens the publisher directly
+        if (isCollapsed) {
+            onNavigate('social-ops/publisher');
+            if (window.innerWidth < 1024) closeMobile();
+            return;
+        }
+        if (!createOpen && createBtnRef.current) {
+            const rect = createBtnRef.current.getBoundingClientRect();
+            setCreatePos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+        }
+        setCreateOpen(c => !c);
+    };
+
+    // ── Auto-expand parent when navigating to a child page ───────────────────
     useEffect(() => {
         const parent = CHILD_TO_PARENT[activePage];
         if (parent) {
@@ -194,41 +272,47 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
         }
     }, [activePage]);
 
+    // ── Menu toggle ───────────────────────────────────────────────────────────
     const toggleMenu = (id: string) => {
         if (isCollapsed) {
             toggleCollapse();
             setTimeout(() => {
-                setOpenMenus((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+                setOpenMenus(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
             }, 60);
             return;
         }
-
-        setOpenMenus((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+        setOpenMenus(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
     };
 
     const handleNavigation = (item: NavItem) => {
         if (item.children) {
+            if (BRAND_PAGE_ROUTES[item.id]) {
+                onNavigate(item.id);
+                if (window.innerWidth < 1024) closeMobile();
+            }
             toggleMenu(item.id);
             return;
         }
-
         onNavigate(item.id);
-        if (window.innerWidth < 1024) {
-            closeMobile();
-        }
+        if (window.innerWidth < 1024) closeMobile();
     };
 
+    // ── Item renderer ─────────────────────────────────────────────────────────
     const renderItem = (item: NavItem, nested = false) => {
         const hasChildren = !!item.children;
         const isMenuOpen = openMenus.includes(item.id);
         const isActive = hasChildren
-            ? (activePage.startsWith(`${item.id}/`) || (item.children?.some(c => c.id === activePage) ?? false))
+            ? (activePage === item.id ||
+               activePage.startsWith(`${item.id}/`) ||
+               (item.children?.some(c => c.id === activePage) ?? false))
             : activePage === item.id;
 
         return (
             <div key={item.id} className="group">
                 <button
                     onClick={() => handleNavigation(item)}
+                    onMouseEnter={isCollapsed && hasChildren && !nested ? (e) => openPopout(item, e) : undefined}
+                    onMouseLeave={isCollapsed && hasChildren && !nested ? scheduleClosePopout : undefined}
                     className={`flex w-full items-center gap-3 rounded-2xl transition-all ${
                         isCollapsed && !nested ? 'justify-center px-0 py-3' : ar ? 'px-3 py-3 text-right' : 'px-3 py-3 text-left'
                     } ${
@@ -236,8 +320,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                             ? 'bg-brand-primary text-white shadow-primary-glow'
                             : 'text-light-text-secondary hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text'
                     } ${nested ? 'text-sm' : 'text-[0.95rem]'}`}
-                    title={isCollapsed ? item.label : undefined}
-                    aria-label={isCollapsed ? item.label : undefined}
+                    title={isCollapsed && !nested ? item.label : undefined}
+                    aria-label={isCollapsed && !nested ? item.label : undefined}
                 >
                     <i className={`fas ${item.icon} w-4 shrink-0 text-center ${isActive ? 'text-white' : ''}`} />
                     {!isCollapsed && (
@@ -274,8 +358,8 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     ar ? 'right-0 ' : 'left-0 '
                 } ${isMobileOpen ? 'translate-x-0' : ar ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'w-[5.25rem]' : 'w-[18.5rem]'}`}
             >
+                {/* ── Logo ── */}
                 <div className={`flex items-center gap-3 px-4 pb-3 pt-5 ${isCollapsed ? 'justify-center px-2' : ''}`}>
-                    {/* Official mark icon from brand pack — icon-only, always sharp */}
                     <SBrandOpsLogo
                         variant={logoVariant}
                         layout="mark"
@@ -283,8 +367,6 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         className="shrink-0"
                         alt="SBrandOps"
                     />
-
-                    {/* HTML wordmark — crisp at any size, follows brand typography */}
                     {!isCollapsed && (
                         <>
                             <div className="min-w-0 flex-1">
@@ -307,23 +389,28 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         </>
                     )}
                 </div>
+
+                {/* ── Quick Create ── */}
                 <div className="px-3 pb-3">
                     <button
-                        onClick={() => {
-                            onNavigate('social-ops/publisher');
-                            if (window.innerWidth < 1024) {
-                                closeMobile();
-                            }
-                        }}
+                        ref={createBtnRef}
+                        onClick={handleCreateClick}
                         className={`flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-primary px-3 py-3 text-sm font-semibold text-white shadow-primary-glow transition-transform hover:-translate-y-0.5 ${isCollapsed ? 'px-0' : ''}`}
-                        title={ar ? '+ إنشاء منشور جديد' : 'Create new post'}
-                        aria-label={ar ? 'إنشاء منشور جديد' : 'Create new post'}
+                        title={isCollapsed ? (ar ? 'إنشاء جديد' : 'Quick Create') : undefined}
+                        aria-label={ar ? 'إنشاء جديد' : 'Quick Create'}
+                        aria-expanded={createOpen}
                     >
-                        <i className="fas fa-plus text-xs" />
-                        {!isCollapsed && <span>{ar ? '+ منشور جديد' : '+ New post'}</span>}
+                        <i className={`fas fa-plus text-xs transition-transform ${createOpen && !isCollapsed ? 'rotate-45' : ''}`} />
+                        {!isCollapsed && (
+                            <>
+                                <span>{ar ? 'إنشاء جديد' : 'Quick Create'}</span>
+                                <i className={`fas fa-chevron-down text-[10px] ms-auto transition-transform ${createOpen ? 'rotate-180' : ''}`} />
+                            </>
+                        )}
                     </button>
                 </div>
 
+                {/* ── Nav ── */}
                 <nav className="flex-1 overflow-y-auto px-3 pb-4">
                     {navSections.map((section) => (
                         <div key={section.id} className="mb-4">
@@ -339,18 +426,17 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     ))}
                 </nav>
 
-                {/* Progress Ring */}
+                {/* ── Progress Ring ── */}
                 {completionSteps && completionSteps.length > 0 && (
                     <ProgressRing steps={completionSteps} isCollapsed={isCollapsed} onNavigate={onNavigate} />
                 )}
 
+                {/* ── User / Collapse ── */}
                 <div className="mt-auto border-t border-light-border/70 px-3 py-3 dark:border-dark-border/70">
                     <button
                         onClick={() => {
                             onNavigate('user-settings');
-                            if (window.innerWidth < 1024) {
-                                closeMobile();
-                            }
+                            if (window.innerWidth < 1024) closeMobile();
                         }}
                         className={`surface-panel-soft flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-light-text transition-colors hover:bg-light-card dark:text-dark-text dark:hover:bg-dark-card ${isCollapsed ? 'justify-center px-0' : ''}`}
                         title={ar ? 'إعدادات الحساب' : 'Account settings'}
@@ -373,17 +459,84 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                         title={ar ? 'طي الشريط الجانبي' : 'Toggle sidebar'}
                         aria-label={ar ? 'طي أو توسيع الشريط الجانبي' : 'Toggle sidebar collapse'}
                     >
-                        <i
-                            className={`fas ${
-                                isCollapsed
-                                    ? (ar ? 'fa-angles-left' : 'fa-angles-right')
-                                    : (ar ? 'fa-angles-right' : 'fa-angles-left')
-                            } text-xs`}
-                        />
+                        <i className={`fas ${isCollapsed ? (ar ? 'fa-angles-left' : 'fa-angles-right') : (ar ? 'fa-angles-right' : 'fa-angles-left')} text-xs`} />
                         {!isCollapsed && <span>{ar ? 'طي الشريط الجانبي' : 'Collapse sidebar'}</span>}
                     </button>
                 </div>
             </aside>
+
+            {/* ── Collapsed sidebar flyout submenu (fixed, outside aside) ── */}
+            {isCollapsed && popout && (
+                <div
+                    className="fixed z-[60] min-w-[210px] overflow-hidden rounded-2xl border border-light-border/70 bg-white/95 shadow-xl backdrop-blur-xl dark:border-dark-border/60 dark:bg-[#070e1c]/95"
+                    style={ar
+                        ? { top: popout.top - 6, right: window.innerWidth - popout.edge + 8 }
+                        : { top: popout.top - 6, left: popout.edge + 8 }
+                    }
+                    onMouseEnter={cancelClosePopout}
+                    onMouseLeave={scheduleClosePopout}
+                >
+                    <div className="px-4 py-3 border-b border-light-border/50 dark:border-dark-border/40">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-light-text-secondary dark:text-dark-text-secondary">
+                            {popout.label}
+                        </p>
+                    </div>
+                    <div className="p-2 space-y-0.5">
+                        {popout.children.map(child => {
+                            const childActive = activePage === child.id;
+                            return (
+                                <button
+                                    key={child.id}
+                                    onClick={() => {
+                                        onNavigate(child.id);
+                                        setPopout(null);
+                                        if (window.innerWidth < 1024) closeMobile();
+                                    }}
+                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                                        ar ? 'text-right' : 'text-left'
+                                    } ${
+                                        childActive
+                                            ? 'bg-brand-primary text-white shadow-primary-glow'
+                                            : 'text-light-text hover:bg-light-card dark:text-dark-text dark:hover:bg-dark-card'
+                                    }`}
+                                >
+                                    <i className={`fas ${child.icon} w-4 shrink-0 text-center text-xs ${childActive ? 'text-white' : 'text-brand-primary'}`} />
+                                    <span className="font-medium">{child.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Quick Create dropdown (fixed, outside aside) ── */}
+            {createOpen && createPos && (
+                <div
+                    className="fixed z-[60] overflow-hidden rounded-2xl border border-light-border/70 bg-white/95 shadow-xl backdrop-blur-xl dark:border-dark-border/60 dark:bg-[#0b1528]/95"
+                    style={{ top: createPos.top, left: createPos.left, width: createPos.width }}
+                >
+                    {CREATE_OPTIONS.map((opt, i) => (
+                        <button
+                            key={opt.id}
+                            onClick={() => {
+                                onNavigate(opt.id);
+                                setCreateOpen(false);
+                                if (window.innerWidth < 1024) closeMobile();
+                            }}
+                            className={`flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-light-card dark:hover:bg-dark-card ${
+                                ar ? 'text-right' : 'text-left'
+                            } ${i < CREATE_OPTIONS.length - 1 ? 'border-b border-light-border/30 dark:border-dark-border/30' : ''}`}
+                        >
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/10">
+                                <i className={`fas ${opt.icon} text-xs text-brand-primary`} />
+                            </div>
+                            <span className="font-medium text-light-text dark:text-dark-text">
+                                {ar ? opt.labelAr : opt.labelEn}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            )}
         </>
     );
 });

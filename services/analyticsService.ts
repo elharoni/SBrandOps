@@ -35,6 +35,7 @@ function buildEmptyAnalytics(): AnalyticsData {
     return {
         overallStats: {
             totalFollowers: 0,
+            reach: 0,
             impressions: 0,
             engagement: 0,
             postsPublished: 0,
@@ -128,6 +129,24 @@ function getActiveBrandConnection(
     return brandConnections?.find((connection) => connection.provider === provider && connection.status !== 'disconnected') ?? null;
 }
 
+/** Aggregate snapshot rows for a set of metric names → { impressions, reach, engagement, followers } */
+function aggregateSnapshots(rows: Array<{ metric_name: string; metric_value: string | number }>) {
+    let impressions = 0;
+    let reach = 0;
+    let engagement = 0;
+    let followers = 0;
+
+    for (const row of rows) {
+        const val = Number(row.metric_value) || 0;
+        if (row.metric_name === 'impressions' || row.metric_name === 'post_impressions') impressions += val;
+        if (row.metric_name === 'reach') reach += val;
+        if (row.metric_name === 'engaged_users') engagement += val;
+        if ((row.metric_name === 'page_fans' || row.metric_name === 'follower_count') && val > followers) followers = val;
+    }
+
+    return { impressions, reach, engagement, followers };
+}
+
 async function getConnectedSourceSummaries(
     brandId: string,
     sinceDate: Date,
@@ -142,87 +161,83 @@ async function getConnectedSourceSummaries(
     const searchConsoleWebsite = getReferencedWebsite(searchConsoleConnection, context?.brandAssets ?? null, 'search_console');
     const sinceDateString = sinceDate.toISOString().split('T')[0];
 
-    if (ga4Connection || ga4Property) {
-        let ga4Query: any = supabase
-            .from('analytics_page_facts')
-            .select('fact_date, sessions, engaged_sessions, bounced_sessions, key_events, transactions, revenue, avg_engagement_time_sec')
-            .eq('brand_id', brandId)
-            .gte('fact_date', sinceDateString);
+    const [ga4Result, searchResult] = await Promise.all([
+        // GA4 facts
+        (ga4Connection || ga4Property) ? (async () => {
+            let q: any = supabase
+                .from('analytics_page_facts')
+                .select('fact_date, sessions, engaged_sessions, bounced_sessions, key_events, transactions, revenue, avg_engagement_time_sec')
+                .eq('brand_id', brandId)
+                .gte('fact_date', sinceDateString);
+            if (ga4Connection?.id) q = q.eq('connection_id', ga4Connection.id);
+            if (ga4Property?.id) q = q.eq('analytics_property_id', ga4Property.id);
+            return q;
+        })() : Promise.resolve({ data: null, error: null }),
 
-        if (ga4Connection?.id) {
-            ga4Query = ga4Query.eq('connection_id', ga4Connection.id);
-        }
-        if (ga4Property?.id) {
-            ga4Query = ga4Query.eq('analytics_property_id', ga4Property.id);
-        }
+        // Search Console facts
+        (searchConsoleConnection || searchConsoleProperty) ? (async () => {
+            let q: any = supabase
+                .from('seo_page_facts')
+                .select('fact_date, page_url, clicks, impressions, position')
+                .eq('brand_id', brandId)
+                .gte('fact_date', sinceDateString);
+            if (searchConsoleConnection?.id) q = q.eq('connection_id', searchConsoleConnection.id);
+            if (searchConsoleProperty?.id) q = q.eq('search_console_property_id', searchConsoleProperty.id);
+            return q;
+        })() : Promise.resolve({ data: null, error: null }),
+    ]);
 
-        const { data: ga4Facts, error: ga4Error } = await ga4Query;
-        if (!ga4Error) {
-            const sessions = (ga4Facts ?? []).reduce((sum: number, row: any) => sum + Number(row.sessions ?? 0), 0);
-            const engagedSessions = (ga4Facts ?? []).reduce((sum: number, row: any) => sum + Number(row.engaged_sessions ?? 0), 0);
-            const bouncedSessions = (ga4Facts ?? []).reduce((sum: number, row: any) => sum + Number(row.bounced_sessions ?? 0), 0);
-            const keyEvents = (ga4Facts ?? []).reduce((sum: number, row: any) => sum + Number(row.key_events ?? 0), 0);
-            const transactions = (ga4Facts ?? []).reduce((sum: number, row: any) => sum + Number(row.transactions ?? 0), 0);
-            const revenue = (ga4Facts ?? []).reduce((sum: number, row: any) => sum + Number(row.revenue ?? 0), 0);
-            const weightedEngagement = (ga4Facts ?? []).reduce(
-                (sum: number, row: any) => sum + (Number(row.avg_engagement_time_sec ?? 0) * Number(row.sessions ?? 0)),
-                0,
-            );
+    if (!ga4Result.error && ga4Result.data) {
+        const facts = ga4Result.data;
+        const sessions = facts.reduce((sum: number, r: any) => sum + Number(r.sessions ?? 0), 0);
+        const engagedSessions = facts.reduce((sum: number, r: any) => sum + Number(r.engaged_sessions ?? 0), 0);
+        const bouncedSessions = facts.reduce((sum: number, r: any) => sum + Number(r.bounced_sessions ?? 0), 0);
+        const keyEvents = facts.reduce((sum: number, r: any) => sum + Number(r.key_events ?? 0), 0);
+        const transactions = facts.reduce((sum: number, r: any) => sum + Number(r.transactions ?? 0), 0);
+        const revenue = facts.reduce((sum: number, r: any) => sum + Number(r.revenue ?? 0), 0);
+        const weightedEngagement = facts.reduce(
+            (sum: number, r: any) => sum + (Number(r.avg_engagement_time_sec ?? 0) * Number(r.sessions ?? 0)),
+            0,
+        );
 
-            sourceSummaries.ga4 = {
-                propertyId: ga4Property?.property_id ?? ga4Connection?.external_account_id ?? 'ga4',
-                propertyName: ga4Property?.property_name ?? ga4Connection?.external_account_name ?? 'Google Analytics 4',
-                websiteUrl: ga4Website?.url ?? null,
-                sessions,
-                engagedSessions,
-                keyEvents: transactions > 0 ? transactions : keyEvents,
-                revenue,
-                bounceRate: sessions > 0 ? bouncedSessions / sessions : 0,
-                avgEngagementTimeSec: sessions > 0 ? weightedEngagement / sessions : 0,
-                lastFactDate: (ga4Facts ?? []).reduce((latest: string | null, row: any) => {
-                    const next = typeof row.fact_date === 'string' ? row.fact_date : null;
-                    if (!next) return latest;
-                    return latest && latest > next ? latest : next;
-                }, null),
-            };
-        }
+        sourceSummaries.ga4 = {
+            propertyId: ga4Property?.property_id ?? ga4Connection?.external_account_id ?? 'ga4',
+            propertyName: ga4Property?.property_name ?? ga4Connection?.external_account_name ?? 'Google Analytics 4',
+            websiteUrl: ga4Website?.url ?? null,
+            sessions,
+            engagedSessions,
+            keyEvents: transactions > 0 ? transactions : keyEvents,
+            revenue,
+            bounceRate: sessions > 0 ? bouncedSessions / sessions : 0,
+            avgEngagementTimeSec: sessions > 0 ? weightedEngagement / sessions : 0,
+            lastFactDate: facts.reduce((latest: string | null, r: any) => {
+                const next = typeof r.fact_date === 'string' ? r.fact_date : null;
+                if (!next) return latest;
+                return latest && latest > next ? latest : next;
+            }, null),
+        };
     }
 
-    if (searchConsoleConnection || searchConsoleProperty) {
-        let searchConsoleQuery: any = supabase
-            .from('seo_page_facts')
-            .select('fact_date, page_url, clicks, impressions, position')
-            .eq('brand_id', brandId)
-            .gte('fact_date', sinceDateString);
+    if (!searchResult.error && searchResult.data) {
+        const facts = searchResult.data;
+        const clicks = facts.reduce((sum: number, r: any) => sum + Number(r.clicks ?? 0), 0);
+        const impressions = facts.reduce((sum: number, r: any) => sum + Number(r.impressions ?? 0), 0);
+        const positions = facts.map((r: any) => Number(r.position ?? 0)).filter((v: number) => v > 0);
+        const indexedPages = new Set(facts.map((r: any) => r.page_url as string).filter(Boolean)).size;
 
-        if (searchConsoleConnection?.id) {
-            searchConsoleQuery = searchConsoleQuery.eq('connection_id', searchConsoleConnection.id);
-        }
-        if (searchConsoleProperty?.id) {
-            searchConsoleQuery = searchConsoleQuery.eq('search_console_property_id', searchConsoleProperty.id);
-        }
-
-        const { data: searchFacts, error: searchError } = await searchConsoleQuery;
-        if (!searchError) {
-            const clicks = (searchFacts ?? []).reduce((sum: number, row: any) => sum + Number(row.clicks ?? 0), 0);
-            const impressions = (searchFacts ?? []).reduce((sum: number, row: any) => sum + Number(row.impressions ?? 0), 0);
-            const positions = (searchFacts ?? []).map((row: any) => Number(row.position ?? 0)).filter((value: number) => value > 0);
-            const indexedPages = new Set((searchFacts ?? []).map((row: any) => row.page_url as string).filter(Boolean)).size;
-
-            sourceSummaries.searchConsole = {
-                siteUrl: searchConsoleProperty?.site_url ?? searchConsoleWebsite?.url ?? searchConsoleConnection?.external_account_name ?? 'Search Console',
-                clicks,
-                impressions,
-                ctr: impressions > 0 ? clicks / impressions : 0,
-                avgPosition: positions.length > 0 ? positions.reduce((sum: number, value: number) => sum + value, 0) / positions.length : 0,
-                indexedPages,
-                lastFactDate: (searchFacts ?? []).reduce((latest: string | null, row: any) => {
-                    const next = typeof row.fact_date === 'string' ? row.fact_date : null;
-                    if (!next) return latest;
-                    return latest && latest > next ? latest : next;
-                }, null),
-            };
-        }
+        sourceSummaries.searchConsole = {
+            siteUrl: searchConsoleProperty?.site_url ?? searchConsoleWebsite?.url ?? searchConsoleConnection?.external_account_name ?? 'Search Console',
+            clicks,
+            impressions,
+            ctr: impressions > 0 ? clicks / impressions : 0,
+            avgPosition: positions.length > 0 ? positions.reduce((s: number, v: number) => s + v, 0) / positions.length : 0,
+            indexedPages,
+            lastFactDate: facts.reduce((latest: string | null, r: any) => {
+                const next = typeof r.fact_date === 'string' ? r.fact_date : null;
+                if (!next) return latest;
+                return latest && latest > next ? latest : next;
+            }, null),
+        };
     }
 
     return sourceSummaries;
@@ -248,6 +263,8 @@ export async function syncAnalytics(brandId: string): Promise<void> {
     });
 }
 
+const SNAPSHOT_METRICS = ['impressions', 'reach', 'post_impressions', 'page_fans', 'engaged_users', 'follower_count'] as const;
+
 export async function getAnalyticsData(
     brandId: string,
     filters: { period: string, platforms: SocialPlatform[] },
@@ -255,139 +272,151 @@ export async function getAnalyticsData(
 ): Promise<AnalyticsData> {
     try {
         const sinceDate = getPeriodDate(filters.period);
+        const sinceDateIso = sinceDate.toISOString();
         const selectedPlatforms = filters.platforms ?? [];
         const hasPlatformFilter = selectedPlatforms.length > 0;
 
-        // 1. Get total followers from public social accounts RPC
-        const accounts = (await getSocialAccounts(brandId))
-            .filter((account) => !hasPlatformFilter || selectedPlatforms.includes(account.platform));
+        // Previous period dates for trend comparison
+        const periodMs = Date.now() - sinceDate.getTime();
+        const prevSinceDate = new Date(sinceDate.getTime() - periodMs);
+        const prevSinceDateIso = prevSinceDate.toISOString();
 
-        // 2. Get post analytics aggregates
+        // Build current period queries
         let postAnalyticsQuery = supabase
             .from('post_analytics')
-            .select(`
-                impressions,
-                engagement,
-                platform,
-                post_id,
-                scheduled_posts!inner(brand_id, content, status, published_at)
-            `)
+            .select('impressions, reach, engagement, platform, post_id, scheduled_posts!inner(brand_id, content, status, published_at)')
             .eq('scheduled_posts.brand_id', brandId)
-            .gte('created_at', sinceDate.toISOString());
+            .gte('created_at', sinceDateIso);
+        if (hasPlatformFilter) postAnalyticsQuery = postAnalyticsQuery.in('platform', selectedPlatforms);
 
-        if (hasPlatformFilter) {
-            postAnalyticsQuery = postAnalyticsQuery.in('platform', selectedPlatforms);
-        }
-
-        const { data: postAnalytics, error: analyticsError } = await postAnalyticsQuery;
-
-        if (analyticsError) throw analyticsError;
-
-        // 3. Count published posts in period
         let postsPublishedQuery = supabase
             .from('scheduled_posts')
             .select('*', { count: 'exact', head: true })
             .eq('brand_id', brandId)
             .eq('status', 'published')
-            .gte('published_at', sinceDate.toISOString());
+            .gte('published_at', sinceDateIso);
+        if (hasPlatformFilter) postsPublishedQuery = postsPublishedQuery.overlaps('platforms', selectedPlatforms);
 
-        if (hasPlatformFilter) {
-            postsPublishedQuery = postsPublishedQuery.overlaps('platforms', selectedPlatforms);
-        }
-
-        const { count: postsPublished } = await postsPublishedQuery;
-
-        // 4. Get follower growth over time (weekly snapshots from account history)
         let followerHistoryQuery = supabase
             .from('follower_history')
             .select('recorded_at, followers_count, platform')
             .eq('brand_id', brandId)
-            .gte('recorded_at', sinceDate.toISOString())
+            .gte('recorded_at', sinceDateIso)
             .order('recorded_at', { ascending: true });
+        if (hasPlatformFilter) followerHistoryQuery = followerHistoryQuery.in('platform', selectedPlatforms);
 
-        if (hasPlatformFilter) {
-            followerHistoryQuery = followerHistoryQuery.in('platform', selectedPlatforms);
-        }
-
-        const { data: followerHistory, error: historyError } = await followerHistoryQuery;
-
-        // 5. Read real sentiment from analyzed inbox conversations
         let sentimentQuery = supabase
             .from('inbox_conversations')
             .select('sentiment, platform')
             .eq('brand_id', brandId)
-            .gte('last_message_at', sinceDate.toISOString())
+            .gte('last_message_at', sinceDateIso)
             .not('sentiment', 'is', null);
+        if (hasPlatformFilter) sentimentQuery = sentimentQuery.in('platform', selectedPlatforms);
 
-        if (hasPlatformFilter) {
-            sentimentQuery = sentimentQuery.in('platform', selectedPlatforms);
-        }
-
-        const { data: sentimentRows, error: sentimentError } = await sentimentQuery;
-        if (sentimentError) throw sentimentError;
-
-        // 6. Read page-level metrics from analytics_snapshots (populated by analytics-aggregator cron)
         let snapshotsQuery = supabase
             .from('analytics_snapshots')
             .select('platform, metric_name, metric_value, period_start')
             .eq('brand_id', brandId)
-            .gte('period_start', sinceDate.toISOString())
-            .in('metric_name', ['impressions', 'reach', 'post_impressions', 'page_fans', 'engaged_users', 'follower_count']);
+            .gte('period_start', sinceDateIso)
+            .in('metric_name', SNAPSHOT_METRICS);
+        if (hasPlatformFilter) snapshotsQuery = snapshotsQuery.in('platform', selectedPlatforms);
 
-        if (hasPlatformFilter) {
-            snapshotsQuery = snapshotsQuery.in('platform', selectedPlatforms);
-        }
+        // Previous period (lightweight — just for trend arrows)
+        let prevPostQuery = supabase
+            .from('post_analytics')
+            .select('impressions, reach, engagement, scheduled_posts!inner(brand_id)')
+            .eq('scheduled_posts.brand_id', brandId)
+            .gte('created_at', prevSinceDateIso)
+            .lt('created_at', sinceDateIso);
+        if (hasPlatformFilter) prevPostQuery = prevPostQuery.in('platform', selectedPlatforms);
 
-        const { data: snapshots } = await snapshotsQuery;
+        let prevSnapshotsQuery = supabase
+            .from('analytics_snapshots')
+            .select('metric_name, metric_value')
+            .eq('brand_id', brandId)
+            .gte('period_start', prevSinceDateIso)
+            .lt('period_start', sinceDateIso)
+            .in('metric_name', SNAPSHOT_METRICS);
+        if (hasPlatformFilter) prevSnapshotsQuery = prevSnapshotsQuery.in('platform', selectedPlatforms);
 
-        // Aggregate page-level impressions + engagement from snapshots
-        let snapshotImpressions = 0;
-        let snapshotEngagement = 0;
-        let snapshotFollowers = 0;
+        let prevPublishedQuery = supabase
+            .from('scheduled_posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('brand_id', brandId)
+            .eq('status', 'published')
+            .gte('published_at', prevSinceDateIso)
+            .lt('published_at', sinceDateIso);
 
-        for (const row of snapshots ?? []) {
-            const val = Number(row.metric_value) || 0;
-            if (row.metric_name === 'impressions' || row.metric_name === 'post_impressions') {
-                snapshotImpressions += val;
-            }
-            if (row.metric_name === 'engaged_users') {
-                snapshotEngagement += val;
-            }
-            // Use most recent page_fans / follower_count as a fallback for followers
-            if ((row.metric_name === 'page_fans' || row.metric_name === 'follower_count') && val > snapshotFollowers) {
-                snapshotFollowers = val;
-            }
-        }
+        // Run ALL queries in parallel
+        const [
+            accounts,
+            { data: postAnalytics, error: analyticsError },
+            { count: postsPublished },
+            { data: followerHistory, error: historyError },
+            { data: sentimentRows, error: sentimentError },
+            { data: snapshots },
+            { data: prevPostAnalytics },
+            { data: prevSnapshots },
+            { count: prevPostsPublished },
+            connectedSources,
+        ] = await Promise.all([
+            getSocialAccounts(brandId).then(accs =>
+                accs.filter(a => !hasPlatformFilter || selectedPlatforms.includes(a.platform))
+            ),
+            postAnalyticsQuery,
+            postsPublishedQuery,
+            followerHistoryQuery,
+            sentimentQuery,
+            snapshotsQuery,
+            prevPostQuery,
+            prevSnapshotsQuery,
+            prevPublishedQuery,
+            getConnectedSourceSummaries(brandId, sinceDate, context),
+        ]);
 
-        // Aggregate total followers per platform — prefer DB value, fall back to snapshots
-        const dbFollowers = accounts.reduce((sum, account) => sum + (account.followers || 0), 0);
-        const totalFollowers = dbFollowers > 0 ? dbFollowers : snapshotFollowers;
+        if (analyticsError) throw analyticsError;
+        if (sentimentError) throw sentimentError;
 
-        // Merge post-level + page-level impressions/engagement
-        const postImpressions = (postAnalytics || []).reduce((sum, p) => sum + (p.impressions || 0), 0);
-        const postEngagement = (postAnalytics || []).reduce((sum, p) => sum + (p.engagement || 0), 0);
-        const totalImpressions = postImpressions + snapshotImpressions;
-        const totalEngagement = postEngagement + snapshotEngagement;
+        // --- Aggregate current period ---
+        const curr = aggregateSnapshots(snapshots ?? []);
 
-        // Top posts by engagement
+        const dbFollowers = accounts.reduce((sum, a) => sum + (a.followers || 0), 0);
+        const totalFollowers = dbFollowers > 0 ? dbFollowers : curr.followers;
+
+        const postImpressions = (postAnalytics || []).reduce((sum, p: any) => sum + (p.impressions || 0), 0);
+        const postEngagement = (postAnalytics || []).reduce((sum, p: any) => sum + (p.engagement || 0), 0);
+        const postReach = (postAnalytics || []).reduce((sum, p: any) => sum + (p.reach || 0), 0);
+
+        const totalImpressions = postImpressions + curr.impressions;
+        const totalEngagement = postEngagement + curr.engagement;
+        const totalReach = postReach + curr.reach;
+
+        // --- Aggregate previous period ---
+        const prev = aggregateSnapshots(prevSnapshots ?? []);
+        const prevPostImpressions = (prevPostAnalytics || []).reduce((sum, p: any) => sum + (p.impressions || 0), 0);
+        const prevPostEngagement = (prevPostAnalytics || []).reduce((sum, p: any) => sum + (p.engagement || 0), 0);
+        const prevPostReach = (prevPostAnalytics || []).reduce((sum, p: any) => sum + (p.reach || 0), 0);
+        const prevTotalImpressions = prevPostImpressions + prev.impressions;
+        const prevTotalEngagement = prevPostEngagement + prev.engagement;
+        const prevTotalReach = prevPostReach + prev.reach;
+        const hasPrevData = prevTotalImpressions > 0 || prevTotalEngagement > 0 || prev.followers > 0;
+
+        // --- Top posts by engagement ---
         const postEngagementMap: Record<string, { content: string; engagement: number }> = {};
         (postAnalytics || []).forEach((p: any) => {
             const postId = p.post_id;
             if (!postEngagementMap[postId]) {
-                postEngagementMap[postId] = {
-                    content: p.scheduled_posts?.content || '',
-                    engagement: 0,
-                };
+                postEngagementMap[postId] = { content: p.scheduled_posts?.content || '', engagement: 0 };
             }
             postEngagementMap[postId].engagement += p.engagement || 0;
         });
 
         const topPosts: PostPerformance[] = Object.entries(postEngagementMap)
-            .map(([id, data]) => ({ id, content: data.content, engagement: data.engagement }))
+            .map(([id, d]) => ({ id, content: d.content, engagement: d.engagement }))
             .sort((a, b) => b.engagement - a.engagement)
             .slice(0, 5);
 
-        // Engagement rate per platform
+        // --- Engagement rate per platform ---
         const platformEngMap: Record<string, { engagement: number; impressions: number }> = {};
         (postAnalytics || []).forEach((p: any) => {
             const plat = p.platform;
@@ -396,17 +425,17 @@ export async function getAnalyticsData(
             platformEngMap[plat].impressions += p.impressions || 0;
         });
 
-        const engagementRate = Object.entries(platformEngMap).map(([platform, data]) => ({
+        const engagementRate = Object.entries(platformEngMap).map(([platform, d]) => ({
             platform: platform as SocialPlatform,
-            rate: data.impressions > 0 ? parseFloat(((data.engagement / data.impressions) * 100).toFixed(2)) : 0,
+            rate: d.impressions > 0 ? parseFloat(((d.engagement / d.impressions) * 100).toFixed(2)) : 0,
         }));
 
         const platformBreakdown: Record<string, { impressions: number; engagement: number }> = {};
-        Object.entries(platformEngMap).forEach(([platform, data]) => {
-            platformBreakdown[platform] = { impressions: data.impressions, engagement: data.engagement };
+        Object.entries(platformEngMap).forEach(([platform, d]) => {
+            platformBreakdown[platform] = { impressions: d.impressions, engagement: d.engagement };
         });
 
-        // Build follower growth timeline
+        // --- Follower growth timeline ---
         const growthMap: Record<string, Record<string, number>> = {};
         if (!historyError && followerHistory) {
             followerHistory.forEach((h: any) => {
@@ -416,16 +445,23 @@ export async function getAnalyticsData(
             });
         }
         const followerGrowth = Object.entries(growthMap).map(([date, platforms]) => ({ date, ...platforms }));
-        const connectedSources = await getConnectedSourceSummaries(brandId, sinceDate, context);
 
         return {
             overallStats: {
                 totalFollowers,
+                reach: totalReach,
                 impressions: totalImpressions,
                 engagement: totalEngagement,
                 postsPublished: postsPublished || 0,
                 sentiment: buildSentimentBreakdown(sentimentRows || []),
             },
+            previousPeriodStats: hasPrevData ? {
+                totalFollowers: prev.followers,
+                reach: prevTotalReach,
+                impressions: prevTotalImpressions,
+                engagement: prevTotalEngagement,
+                postsPublished: prevPostsPublished || 0,
+            } : undefined,
             connectedSources,
             topPosts,
             followerGrowth,
@@ -531,7 +567,6 @@ export async function getPlatformAnalyticsData(brandId: string, platform: Social
     }
 }
 
-// --- Helper: Record follower snapshot (call when refreshing accounts) ---
 export async function recordFollowerSnapshot(brandId: string, platform: SocialPlatform, followersCount: number): Promise<void> {
     try {
         await supabase.from('follower_history').insert({

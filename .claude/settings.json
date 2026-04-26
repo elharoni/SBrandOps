@@ -77,7 +77,9 @@
       "Bash(supabase functions *)",
       "Bash(where supabase *)",
       "Bash(node -e \"require\\('pdfjs-dist'\\)\")",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Bash(grep -E \"\\\\.\\(tsx?|sql\\)$\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

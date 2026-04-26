@@ -34,7 +34,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
     return (
         <AuthShell>
             <div className="w-full max-w-md px-4">
-                <AuthLogoBlock subtitle="استعادة كلمة المرور" />
+                <AuthLogoBlock />
 
                 <div className="bg-white/95 dark:bg-[#161B33] border border-black/5 dark:border-white/10 rounded-[20px] shadow-[0_16px_50px_rgba(6,182,212,0.10)] p-8">
                     {sent ? (

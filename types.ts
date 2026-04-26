@@ -250,6 +250,10 @@ export interface AdAccount {
 }
 
 // --- Brand Hub ---
+export type BusinessModel = 'b2c' | 'b2b' | 'ecommerce' | 'service' | 'local' | 'saas' | 'mixed';
+export type BrandGoal = 'awareness' | 'leads' | 'sales' | 'bookings' | 'engagement' | 'support' | 'recruitment';
+export type BrandLanguage = 'ar' | 'en' | 'both';
+
 export interface BrandVoice {
     toneDescription: string[];
     keywords: string[];
@@ -281,6 +285,14 @@ export interface BrandHubProfile {
     brandAudiences: BrandAudience[];
     consistencyScore: number;
     lastMemoryUpdate: string;
+    // Extended wizard fields — stored in brand_profiles.extended_profile JSONB
+    description?: string;
+    businessModel?: BusinessModel;
+    goals?: BrandGoal[];
+    language?: BrandLanguage;
+    ageRange?: string;
+    targetAudienceSummary?: string;
+    contactInfo?: { phone?: string; email?: string; };
 }
 
 // --- AI & Gemini Service Related ---
@@ -512,10 +524,18 @@ export interface PlatformAnalyticsData {
 export interface AnalyticsData {
     overallStats: {
         totalFollowers: number;
+        reach: number;
         impressions: number;
         engagement: number;
         postsPublished: number;
         sentiment: { positive: number; neutral: number; negative: number };
+    };
+    previousPeriodStats?: {
+        totalFollowers: number;
+        reach: number;
+        impressions: number;
+        engagement: number;
+        postsPublished: number;
     };
     connectedSources?: {
         ga4?: {
@@ -807,6 +827,9 @@ export enum ConversationIntent {
     Unknown = 'Unknown'
 }
 export type ConversationSentiment = 'positive' | 'neutral' | 'negative';
+export type ConversationStatus   = 'open' | 'pending' | 'resolved' | 'spam' | 'archived';
+export type ConversationPriority = 'urgent' | 'high' | 'medium' | 'low';
+
 export interface InboxConversation {
     id: string;
     platform: SocialPlatform;
@@ -820,6 +843,13 @@ export interface InboxConversation {
     sentiment?: ConversationSentiment;
     aiSummary?: string;
     analyzedAt?: Date | null;
+    // Enhanced fields (migration 053)
+    status?: ConversationStatus;
+    priority?: ConversationPriority;
+    tags?: string[];
+    crmCustomerId?: string | null;
+    accountName?: string | null;
+    accountId?: string | null;
 }
 
 // --- Workflow & Integrations ---

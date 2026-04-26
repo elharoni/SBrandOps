@@ -111,6 +111,53 @@ export async function deleteBotPersona(brandId: string, personaId: string): Prom
     if (error) throw new Error(error.message);
 }
 
+export async function updateBotPersona(
+    brandId: string,
+    personaId: string,
+    updates: Partial<Omit<BotPersona, 'id' | 'brandId' | 'createdAt' | 'conversationCount' | 'conversionRate'>>
+): Promise<BotPersona> {
+    const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (updates.name            !== undefined) row.name             = updates.name;
+    if (updates.avatarEmoji     !== undefined) row.avatar_emoji      = updates.avatarEmoji;
+    if (updates.scenario        !== undefined) row.scenario          = updates.scenario;
+    if (updates.personality     !== undefined) row.personality       = updates.personality;
+    if (updates.language        !== undefined) row.language          = updates.language;
+    if (updates.persuasionLevel !== undefined) row.persuasion_level  = updates.persuasionLevel;
+    if (updates.systemPrompt    !== undefined) row.system_prompt     = updates.systemPrompt;
+    if (updates.greetingMessage !== undefined) row.greeting_message  = updates.greetingMessage;
+    if (updates.closingMessage  !== undefined) row.closing_message   = updates.closingMessage;
+    if (updates.trigger         !== undefined) row.trigger_type      = updates.trigger;
+    if (updates.triggerKeywords !== undefined) row.trigger_keywords  = updates.triggerKeywords;
+    if (updates.status          !== undefined) row.status            = updates.status;
+
+    const { data, error } = await supabase
+        .from('bot_personas')
+        .update(row)
+        .eq('id', personaId)
+        .eq('brand_id', brandId)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return mapPersonaRow(data);
+}
+
+export async function incrementConversationCount(brandId: string, personaId: string): Promise<void> {
+    const { data: current } = await supabase
+        .from('bot_personas')
+        .select('conversation_count')
+        .eq('id', personaId)
+        .eq('brand_id', brandId)
+        .single();
+
+    if (!current) return;
+    await supabase
+        .from('bot_personas')
+        .update({ conversation_count: (current.conversation_count || 0) + 1 })
+        .eq('id', personaId)
+        .eq('brand_id', brandId);
+}
+
 export async function getBotConversations(brandId: string): Promise<BotConversation[]> {
     const { data, error } = await supabase
         .from('bot_conversations')
@@ -274,4 +321,39 @@ export async function getBotReply(
 
     if (error) throw new Error(error.message ?? 'AI proxy error');
     return (data as any)?.text?.trim() || 'حدث خطأ، يرجى المحاولة مرة أخرى.';
+}
+
+// ── Generate Brand FAQ ────────────────────────────────────────────────────────
+
+export async function generateBrandFAQ(
+    brand: Brand | null,
+    brandProfile: BrandHubProfile | null
+): Promise<string> {
+    const brandName     = brandProfile?.brandName || brand?.name || 'البراند';
+    const industry      = brandProfile?.industry ? `\nالمجال: ${brandProfile.industry}` : '';
+    const sellingPoints = brandProfile?.keySellingPoints?.length
+        ? `\nنقاط البيع:\n- ${brandProfile.keySellingPoints.join('\n- ')}`
+        : '';
+
+    const prompt = `أنت خبير في كتابة محتوى بوتات المبيعات.
+
+البراند: ${brandName}${industry}${sellingPoints}
+
+أنشئ قائمة FAQ مختصرة (5 أسئلة وأجوبة) تناسب بوت مبيعات لهذا البراند.
+الشكل:
+س: [السؤال]
+ج: [الجواب]
+
+اكتب بلغة عربية بسيطة ومباشرة. ابدأ مباشرة بالأسئلة.`;
+
+    const { data, error } = await supabase.functions.invoke('ai-proxy', {
+        body: {
+            model:    'gemini-2.5-flash',
+            feature:  'smart-bot-generate-faq',
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        },
+    });
+
+    if (error) throw new Error(error.message);
+    return (data as any)?.text?.trim() || '';
 }

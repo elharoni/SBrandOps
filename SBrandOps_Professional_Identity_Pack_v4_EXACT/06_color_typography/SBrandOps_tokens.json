@@ -1,0 +1,44 @@
+{
+  "brand": "SBrandOps",
+  "tagline": "One System. Smarter Growth.",
+  "colors": {
+    "deep_navy": "#070B1F",
+    "navy_900": "#0D1329",
+    "navy_800": "#161B33",
+    "slate_700": "#1F2540",
+    "cyan": "#06B6D4",
+    "blue": "#2563EB",
+    "indigo": "#4F46E5",
+    "purple": "#7C3AED",
+    "white": "#FFFFFF",
+    "soft_white": "#E6EAF2",
+    "gray_300": "#A8B0C3",
+    "success": "#22C55E",
+    "info": "#38B2F6",
+    "warning": "#F59E0B",
+    "error": "#EF4444"
+  },
+  "gradient": {
+    "primary": "linear-gradient(135deg, #06B6D4 0%, #2563EB 38%, #4F46E5 68%, #7C3AED 100%)"
+  },
+  "typography": {
+    "primary": "Sora / Inter / Plus Jakarta Sans",
+    "fallback": "Inter, system-ui, -apple-system, Segoe UI, sans-serif",
+    "weights": [
+      "Regular",
+      "Medium",
+      "SemiBold",
+      "Bold",
+      "ExtraBold"
+    ]
+  },
+  "radius": {
+    "card": "20px",
+    "button": "14px",
+    "appIcon": "22%"
+  },
+  "shadow": {
+    "card": "0 16px 50px rgba(6, 182, 212, 0.10)",
+    "glow": "0 0 40px rgba(37, 99, 235, 0.28)"
+  }
+}

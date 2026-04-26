@@ -5,6 +5,7 @@ import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKno
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
 import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
+import { extractTextFromPdf } from '../../services/pdfExtractor';
 import { getBrandSkillsReport } from '../../services/evaluationService';
 import { getBrandDocuments, deleteBrandDocument, BrandDocument, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
 import { BrandImportModal } from '../BrandImportModal';
@@ -54,12 +55,11 @@ const TONE_OPTIONS = [
 
 const INDUSTRY_OPTIONS = ['تجزئة وتسوق', 'عقارات', 'مطاعم وأغذية', 'صحة وجمال', 'تقنية وSaaS', 'تعليم', 'سياحة وضيافة', 'مالية وبنوك', 'رياضة ولياقة', 'أخرى'];
 
+// Only PDF is natively supported by Gemini inline_data
 const BINARY_EXTS: Record<string, string> = {
-    pdf:  'application/pdf',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    doc:  'application/msword',
-    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    pdf: 'application/pdf',
 };
+const UNSUPPORTED_EXTS = new Set(['docx', 'doc', 'pptx', 'xlsx']);
 
 function getExt(name: string) { return name.split('.').pop()?.toLowerCase() ?? ''; }
 
@@ -91,28 +91,49 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
         const file = e.target.files?.[0];
         if (!file) return;
         e.target.value = '';
+
+        const ext = getExt(file.name);
+
+        // DOCX / DOC / PPTX — Gemini doesn't support these as inline_data
+        if (UNSUPPORTED_EXTS.has(ext)) {
+            setFileExtractMsg(`تعذّر قراءة الملف: ${ext.toUpperCase()} غير مدعوم. يرجى تحويله إلى PDF أو نسخ المحتوى يدوياً.`);
+            return;
+        }
+
         setIsExtractingFile(true);
         setFileExtractMsg(null);
         try {
-            const ext = getExt(file.name);
-            const isBinary = ext in BINARY_EXTS;
-
-            // Build contents array — inline_data for binary, text for plain
+            // Build contents array:
+            // - PDF ≤ 170 KB → inline_data (fast path)
+            // - PDF > 170 KB → extract text client-side via PDF.js (avoids body limit)
+            // - TXT / MD     → send as plain text
             let contents: unknown[];
-            if (isBinary) {
-                const base64 = await fileToBase64(file);
-                contents = [{
-                    role: 'user',
-                    parts: [
-                        { inline_data: { mime_type: BINARY_EXTS[ext], data: base64 } },
-                        { text: 'استخرج من هذه الوثيقة: الصناعة، وصف النشاط، الجمهور المستهدف، نبرة الصوت، والمنصات. أرجع JSON فقط.' },
-                    ],
-                }];
+            const PROMPT = 'استخرج من هذه الوثيقة: الصناعة، وصف النشاط التجاري، الجمهور المستهدف، الفئة العمرية، نبرة الصوت، والمنصات المناسبة. أرجع JSON فقط.';
+
+            if (ext === 'pdf') {
+                if (file.size > 170 * 1024) {
+                    // Large PDF → extract text client-side, send as text
+                    const pdfText = await extractTextFromPdf(file);
+                    contents = [{
+                        role: 'user',
+                        parts: [{ text: `${PROMPT}\n\n${pdfText.slice(0, 20000)}` }],
+                    }];
+                } else {
+                    // Small PDF → inline_data
+                    const base64 = await fileToBase64(file);
+                    contents = [{
+                        role: 'user',
+                        parts: [
+                            { inline_data: { mime_type: 'application/pdf', data: base64 } },
+                            { text: PROMPT },
+                        ],
+                    }];
+                }
             } else {
                 const rawText = await file.text();
                 contents = [{
                     role: 'user',
-                    parts: [{ text: `استخرج من هذه الوثيقة: الصناعة، وصف النشاط، الجمهور المستهدف، نبرة الصوت، والمنصات. أرجع JSON فقط.\n\n${rawText.slice(0, 15000)}` }],
+                    parts: [{ text: `${PROMPT}\n\n${rawText.slice(0, 20000)}` }],
                 }];
             }
 
@@ -156,6 +177,11 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
 
             const filledCount = [matchedIndustry, raw.description, raw.targetAudience, matchedTones.length, matchedPlatforms.length].filter(Boolean).length;
             setFileExtractMsg(`✓ تم ملء ${filledCount} حقول تلقائياً من "${file.name}"`);
+
+            // If enough fields were filled, skip all manual steps and go straight to generation
+            if (filledCount >= 3) {
+                setTimeout(() => setStep(4), 900);
+            }
         } catch (err) {
             console.error('[wizard file upload]', err);
             const msg = err instanceof Error ? err.message : String(err);
@@ -228,7 +254,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                             <p className="text-dark-text-secondary text-sm">أخبرنا عن نشاطك التجاري — سيبني الذكاء الاصطناعي هوية البراند من هذه المعلومات</p>
 
                             {/* File upload */}
-                            <input ref={fileInputRef} type="file" accept=".txt,.md,.pdf,.docx,.doc,.pptx" className="hidden" onChange={handleFileUpload} />
+                            <input ref={fileInputRef} type="file" accept=".txt,.md,.pdf,.docx,.doc,.pptx,.xlsx" className="hidden" onChange={handleFileUpload} />
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
@@ -246,7 +272,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                                         {isExtractingFile ? 'جارٍ قراءة الملف...' : 'استيراد من ملف'}
                                     </p>
                                     <p className="text-xs text-dark-text-secondary mt-0.5">
-                                        PDF، Word، TXT، MD — يملأ الـ AI الحقول تلقائياً
+                                        PDF، TXT، MD — يملأ الـ AI الحقول تلقائياً
                                     </p>
                                 </div>
                                 <i className="fas fa-chevron-left text-brand-pink/50 group-hover:text-brand-pink transition-colors flex-shrink-0 text-xs" />

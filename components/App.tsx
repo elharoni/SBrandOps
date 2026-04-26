@@ -74,6 +74,7 @@ const buildFallbackBrandProfile = (brandName = ''): BrandHubProfile => ({
 const buildFallbackAnalyticsData = (): AnalyticsData => ({
     overallStats: {
         totalFollowers: 0,
+        reach: 0,
         impressions: 0,
         engagement: 0,
         postsPublished: 0,
