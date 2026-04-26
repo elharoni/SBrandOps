@@ -122,13 +122,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <div className="px-4 py-4 flex items-center justify-between border-b border-light-border dark:border-dark-border min-h-[64px]">
                 {!collapsed && (
                     <div className="flex items-center gap-2 min-w-0">
-                        <SBrandOpsLogo size="sm" layout="inline" />
+                        <SBrandOpsLogo size="sm" layout="horizontal" />
                         <span className="bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">ADMIN</span>
                     </div>
                 )}
                 {collapsed && (
                     <div className="flex items-center justify-center mx-auto">
-                        <SBrandMark px={28} sw={8.5} dot={4.5} />
+                        <SBrandMark px={28} />
                     </div>
                 )}
                 <button

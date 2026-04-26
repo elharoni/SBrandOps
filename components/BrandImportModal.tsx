@@ -4,6 +4,7 @@ import { updateBrandProfile } from '../services/brandHubService';
 import { addKnowledgeEntry } from '../services/brandKnowledgeService';
 import { addBrandDocument, BrandDocType, DOC_TYPE_LABELS } from '../services/brandDocumentService';
 import { extractBrandFromDocument, extractBrandFromFileData, calcBrandImportCompleteness, BrandImportData } from '../services/geminiService';
+import { extractTextFromPdf } from '../services/pdfExtractor';
 import { supabase } from '../services/supabaseClient';
 import { useModalClose } from '../hooks/useModalClose';
 
@@ -51,6 +52,8 @@ interface FileEntry {
     text: string;
     // For binary files (pdf, docx, doc, pptx):
     binaryData?: { base64: string; mimeType: string; sizeBytes: number };
+    // Set when a large PDF was extracted client-side via PDF.js
+    extractedFromPdf?: { sizeBytes: number };
 }
 
 const KNOWLEDGE_TYPE_LABELS: Record<string, string> = {
@@ -123,6 +126,7 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
     const [error, setError] = useState<string | null>(null);
     const [saveProgress, setSaveProgress] = useState('');
     const [saveDetails, setSaveDetails] = useState<string[]>([]);
+    const [isLoadingFile, setIsLoadingFile] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [activeFileId, setActiveFileId] = useState('1');
     useModalClose(onClose);
@@ -158,6 +162,12 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 binaryData: { base64: '', mimeType: 'unsupported', sizeBytes: file.size },
             };
         } else if (isBinaryFormat(file.name)) {
+            // PDF — use inline_data only for small files (<170 KB).
+            // For large PDFs, extract text client-side to avoid Edge Function body limit.
+            if (file.size > 170 * 1024) {
+                const text = await extractTextFromPdf(file);
+                return { name: baseName, docType, text, binaryData: undefined, extractedFromPdf: { sizeBytes: file.size } };
+            }
             const base64 = await fileToBase64(file);
             const mimeType = BINARY_MIME_TYPES[ext] ?? file.type;
             return {
@@ -173,9 +183,14 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        const patch = await loadFileEntry(file);
-        updateFile(activeFileId, patch);
         e.target.value = '';
+        setIsLoadingFile(true);
+        try {
+            const patch = await loadFileEntry(file);
+            updateFile(activeFileId, patch);
+        } finally {
+            setIsLoadingFile(false);
+        }
     };
 
     const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -186,17 +201,23 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         });
         if (!supported.length) return;
 
-        const newEntries: FileEntry[] = await Promise.all(
-            supported.map(async (f, i) => {
-                const patch = await loadFileEntry(f);
-                return { id: `${Date.now()}_${i}`, ...patch } as FileEntry;
-            })
-        );
+        setIsLoadingFile(true);
+        let newEntries: FileEntry[];
+        try {
+            newEntries = await Promise.all(
+                supported.map(async (f, i) => {
+                    const patch = await loadFileEntry(f);
+                    return { id: `${Date.now()}_${i}`, ...patch } as FileEntry;
+                })
+            );
+        } finally {
+            setIsLoadingFile(false);
+        }
 
         setFiles(prev => {
             const merged = [...prev];
             // If the first file is empty, replace it
-            if (merged.length === 1 && !merged[0].text) {
+            if (merged.length === 1 && !merged[0].text && !merged[0].binaryData) {
                 merged[0] = { ...merged[0], ...newEntries[0] };
                 return [...merged, ...newEntries.slice(1)];
             }
@@ -212,11 +233,6 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         );
         if (!readyFiles.length) {
             setError('يرجى رفع ملف PDF أو TXT/MD، أو لصق المحتوى في مربع النص.');
-            return;
-        }
-        const oversized = readyFiles.find(f => f.binaryData && f.binaryData.sizeBytes > 170 * 1024);
-        if (oversized) {
-            setError(`الملف "${oversized.name}" كبير جداً (${formatBytes(oversized.binaryData!.sizeBytes)}). يرجى تشغيل "supabase functions deploy ai-proxy" أو نسخ المحتوى كنص.`);
             return;
         }
         setError(null);
@@ -382,7 +398,11 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 contentPillars: extracted.contentPillars.length,
             };
 
-            for (const file of files.filter(f => f.text.trim() || f.binaryData)) {
+            const savableFiles = files.filter(f =>
+                (f.text.trim() || f.binaryData) &&
+                f.binaryData?.mimeType !== 'unsupported'
+            );
+            for (const file of savableFiles) {
                 await addBrandDocument(brandId, {
                     title: file.name,
                     docType: file.docType,
@@ -394,7 +414,7 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                     knowledgeEntriesSaved: extracted.knowledgeEntries.length,
                 });
             }
-            addDetail(`📚 ${files.filter(f => f.text.trim() || f.binaryData).length} وثيقة حُفظت في مكتبة التعلم`);
+            addDetail(`📚 ${savableFiles.length} وثيقة حُفظت في مكتبة التعلم`);
 
             setSaveProgress('');
             setStep('done');
@@ -405,7 +425,10 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         }
     };
 
-    const filledFiles = files.filter(f => f.text.trim() || f.binaryData).length;
+    const filledFiles = files.filter(f =>
+        (f.text.trim() || f.binaryData) &&
+        f.binaryData?.mimeType !== 'unsupported'
+    ).length;
 
     return (
         <div
@@ -452,7 +475,7 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                                 ? 'bg-brand-primary text-white border-brand-primary'
                                                 : 'border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary hover:border-brand-primary/50'
                                         }`}>
-                                        <span>{f.text ? '📄' : '📋'}</span>
+                                        <span>{(f.text || f.binaryData) ? '📄' : '📋'}</span>
                                         <span className="max-w-[100px] truncate">{f.name}</span>
                                         {files.length > 1 && (
                                             <span onClick={e => { e.stopPropagation(); removeFile(f.id); }}
@@ -485,18 +508,38 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                         className="flex-1 text-xs px-2 py-1.5 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text"
                                         placeholder="اسم الوثيقة..."
                                     />
-                                    <button type="button" onClick={() => fileInputRef.current?.click()}
-                                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text hover:border-brand-primary hover:text-brand-primary transition-colors flex-shrink-0">
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                        </svg>
-                                        رفع ملف
+                                    <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoadingFile}
+                                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-light-border dark:border-dark-border rounded-lg text-light-text dark:text-dark-text hover:border-brand-primary hover:text-brand-primary transition-colors flex-shrink-0 disabled:opacity-60">
+                                        {isLoadingFile
+                                            ? <i className="fas fa-circle-notch fa-spin w-3.5 text-brand-primary" />
+                                            : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                              </svg>
+                                        }
+                                        {isLoadingFile ? 'جارٍ القراءة...' : 'رفع ملف'}
                                     </button>
                                     <input ref={fileInputRef} type="file" accept=".txt,.md,.text,.pdf,.docx,.doc,.pptx,.xlsx" className="hidden" onChange={handleFileUpload} multiple />
                                 </div>
 
                                 {/* Binary file: show card preview instead of textarea */}
-                                {activeFile.binaryData ? (
+                                {activeFile.extractedFromPdf ? (
+                                    /* Large PDF — text extracted client-side via PDF.js */
+                                    <div className="flex items-center gap-4 p-4 bg-light-bg dark:bg-dark-bg border-2 border-brand-primary/30 rounded-xl">
+                                        <span className="text-3xl flex-shrink-0">📕</span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-light-text dark:text-dark-text truncate text-sm">{activeFile.name}</p>
+                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                                                PDF • {formatBytes(activeFile.extractedFromPdf.sizeBytes)}
+                                            </p>
+                                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                                                ✓ جاهز — تم استخراج النص ({activeFile.text.length.toLocaleString()} حرف)
+                                            </p>
+                                        </div>
+                                        <button type="button" onClick={() => updateFile(activeFileId, { text: '', extractedFromPdf: undefined })}
+                                            className="text-light-text-secondary dark:text-dark-text-secondary hover:text-red-500 text-sm flex-shrink-0"
+                                            title="إزالة الملف">×</button>
+                                    </div>
+                                ) : activeFile.binaryData ? (
                                     activeFile.binaryData.mimeType === 'unsupported' ? (
                                         /* DOCX / DOC / PPTX — not supported via inline_data */
                                         <div className="p-4 bg-amber-500/5 border-2 border-amber-500/30 rounded-xl space-y-3">
@@ -536,42 +579,8 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                                 إزالة الملف والتبديل إلى النص
                                             </button>
                                         </div>
-                                    ) : activeFile.binaryData!.sizeBytes > 170 * 1024 ? (
-                                        /* PDF — too large for current Edge Function deployment */
-                                        <div className="p-4 rounded-xl border-2 border-red-500/40 bg-red-500/5 space-y-2">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-3xl flex-shrink-0">📕</span>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-light-text dark:text-dark-text truncate text-sm">{activeFile.name}</p>
-                                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
-                                                        PDF • {formatBytes(activeFile.binaryData!.sizeBytes)}
-                                                    </p>
-                                                </div>
-                                                <button type="button" onClick={() => updateFile(activeFileId, { binaryData: undefined, text: '' })}
-                                                    className="text-light-text-secondary dark:text-dark-text-secondary hover:text-red-500 text-sm flex-shrink-0">×</button>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-red-500">
-                                                <i className="fas fa-circle-xmark text-xs flex-shrink-0" />
-                                                <p className="text-xs font-semibold">
-                                                    الملف كبير ({formatBytes(activeFile.binaryData!.sizeBytes)}) — يتجاوز الحد الحالي ~170 KB
-                                                </p>
-                                            </div>
-                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                                                لدعم ملفات أكبر، شغّل هذا الأمر مرة واحدة في terminal المشروع:
-                                            </p>
-                                            <div className="bg-black/40 rounded-lg px-3 py-2 font-mono text-xs text-green-400 select-all">
-                                                supabase functions deploy ai-proxy
-                                            </div>
-                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                                                أو انسخ نص الـ PDF ولصقه في مربع النص.
-                                            </p>
-                                            <button type="button" onClick={() => updateFile(activeFileId, { binaryData: undefined, text: '' })}
-                                                className="text-xs text-brand-primary hover:underline font-medium">
-                                                إزالة الملف والتبديل إلى النص
-                                            </button>
-                                        </div>
                                     ) : (
-                                        /* PDF — small enough, ready */
+                                        /* PDF — ready (small: inline_data, large: text extracted client-side) */
                                         <div className="flex items-center gap-4 p-4 bg-light-bg dark:bg-dark-bg border-2 border-brand-primary/30 rounded-xl">
                                             <span className="text-3xl flex-shrink-0">📕</span>
                                             <div className="flex-1 min-w-0">
@@ -606,6 +615,8 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                 <span>
                                     {activeFile.binaryData
                                         ? formatBytes(activeFile.binaryData.sizeBytes)
+                                        : activeFile.extractedFromPdf
+                                        ? formatBytes(activeFile.extractedFromPdf.sizeBytes)
                                         : `${activeFile.text.length.toLocaleString()} حرف`}
                                 </span>
                             </div>

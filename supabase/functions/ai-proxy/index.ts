@@ -357,11 +357,11 @@ Deno.serve(async (req: Request) => {
     }
 
     if (mode === 'openai-image') {
-      const openaiKey = await getOpenAIApiKey();
+      const openaiKey = await getOpenAIApiKey('image');
       if (!openaiKey) {
-        return jsonError('No active OpenAI API key configured', 503, correlationId, corsHeaders);
+        return jsonError('No active OpenAI image API key configured', 503, correlationId, corsHeaders);
       }
-      const mdl = model === 'gpt-image-1' ? 'dall-e-3' : (model ?? 'dall-e-3');
+      const mdl = model ?? 'gpt-image-1';
       if (!ALLOWED_OPENAI_IMAGE_MODELS.has(mdl)) {
         return jsonError(`OpenAI image model not allowed: ${mdl}`, 400, correlationId, corsHeaders);
       }
@@ -372,62 +372,39 @@ Deno.serve(async (req: Request) => {
       const images = await handleOpenAIImageGeneration(openaiKey, mdl, String(prompt), clampedCount, aspect_ratio);
       return new Response(JSON.stringify({ images }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'X-Correlation-Id': correlationId,
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId },
       });
     }
 
-    const apiKey = await getGeminiApiKey();
-    if (!apiKey) {
-      return jsonError('No active Gemini API key configured', 503, correlationId, corsHeaders);
-    }
-
     if (mode === 'image') {
-      if (!ALLOWED_IMAGE_MODELS.has(model)) {
-        return jsonError(`Image model not allowed: ${model}`, 400, correlationId, corsHeaders);
-      }
-      if (!prompt) {
-        return jsonError('prompt is required for image generation', 400, correlationId, corsHeaders);
-      }
+      const apiKey = await getGeminiApiKey('design');
+      if (!apiKey) return jsonError('No active Gemini design API key configured', 503, correlationId, corsHeaders);
+      if (!ALLOWED_IMAGE_MODELS.has(model)) return jsonError(`Image model not allowed: ${model}`, 400, correlationId, corsHeaders);
+      if (!prompt) return jsonError('prompt is required for image generation', 400, correlationId, corsHeaders);
       const clampedCount = Math.min(Math.max(1, Number(count)), 4);
       const images = await handleImageGeneration(apiKey, model, String(prompt), clampedCount, aspect_ratio);
       return new Response(JSON.stringify({ images }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'X-Correlation-Id': correlationId,
-          'X-Tokens-Used-Today': String(used),
-          'X-Tokens-Limit-Today': String(DAILY_TOKEN_LIMIT),
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId, 'X-Tokens-Used-Today': String(used), 'X-Tokens-Limit-Today': String(DAILY_TOKEN_LIMIT) },
       });
     }
 
     if (mode === 'gemini-image') {
-      if (!ALLOWED_GEMINI_IMAGE_MODELS.has(model)) {
-        return jsonError(`Gemini image model not allowed: ${model}`, 400, correlationId, corsHeaders);
-      }
-      if (!prompt) {
-        return jsonError('prompt is required for image generation', 400, correlationId, corsHeaders);
-      }
+      const apiKey = await getGeminiApiKey('design');
+      if (!apiKey) return jsonError('No active Gemini design API key configured', 503, correlationId, corsHeaders);
+      if (!ALLOWED_GEMINI_IMAGE_MODELS.has(model)) return jsonError(`Gemini image model not allowed: ${model}`, 400, correlationId, corsHeaders);
+      if (!prompt) return jsonError('prompt is required for image generation', 400, correlationId, corsHeaders);
       const clampedCount = Math.min(Math.max(1, Number(count)), 4);
       const images = await handleGeminiImageGeneration(apiKey, model, String(prompt), clampedCount);
       return new Response(JSON.stringify({ images }), {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'X-Correlation-Id': correlationId,
-          'X-Tokens-Used-Today': String(used),
-          'X-Tokens-Limit-Today': String(DAILY_TOKEN_LIMIT),
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'X-Correlation-Id': correlationId, 'X-Tokens-Used-Today': String(used), 'X-Tokens-Limit-Today': String(DAILY_TOKEN_LIMIT) },
       });
     }
 
     // Default: text generation
+    const apiKey = await getGeminiApiKey('content');
+    if (!apiKey) return jsonError('No active Gemini content API key configured', 503, correlationId, corsHeaders);
     if (!ALLOWED_TEXT_MODELS.has(model)) {
       return jsonError(`Text model not allowed: ${model}`, 400, correlationId, corsHeaders);
     }

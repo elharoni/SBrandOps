@@ -9,11 +9,11 @@ interface Props {
 }
 
 const tabs = (ar: boolean) => [
-    { id: 'mobile-home', icon: 'fa-home',       label: ar ? 'الرئيسية' : 'Home'      },
-    { id: 'inbox',       icon: 'fa-inbox',       label: ar ? 'الرسائل'  : 'Inbox'     },
-    { id: 'content-ops', icon: 'fa-layer-group', label: ar ? 'المحتوى'  : 'Content'   },
-    { id: 'analytics',   icon: 'fa-chart-pie',   label: ar ? 'الأداء'   : 'Analytics' },
-    { id: '__menu__',    icon: 'fa-bars',         label: ar ? 'المزيد'   : 'More'      },
+    { id: 'mobile-home',    icon: 'fa-home',        label: ar ? 'الرئيسية' : 'Home'      },
+    { id: 'inbox',          icon: 'fa-inbox',        label: ar ? 'الرسائل'  : 'Inbox'     },
+    { id: 'content-studio', icon: 'fa-pen-nib',      label: ar ? 'المحتوى'  : 'Content'   },
+    { id: 'analytics',      icon: 'fa-chart-pie',    label: ar ? 'الأداء'   : 'Analytics' },
+    { id: '__menu__',       icon: 'fa-bars',          label: ar ? 'المزيد'   : 'More'      },
 ];
 
 export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpenSidebar, unreadCount = 0 }) => {

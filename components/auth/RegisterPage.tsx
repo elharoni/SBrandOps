@@ -3,6 +3,7 @@ import { signUp, signInWithGoogle } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
 import { SBrandOpsLogo } from '../SBrandOpsLogo';
 import { AuthInput, AuthErrorBanner, AuthConfigWarning, AuthDivider, AuthSubmitButton } from '../shared/UIComponents';
+import { AuthShell, AuthLogoBlock } from './AuthShell';
 
 interface RegisterPageProps {
     onSuccess: () => void;
@@ -98,7 +99,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
 
     if (showSurvey && !success) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
+            <AuthShell>
                 <div className="w-full max-w-md">
                     <div className="text-center mb-6">
                         <div className="w-14 h-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center mx-auto mb-3">
@@ -109,7 +110,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                             سؤال سريع يساعدنا نخصّص تجربتك
                         </p>
                     </div>
-                    <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-6 shadow-xl">
+                    <div className="bg-white/95 dark:bg-[#161B33] border border-black/5 dark:border-white/10 rounded-[20px] p-6 shadow-[0_16px_50px_rgba(6,182,212,0.10)]">
                         <p className="text-sm font-semibold text-light-text dark:text-dark-text mb-4 text-center">ما هو هدفك الرئيسي من SBrandOps؟</p>
                         <div className="grid grid-cols-2 gap-3 mb-5">
                             {surveyOptions.map(opt => (
@@ -146,10 +147,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                         </button>
                     </div>
                 </div>
-            </div>
+            </AuthShell>
         );
     }
 
+    // success state
     if (success) {
         const steps = [
             { icon: 'fa-layer-group', color: 'text-violet-400',  label: 'أنشئ براندك الأول' },
@@ -157,19 +159,19 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
             { icon: 'fa-chart-line',  color: 'text-emerald-400', label: 'تابع التحليلات' },
         ];
         return (
-            <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
+            <AuthShell>
                 <div className="w-full max-w-md">
                     <div className="text-center mb-6">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 mb-4 shadow-lg shadow-indigo-500/30">
                             <i className="fas fa-envelope-open-text text-white text-2xl" />
                         </div>
-                        <h2 className="text-2xl font-bold text-light-text dark:text-dark-text">تحقق من بريدك!</h2>
-                        <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm mt-1">
-                            أرسلنا رابط التفعيل إلى <strong className="text-brand-primary">{email}</strong>
+                        <h2 className="text-2xl font-bold text-white">تحقق من بريدك!</h2>
+                        <p className="text-[#A8B0C3] text-sm mt-1">
+                            أرسلنا رابط التفعيل إلى <strong className="text-sbo-cyan">{email}</strong>
                         </p>
                     </div>
 
-                    <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl overflow-hidden shadow-xl">
+                    <div className="bg-white/95 dark:bg-[#161B33] border border-black/5 dark:border-white/10 rounded-[20px] overflow-hidden shadow-[0_16px_50px_rgba(6,182,212,0.10)]">
                         <div className="p-6 border-b border-light-border dark:border-dark-border">
                             <p className="text-xs font-semibold text-brand-primary uppercase tracking-widest mb-4">بعد التفعيل ستتمكن من</p>
                             <div className="space-y-3">
@@ -221,19 +223,16 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                         </div>
                     </div>
                 </div>
-            </div>
+        </AuthShell>
         );
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
+        <AuthShell>
             <div className="w-full max-w-md">
-                <div className="text-center mb-8 flex flex-col items-center">
-                    <SBrandOpsLogo size="lg" layout="stacked" />
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2">منصة إدارة البراندات الشاملة</p>
-                </div>
+                <AuthLogoBlock />
 
-                <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
+                <div className="bg-white/95 dark:bg-[#161B33] border border-black/5 dark:border-white/10 rounded-[20px] p-8 shadow-[0_16px_50px_rgba(6,182,212,0.10)]">
                     <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-6 text-center">إنشاء حساب جديد</h2>
 
                     {!isSupabaseConfigured && <AuthConfigWarning error={supabaseConfigError} />}
@@ -309,7 +308,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                         type="button"
                         onClick={handleGoogleSignIn}
                         disabled={googleLoading || !isSupabaseConfigured}
-                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-light-border bg-white py-2.5 text-sm font-semibold text-light-text transition-colors hover:bg-light-bg disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-border dark:bg-dark-card dark:text-dark-text dark:hover:bg-dark-bg"
+                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-black/10 bg-white py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-sbo-soft dark:hover:bg-white/10"
                     >
                         {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
                         التسجيل عبر Google
@@ -325,6 +324,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                     </div>
                 </div>
             </div>
-        </div>
+        </AuthShell>
     );
 };

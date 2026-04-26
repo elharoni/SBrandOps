@@ -24,13 +24,12 @@ CREATE TABLE IF NOT EXISTS bot_personas (
 
 ALTER TABLE bot_personas ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "bot_personas_brand_member"
-  ON bot_personas
-  USING (
+CREATE POLICY bot_personas_brand_access ON bot_personas
+  FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM brand_members
-      WHERE brand_members.brand_id = bot_personas.brand_id
-        AND brand_members.user_id = auth.uid()
+      SELECT 1 FROM brands
+      WHERE brands.id = bot_personas.brand_id
+        AND brands.user_id = auth.uid()
     )
   );
 
@@ -51,17 +50,16 @@ CREATE TABLE IF NOT EXISTS bot_conversations (
 
 ALTER TABLE bot_conversations ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "bot_conversations_brand_member"
-  ON bot_conversations
-  USING (
+CREATE POLICY bot_conversations_brand_access ON bot_conversations
+  FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM brand_members
-      WHERE brand_members.brand_id = bot_conversations.brand_id
-        AND brand_members.user_id = auth.uid()
+      SELECT 1 FROM brands
+      WHERE brands.id = bot_conversations.brand_id
+        AND brands.user_id = auth.uid()
     )
   );
 
--- Index for fast persona lookups per brand
+-- Indexes for fast lookups per brand
 CREATE INDEX IF NOT EXISTS bot_personas_brand_id_idx ON bot_personas(brand_id);
 CREATE INDEX IF NOT EXISTS bot_conversations_brand_id_idx ON bot_conversations(brand_id);
 CREATE INDEX IF NOT EXISTS bot_conversations_persona_id_idx ON bot_conversations(persona_id);

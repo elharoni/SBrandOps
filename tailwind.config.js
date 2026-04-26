@@ -10,7 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Tajawal', 'sans-serif'],
+        sans: ['Inter', 'Sora', 'Tajawal', 'sans-serif'],
+        sora: ['Sora', 'Inter', 'sans-serif'],
       },
       borderRadius: {
         DEFAULT: '0.375rem',
@@ -20,8 +21,29 @@ export default {
         xl:    '0.75rem',
         '2xl': '1rem',
         full:  '9999px',
+        // SBrandOps official tokens
+        'sbo-card':   '20px',
+        'sbo-button': '14px',
       },
       colors: {
+        // ── SBrandOps Official Brand Tokens (v4) ─────────────────────────
+        sbo: {
+          navy:    '#070B1F',
+          navy900: '#0D1329',
+          navy800: '#161B33',
+          slate:   '#1F2540',
+          cyan:    '#06B6D4',
+          blue:    '#2563EB',
+          indigo:  '#4F46E5',
+          purple:  '#7C3AED',
+          white:   '#FFFFFF',
+          soft:    '#E6EAF2',
+          gray:    '#A8B0C3',
+          success: '#22C55E',
+          warning: '#F59E0B',
+          error:   '#EF4444',
+          info:    '#38B2F6',
+        },
         // ── Lumina Axiom: Midnight Surface Hierarchy ──────────────────────
         'surface-lowest':    '#070e1c',
         'surface-low':       '#0c1321',
@@ -100,6 +122,10 @@ export default {
         'deep-sea':      '0 20px 40px rgba(0, 0, 0, 0.4)',
         'primary-glow':  '0 0 20px rgba(37, 99, 235, 0.35)',
         'tertiary-glow': '0 0 15px rgba(78, 222, 163, 0.3)',
+        // SBrandOps official tokens
+        'sbo-card': '0 16px 50px rgba(6, 182, 212, 0.10)',
+        'sbo-glow': '0 0 40px rgba(37, 99, 235, 0.28)',
+        'sbo-cyan': '0 0 30px rgba(6, 182, 212, 0.25)',
       },
     },
   },

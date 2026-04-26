@@ -222,7 +222,7 @@ export function CampaignBrainPage({ brandId, brandProfile, addNotification }: Pr
         if ((brandProfile.values?.length ?? 0) >= 3)        score += 15;
         if ((brandProfile.keySellingPoints?.length ?? 0) >= 3) score += 15;
         if ((brandProfile.styleGuidelines?.length ?? 0) >= 2)  score += 15;
-        if (brandProfile.brandVoice?.tone)                   score += 10;
+        if ((brandProfile.brandVoice?.toneDescription?.length ?? 0) > 0) score += 10;
         if ((brandProfile.brandAudiences?.length ?? 0) >= 1) score += 15;
         if (brandProfile.website)                            score += 5;
         if (brandProfile.country)                            score += 5;
@@ -1203,7 +1203,7 @@ export function CampaignBrainPage({ brandId, brandProfile, addNotification }: Pr
                                         الرسائل الرئيسية
                                     </p>
                                     <button
-                                        onClick={() => setStrategy(s => s ? { ...s, keyMessages: [...(s.keyMessages ?? []), { text: 'رسالة جديدة', emphasis: 'medium' }] } : s)}
+                                        onClick={() => setStrategy(s => s ? { ...s, keyMessages: [...(s.keyMessages ?? []), { text: 'رسالة جديدة', priority: 1 }] } : s)}
                                         className="flex items-center gap-1 rounded-lg bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold text-brand-primary"
                                     >
                                         <i className="fas fa-plus text-[10px]" />
@@ -1718,7 +1718,7 @@ export function CampaignBrainPage({ brandId, brandProfile, addNotification }: Pr
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">النبرة</p>
-                                    <p className="text-xs font-semibold text-light-text dark:text-dark-text capitalize">{brandProfile.brandVoice?.tone ?? '—'}</p>
+                                    <p className="text-xs font-semibold text-light-text dark:text-dark-text capitalize">{brandProfile.brandVoice?.toneDescription?.[0] ?? '—'}</p>
                                 </div>
                                 {activeCampaign && (
                                     <div>

@@ -75,7 +75,9 @@
       "Bash(grep -r \"activeBrand\\\\\\\\.id\\\\|activeBrand\\\\\\\\.name\" /e/sbrandops---v1.0541/components --include=\"*.tsx\")",
       "Bash(grep -n \"activeBrand\\\\\\\\.id\\\\|activeBrand\\\\\\\\.name\\\\|activeBrand\\\\\\\\.logo\" /e/sbrandops---v1.0541/components/Header.tsx /e/sbrandops---v1.0541/components/routing/BrandRouter.tsx)",
       "Bash(supabase functions *)",
-      "Bash(where supabase *)"
+      "Bash(where supabase *)",
+      "Bash(node -e \"require\\('pdfjs-dist'\\)\")",
+      "Bash(git status *)"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

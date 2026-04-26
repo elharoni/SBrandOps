@@ -644,6 +644,32 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
                     </div>
 
 
+                    {/* AI Provider Selector */}
+                    <div className="px-5 pb-3">
+                        <div className="flex rounded-xl overflow-hidden border border-light-border dark:border-dark-border text-xs font-bold">
+                            {([
+                                { id: 'openai',        label: 'ChatGPT Image', sub: 'GPT Image 1', iconClass: 'fas fa-robot'  },
+                                { id: 'gemini-native', label: 'Gemini',        sub: 'عربي ✦',      iconClass: 'fas fa-gem'    },
+                            ] as const).map((p, i) => (
+                                <button
+                                    key={p.id}
+                                    onClick={() => setImageProvider(p.id)}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 transition-all ${
+                                        i === 0 ? '' : 'border-s border-light-border dark:border-dark-border'
+                                    } ${
+                                        imageProvider === p.id
+                                            ? 'bg-brand-primary text-white'
+                                            : 'text-light-text-secondary dark:text-dark-text-secondary hover:bg-light-bg dark:hover:bg-dark-bg'
+                                    }`}
+                                >
+                                    <i className={`${p.iconClass} text-xs`}></i>
+                                    <span>{p.label}</span>
+                                    <span className={`text-[9px] font-normal opacity-70`}>{p.sub}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Variant Count + Generate Row */}
                     <div className="px-5 pb-5 space-y-3">
                         {/* Variant count selector */}

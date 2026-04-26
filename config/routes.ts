@@ -46,6 +46,7 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'content-studio': '/app/content-studio',
     'media-ops': '/app/media-ops',
     'brand-knowledge': '/app/brand-knowledge',
+    'design-ops': '/app/design-ops',
     'asset-library': '/app/asset-library',
     system: '/app/system',
     'user-settings': '/app/settings',
@@ -56,6 +57,8 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'crm/pipeline': '/app/crm/pipeline',
     'crm/tickets': '/app/crm/tickets',
     'mobile-home': '/app/mobile-home',
+    'campaign-brain': '/app/campaign-brain',
+    'brands-manage': '/app/brands-manage',
 };
 
 export const ROUTE_TO_BRAND_PAGE: Record<string, string> = Object.fromEntries(

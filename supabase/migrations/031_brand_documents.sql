@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS brand_documents (
 
 ALTER TABLE brand_documents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "brand_documents_owner" ON brand_documents;
 CREATE POLICY "brand_documents_owner" ON brand_documents
     USING (
         brand_id IN (
@@ -31,4 +32,4 @@ CREATE POLICY "brand_documents_owner" ON brand_documents
         )
     );
 
-CREATE INDEX idx_brand_documents_brand_id ON brand_documents(brand_id);
+CREATE INDEX IF NOT EXISTS idx_brand_documents_brand_id ON brand_documents(brand_id);

@@ -3,6 +3,7 @@ import { signIn, signInWithGoogle } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError, supabase } from '../../services/supabaseClient';
 import { SBrandOpsLogo } from '../SBrandOpsLogo';
 import { AuthInput, AuthErrorBanner, AuthConfigWarning, AuthDivider, AuthSubmitButton } from '../shared/UIComponents';
+import { AuthShell, AuthLogoBlock } from './AuthShell';
 
 interface LoginPageProps {
     onSuccess: () => void;
@@ -78,9 +79,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
 
     if (needsVerification) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
+            <AuthShell>
                 <div className="w-full max-w-md text-center">
-                    <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
+                    <div className="bg-white/95 dark:bg-[#161B33] border border-white/10 rounded-[20px] p-8 shadow-[0_16px_50px_rgba(6,182,212,0.10)]">
                         <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <i className="fas fa-envelope-open-text text-amber-500 text-2xl" />
                         </div>
@@ -110,20 +111,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                         </button>
                     </div>
                 </div>
-            </div>
+            </AuthShell>
         );
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg p-4">
+        <AuthShell>
             <div className="w-full max-w-md">
-                <div className="text-center mb-8 flex flex-col items-center">
-                    <SBrandOpsLogo size="lg" layout="stacked" />
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2">منصة إدارة البراندات الشاملة</p>
-                </div>
+                <AuthLogoBlock />
 
-                <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-8 shadow-lg">
-                    <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-6 text-center">تسجيل الدخول</h2>
+                <div className="bg-white/95 dark:bg-[#161B33] border border-black/5 dark:border-white/10 rounded-[20px] p-8 shadow-[0_16px_50px_rgba(6,182,212,0.10)]">
+                    <h2 className="text-xl font-bold text-light-text dark:text-sbo-soft mb-6 text-center">تسجيل الدخول</h2>
 
                     {!isSupabaseConfigured && <AuthConfigWarning error={supabaseConfigError} />}
                     {error && <AuthErrorBanner message={error} />}
@@ -177,7 +175,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                         type="button"
                         onClick={handleGoogleSignIn}
                         disabled={googleLoading || !isSupabaseConfigured}
-                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-light-border bg-white py-2.5 text-sm font-semibold text-light-text transition-colors hover:bg-light-bg disabled:cursor-not-allowed disabled:opacity-60 dark:border-dark-border dark:bg-dark-card dark:text-dark-text dark:hover:bg-dark-bg"
+                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-black/10 bg-white py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-sbo-soft dark:hover:bg-white/10"
                     >
                         {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
                         متابعة عبر Google
@@ -204,6 +202,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                     </div>
                 </div>
             </div>
-        </div>
+        </AuthShell>
     );
 };

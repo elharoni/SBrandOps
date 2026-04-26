@@ -2717,6 +2717,7 @@ export async function answerSupportQuery(
     userMessage: string,
     conversationHistory: { role: 'user' | 'ai'; content: string }[],
     language: 'ar' | 'en',
+    attachment?: { base64: string; mimeType: string },
 ): Promise<AISupportResponse> {
     const historyText = conversationHistory
         .slice(-6)
@@ -2767,11 +2768,16 @@ INSTRUCTIONS:
 - canResolve: "yes" if you gave a complete actionable solution, "no" otherwise
 - suggestTicket: "yes" only for billing, data loss, security, or repeated unresolved errors
 - category: classify the issue type
-- priority: assess urgency level`;
+- priority: assess urgency level${attachment ? '\n- An image/screenshot has been attached — analyze it to better understand the issue.' : ''}`;
+
+    // Use multimodal contents format when an image is attached
+    const contents = attachment
+        ? [{ parts: [{ text: prompt }, { inline_data: { mime_type: attachment.mimeType, data: attachment.base64 } }] }]
+        : undefined;
 
     const response = await callAIProxy({
-        model: 'gemini-2.5-flash',
-        prompt,
+        model:    'gemini-2.5-flash',
+        ...(contents ? { contents } : { prompt }),
         schema: {
             type: Type.OBJECT,
             properties: {

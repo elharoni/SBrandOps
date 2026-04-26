@@ -3,6 +3,7 @@ import { resetPassword } from '../../services/authService';
 import { isSupabaseConfigured, supabaseConfigError } from '../../services/supabaseClient';
 import { SBrandOpsLogo } from '../SBrandOpsLogo';
 import { AuthInput, AuthErrorBanner, AuthConfigWarning, Button } from '../shared/UIComponents';
+import { AuthShell, AuthLogoBlock } from './AuthShell';
 
 interface ForgotPasswordPageProps {
     onNavigateToLogin: () => void;
@@ -31,14 +32,11 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-light-bg dark:bg-dark-bg px-4">
-            <div className="w-full max-w-md">
-                <div className="text-center mb-8 flex flex-col items-center">
-                    <SBrandOpsLogo size="md" layout="stacked" />
-                    <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm mt-2">استعادة كلمة المرور</p>
-                </div>
+        <AuthShell>
+            <div className="w-full max-w-md px-4">
+                <AuthLogoBlock subtitle="استعادة كلمة المرور" />
 
-                <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-xl border border-light-border dark:border-dark-border p-8">
+                <div className="bg-white/95 dark:bg-[#161B33] border border-black/5 dark:border-white/10 rounded-[20px] shadow-[0_16px_50px_rgba(6,182,212,0.10)] p-8">
                     {sent ? (
                         <div className="text-center">
                             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -56,7 +54,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
                             </p>
                             <button
                                 onClick={onNavigateToLogin}
-                                className="w-full py-2.5 rounded-xl border border-light-border dark:border-dark-border text-sm font-bold text-light-text dark:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg transition"
+                                className="w-full py-2.5 rounded-xl border border-black/10 dark:border-white/10 text-sm font-bold text-light-text dark:text-dark-text hover:bg-light-bg dark:hover:bg-white/5 transition"
                             >
                                 العودة لتسجيل الدخول
                             </button>
@@ -109,6 +107,6 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
                     )}
                 </div>
             </div>
-        </div>
+        </AuthShell>
     );
 };

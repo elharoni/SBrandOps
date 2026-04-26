@@ -12,9 +12,13 @@ import { ToastStack } from './components/shared/ToastStack';
 // Initialize Sentry before rendering (no-op if VITE_SENTRY_DSN not set)
 initSentry();
 
-// Auto-reload when a lazy chunk fails after deployment (stale hash)
+// Auto-reload once when a lazy chunk fails after deployment (stale hash).
+// Guard prevents infinite reload loops if the chunk keeps failing.
 window.addEventListener('vite:preloadError', () => {
-  window.location.reload();
+  if (!sessionStorage.getItem('vite_preload_reloaded')) {
+    sessionStorage.setItem('vite_preload_reloaded', '1');
+    window.location.reload();
+  }
 });
 
 const queryClient = new QueryClient({

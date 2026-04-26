@@ -1132,7 +1132,10 @@ export interface SecuritySettings {
     require2FAForAdmins: boolean;
 }
 
-export type AIProvider = 'gemini' | 'openai' | 'anthropic' | 'stability' | 'replicate';
+export type AIProvider =
+    | 'gemini' | 'openai' | 'anthropic' | 'stability' | 'replicate'
+    | 'gemini-content' | 'gemini-design' | 'gemini-video'
+    | 'openai-image'   | 'openai-video';
 
 export interface AIProviderKey {
     id: string;

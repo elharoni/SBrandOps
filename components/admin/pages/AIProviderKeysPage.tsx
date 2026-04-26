@@ -14,11 +14,16 @@ import { SkeletonLoader } from '../shared/ui/SkeletonLoader';
 // ── Provider metadata ──────────────────────────────────────────────────────────
 
 const PROVIDER_META: Record<AIProvider, { label: string; icon: string; color: string; bg: string; envKey?: string }> = {
-    gemini:    { label: 'Google Gemini',  icon: 'fa-google',   color: 'text-blue-400',   bg: 'bg-blue-500/10' },
-    openai:    { label: 'OpenAI (GPT)',   icon: 'fa-robot',    color: 'text-green-400',  bg: 'bg-green-500/10' },
-    anthropic: { label: 'Anthropic Claude', icon: 'fa-brain', color: 'text-orange-400', bg: 'bg-orange-500/10' },
-    stability: { label: 'Stability AI',  icon: 'fa-image',    color: 'text-purple-400', bg: 'bg-purple-500/10' },
-    replicate: { label: 'Replicate',     icon: 'fa-sync',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10' },
+    gemini:          { label: 'Google Gemini',       icon: 'fa-google', color: 'text-blue-400',   bg: 'bg-blue-500/10'   },
+    'gemini-content':{ label: 'Gemini — Content',    icon: 'fa-google', color: 'text-blue-300',   bg: 'bg-blue-500/10'   },
+    'gemini-design': { label: 'Gemini — Design',     icon: 'fa-google', color: 'text-blue-300',   bg: 'bg-blue-500/10'   },
+    'gemini-video':  { label: 'Gemini — Video',      icon: 'fa-google', color: 'text-blue-300',   bg: 'bg-blue-500/10'   },
+    openai:          { label: 'OpenAI (GPT)',         icon: 'fa-robot',  color: 'text-green-400',  bg: 'bg-green-500/10'  },
+    'openai-image':  { label: 'OpenAI — Image',      icon: 'fa-robot',  color: 'text-green-300',  bg: 'bg-green-500/10'  },
+    'openai-video':  { label: 'OpenAI — Video',      icon: 'fa-robot',  color: 'text-green-300',  bg: 'bg-green-500/10'  },
+    anthropic:       { label: 'Anthropic Claude',    icon: 'fa-brain',  color: 'text-orange-400', bg: 'bg-orange-500/10' },
+    stability:       { label: 'Stability AI',        icon: 'fa-image',  color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    replicate:       { label: 'Replicate',           icon: 'fa-sync',   color: 'text-cyan-400',   bg: 'bg-cyan-500/10'   },
 };
 
 function maskKey(key: string): string {

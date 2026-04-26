@@ -5,6 +5,7 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { usePlanLimits } from '../hooks/usePlanLimits';
+import { SBrandOpsLogo } from './SBrandOpsLogo';
 
 interface HeaderProps {
     unreadCount: number;
@@ -159,6 +160,15 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     >
                         <i className="fas fa-bars text-sm" />
                     </button>
+
+                    {/* Mobile-only logo (sidebar is hidden on mobile) */}
+                    <SBrandOpsLogo
+                        variant={theme === 'dark' ? 'white' : 'blue'}
+                        layout="mark"
+                        size="xs"
+                        className="lg:hidden"
+                        alt="SBrandOps"
+                    />
 
                     <div className="relative min-w-0" ref={dropdownRef}>
                         <button
