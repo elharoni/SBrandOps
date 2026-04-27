@@ -1,128 +1,257 @@
-# SBrandOps TODO
+# SBrandOps — Master TODO List
+> آخر مراجعة: 2026-04-27 | آخر تحديث: 2026-04-27 (Session 2: P2-01 AI Quick-Fill + P2-06 Duplicate + P3-04 Context Badge + P3-05 Inbox Context + P3-07 Mobile Switch + P4-03 Profile Cache)
 
-This checklist is based on the current repository state and the validated production-readiness findings.
+---
 
-## P0 - Launch Blockers
+## 🔴 P0 — حرج / مكسور / يمنع الإنتاج (4 مهام)
 
-- [x] Rotate the Gemini API key currently stored in `.env`.
-- [x] Remove all browser-side Gemini usage and move AI calls behind a server-side proxy or Edge Function.
-- [x] Remove `--no-verify-jwt` from `deploy.ps1`.
-- [x] Add JWT verification to `supabase/functions/publish-now/index.ts`.
-- [x] Add JWT verification to `supabase/functions/manage-social-account/index.ts`.
-- [x] Add JWT verification to `supabase/functions/connect-accounts/index.ts`.
-- [x] Add JWT verification to `supabase/functions/provider-oauth-callback/index.ts`.
-- [x] Add webhook secret validation to `supabase/functions/provider-webhook/index.ts`.
-- [x] Add brand/account ownership checks to every Edge Function that accepts `brand_id`, `account_id`, or `connection_id`.
-- [x] Replace `Access-Control-Allow-Origin: *` with an explicit allowlist in exposed Edge Functions.
-- [x] Remove the `import.meta.env.DEV` admin fallback in `components/App.tsx`.
-- [x] Fix `window.opener.postMessage(payload, '*')` in `supabase/functions/google-oauth/index.ts`.
-- [x] Verify that `migrations/044_fix_rls_policies.sql` has been applied in production.
-- [x] Encrypt OAuth access and refresh tokens instead of storing them as plaintext. (AES-256-GCM via _shared/tokens.ts — requires OAUTH_ENCRYPTION_KEY env var + migration 021 + backfill)
-- [x] Stop duplicating raw OAuth tokens into multiple tables unless strictly required. (social_accounts display-only; oauth_tokens is single source of truth)
-- [x] Move AI provider key reads and key testing off the client.
+### ~~P0-01 · Mock Data في socialAccountService~~ ✅ منجز 2026-04-26
+- Edge Function جديدة `get-platform-assets`: تفك تشفير التوكن من `oauth_tokens` وتستعلم Facebook Graph API للصفحات/Instagram
+- `getPlatformAssets(platform, brandId)` يستدعي Edge Function بدلاً من البيانات المزيفة
+- `ConnectAccountModal` كان محدثاً مسبقاً ليمرر `brandId`
 
-## P1 - Backend Safety and Data Integrity
+### ~~P0-02 · DOCX/PPTX يطرح خطأ بلا توجيه~~ ✅ منجز 2026-04-26
+- بطاقة إرشادية مع روابط Smallpdf / iLovePDF / PDF2Go + ملاحظة قبول TXT
 
-- [x] Add idempotency support to `supabase/functions/publish-now/index.ts`.
-- [x] Add locking or claim logic to `supabase/functions/auto-publisher/index.ts` to prevent double publishing.
-- [x] Add request size limits to exposed Edge Functions.
-- [x] Add maximum array length validation for bulk payloads like `accounts[]` and `assets[]`.
-- [x] Remove sensitive request-body logging and token logging from Edge Functions.
-- [x] Standardize Edge Function error responses into one JSON error shape.
-- [x] Review every function using the service role key for missing authorization guards. (analytics-aggregator + data-sync now require service role key; paddle-webhook uses HMAC; paddle-webhook-auto-retry uses BILLING_RETRY_CRON_SECRET)
-- [x] Confirm only intended functions are deployed publicly. (all user-facing functions require JWT; webhooks use HMAC/shared secret; cron functions require service role key)
+### ~~P0-03 · OAuth Tokens — plaintext غير مشفّرة في قاعدة البيانات~~ ✅ منجز 2026-04-26
+- Edge Function `encrypt-existing-tokens`: تشفير Batch للتوكنات القديمة في social_accounts + oauth_tokens + brand_connections بـ AES-256-GCM
+- Migration `040_enforce_token_encryption.sql`: CHECK constraints تمنع plaintext جديد + جدول audit log + view `plaintext_tokens_audit`
+- تشغيل: POST /encrypt-existing-tokens مع X-Admin-Key (dry_run=true للمراجعة أولاً)
 
-## P2 - Database Hardening
+### ~~P0-04 · Brand Intelligence Score — حساب جزئي وغير دقيق~~ ✅ منجز 2026-04-26
+- يجلب الآن `getSocialAccounts` + `getBrandKnowledge` بالتوازي مع Profile
+- Score breakdown جديد: هوية 45 pts + صوت/جمهور 20 pts + ربط اجتماعي 15 pts + قاعدة معرفة 20 pts = 100
 
-- [x] Update `migrations/038_oauth_tokens.sql` to use encrypted token storage. (021_encrypt_oauth_tokens.sql created — requires OAUTH_ENCRYPTION_KEY env var and manual backfill)
-- [x] Add a migration path for token backfill from plaintext to encrypted columns. (included as comments in 021_encrypt_oauth_tokens.sql)
-- [x] Remove or guard destructive `DROP TABLE IF EXISTS ... CASCADE` patterns in migrations. (none found — not applicable)
-- [x] Add missing indexes for high-frequency operational queries. (020_perf_indexes.sql created)
-- [x] Review soft-delete behavior and ensure `deleted_at IS NULL` is enforced where needed. (no deleted_at columns in schema — soft-delete not used, N/A)
-- [x] Add validation for important `jsonb` columns. (022_jsonb_constraints.sql)
-- [ ] Plan partitioning for `activity_logs`, `ai_usage_logs`, and `post_analytics` as data grows.
-- [x] Document migration rollback or recovery steps for production incidents. (docs/DEPLOYMENT_RUNBOOK.md)
+---
 
-## P3 - Frontend Architecture and UX
+## 🟠 P1 — ميزات أساسية مفقودة من المواصفات (6 مهام)
 
-- [x] Break down `components/App.tsx` into smaller routing and layout units. (`BrandRouter.tsx` + `AdminRouter.tsx` extracted; App.tsx reduced from 1246 → 633 lines; publisher state and handlers moved into BrandRouter.)
-- [x] Reduce prop drilling by introducing focused providers/contexts where appropriate. (Publisher state `postToEdit`/`publisherBrief` moved into BrandRouter; empty stubs `errors`, `conversations`, etc. are now internal constants instead of props.)
-- [x] Remove unused legacy SEO implementation if `SEOOpsPage.tsx` is no longer part of the active route path.
-- [x] Add route-level error boundaries instead of relying only on the app-wide boundary.
-- [x] Standardize loading states, empty states, and error states across major pages. (`SectionError` rewritten to Tailwind tokens; `BrandsManagePage` → `EmptyBrands`; `PublisherPage` → `Spinner`; `EmptyState` action button hover fixed; `AnalyticsPage` `TabFallback` now uses `SkeletonAnalytics` instead of raw spinner.)
-- [x] Audit icon buttons and custom controls for missing `aria-label` and keyboard support.
-- [ ] Improve mobile behavior for critical product flows.
-- [x] Add virtualization or pagination for large data tables. (`ScheduledPage`: 15 posts/page; `ErrorCenterPage`: 20 errors/page — both reset page on filter/search change.)
+### ~~P1-01 · Brand Intelligence Tab في BrandHubPage~~ ✅ منجز 2026-04-26
+- **الملف:** `components/pages/BrandHubPage.tsx` — إضافة تبويب `intelligence`
+- **المطلوب:**
+  - درجة اكتمال البراند (SVG دائرة) مقسّمة: هوية 30% / صوت 20% / جمهور 20% / معرفة 20% / اتصالات 10%
+  - مستوى ثقة الذكاء الاصطناعي لكل وحدة: محتوى / ردود / إعلانات / تحليلات (شريط تقدم لكل)
+  - مصادر البيانات النشطة: بيانات يدوية ✓ / صفحات مرتبطة ✓/✗ / CRM ✓/✗ / ملفات مرفوعة
+  - Recommended Actions مرتبة: "أضف منتجاتك ← يُحسّن ردود المبيعات بـ 40%"
+  - آخر نشاط تعلّم: "تعلّم 3 أسئلة جديدة أمس من Inbox"
+- **يُبنى فوق:** `brandBrainService.ts` + `brandMemoryService.ts` + `getBrandKnowledge()`
+- **الأثر:** نظام الذكاء الاصطناعي غير مرئي — المستخدم لا يعرف إذا كان يعمل أم لا
 
-### UX/UI Audit Findings (2026-04-22)
+### ~~P1-02 · Onboarding Completion Checklist~~ ✅ منجز 2026-04-26
+- `components/shared/OnboardingChecklist.tsx` جديد — 6 خطوات + progress bar + dismiss + localStorage
+- استبدل الـ 4 خطوات القديمة في DashboardPage بالـ component الجديد
 
-#### Done
-- [x] Fix `DashboardPage` Section C: replace hardcoded fake insights with 3-tier honest system (0 posts / 1–9 collecting / 10+ with real platform data + industry benchmark labels).
-- [x] Fix `DashboardPage` Section C header: add live "Collecting — N/10 posts" badge and "some figures are industry benchmarks" disclaimer.
-- [x] Fix `DashboardPage` `SuggestionCard` arrow direction: was always `fa-arrow-left`; now RTL-aware (`ar ? fa-arrow-left : fa-arrow-right`).
-- [x] Fix `DashboardPage` `PriorityCard` color logic: replace fragile `tone.includes('rose')` string matching with a proper `PRIORITY_ICON_BG` color map (emerald and fuchsia tones previously fell back silently to brand-primary).
-- [x] Fix `LoginPage` + `RegisterPage`: align with app design system — inputs and buttons now use `rounded-xl`, button hover changed from `hover:bg-brand-secondary` (jarring cyan) to `hover:bg-brand-primary/90`, focus ring updated to `ring-brand-primary/30`.
-- [x] Fix `MobileHomePage`: all labels (quick actions, section headers, priority/alert text) are now bilingual — were hardcoded Arabic even in English mode.
-- [x] Fix page refresh redirecting to Dashboard (`hooks/useAppRouting.ts`): added `hydrated` ref — Effect 1 (state→URL) now skips navigation on mount until Effect 2 (URL→state) has read the actual path, so refreshing `/app/publisher` stays on Publisher.
-- [x] Add missing URL routes (`config/routes.ts`): `brand-brain`, `integration-os`, `crm/dashboard`, `crm/customers`, `crm/pipeline`, `crm/tickets` were absent — `pathToBrandPage()` was falling back to `'dashboard'` for all of them, causing refresh to land on Dashboard.
-- [x] Fix `PublisherPage` layout (`components/pages/PublisherPage.tsx`): editor (`<Publisher>`) moved before Saved Briefs section — editor is now immediately visible below the hero; Saved Briefs is a secondary reference library below the fold.
+### ~~P1-03 · Token Expiry Warnings — تحذيرات انتهاء التوكن~~ ✅ منجز 2026-04-26
+- IntegrationHealthPanel: عداد تنازلي (أحمر عند ≤3 أيام، برتقالي عند ≤7) مع animate-pulse
+- Sidebar: نقطة حمراء animate-pulse على Integrations — `hasExpiringTokens` prop من App.tsx (يجلب integration_health عند تغيير البراند)
+- Dashboard: بطاقة تحذير قابلة للإغلاق مع زر "جدّد الربط" ينقل لصفحة التكاملات
 
-#### Done (2026-04-23)
-- [x] **Operator metrics Demo watermark** (`DashboardPage.tsx`): Added persistent "Demo" badge to all 4 tiles; disclaimer banner now always visible (not just when ads aren't linked).
-- [x] **MetricTile hardcoded trends** (`DashboardPage.tsx`): Removed fake static `trend` percentage props — tiles show raw values without fabricated period-over-period badges.
-- [x] **Section B silent truncation** (`DashboardPage.tsx`): Slice moved from useMemo to render; shows first 4 items then "and N more…" link when list exceeds 4.
-- [x] **Sidebar Content Engine submenu** already collapses by default (`openMenus` excludes `content-engine` on mount). No change needed.
-- [x] **Auth pages refactored to use shared UIComponents** (`AuthInput`, `AuthErrorBanner`, `AuthConfigWarning`, `AuthSubmitButton`, `AuthDivider` exported from `UIComponents.tsx`) — `LoginPage`, `RegisterPage`, `ForgotPasswordPage` no longer duplicate input/banner/button markup. `Button` base updated to `rounded-xl` + `hover:bg-brand-primary/90`.
-- [x] **Google social login** added to `LoginPage` and `RegisterPage` — `signInWithGoogle` in `authService.ts`; Google-branded button on both pages. **Requires**: Google OAuth provider enabled in Supabase dashboard → Authentication → Providers.
+### ~~P1-04 · Scope Validation — عرض الصلاحيات الممنوحة والناقصة~~ ✅ منجز 2026-04-26
+- `REQUIRED_SCOPES` per platform (Facebook/Instagram/TikTok/LinkedIn/X) per feature (publishing/inbox/analytics/ads)
+- `getScopeStatus()` تقارن `scopes_granted` بالمطلوب وتُرجع مصفوفة {feature, granted, missing[]}
+- بطاقة في `AssetCard`: ✓/✗ لكل ميزة + عدد الصلاحيات الناقصة + تعليمات إعادة الربط
 
-## P4 - Product and Commercial Controls
+### ~~P1-05 · AI Memory Review UI — واجهة مراجعة ذاكرة الذكاء الاصطناعي~~ ✅ منجز 2026-04-26
+- **الملف:** `components/pages/BrandHubPage.tsx` — تبويب `ai-memory` (موجود كاسم لكن بدون محتوى فعلي)
+- **المشكلة:** `brandMemoryService.ts` مكتمل backend لكن لا UI للمراجعة والتحكم
+- **المطلوب:**
+  - قائمة بكل عناصر التعلّم: النوع / المصدر / التاريخ / درجة الثقة
+  - فلاتر: الكل / موافق عليه / معلّق / مرفوض / مؤرشف
+  - أزرار لكل عنصر: ✓ وافق / ✎ عدّل / ✗ ارفض / 🗂 أرشف
+  - بطاقة ملخص: "تعلّم 12 عنصراً هذا الأسبوع من 3 مصادر"
+  - مرشح حسب المصدر: Inbox / Content Studio / ملف مرفوع / Manual
+- **يُبنى فوق:** `brandMemoryService.getBrandMemoryContext()` + جدول `brand_memory`
 
-- [x] Enforce quotas server-side, not only in the client. (brand limit check in addBrand via tenant plan; atomic decrement in deleteBrand via DB function in migration 023)
-- [x] Add tenant-level AI spend caps. (100K tokens/day per user, configurable via AI_DAILY_TOKEN_LIMIT env var)
-- [x] Add upgrade and quota-reached flows in-product. (QuotaLimitModal in PaywallGate + AIQuotaError in aiProxy + QuotaWarning in TeamManagementPage)
-- [x] Add seat enforcement by plan. (inviteUser() counts active+pending members vs plan max_users; TeamManagementPage blocks invite button at limit)
-- [x] Implement a clear trial state machine. (ai-proxy blocks suspended/cancelled accounts and expired trials with 403)
-- [x] Add usage alerts at meaningful thresholds. (ai-proxy returns X-Tokens-Used-Today / X-Tokens-Limit-Today headers on every response)
-- [x] Move important commercial calculations to database views or server-side logic. (migration 024: v_tenant_brand_counts, v_tenant_ai_usage_month, v_tenant_summary views)
+### ~~P1-07 · WebsiteTab — توصيل GA4 الحقيقي~~ ✅ منجز (جلسة سابقة)
+- يعرض sessions/engagedSessions/bounceRate/avgEngagementTime/keyEvents/revenue من `connectedSources.ga4`
+- EmptyConnectState واضح عند عدم الربط
 
-## P5 - Testing and Operations
+### ~~P1-08 · SEOTab — توصيل Search Console الحقيقي~~ ✅ منجز (جلسة سابقة)
+- يعرض clicks/impressions/CTR/avgPosition/indexedPages + جدولا Top Queries & Top Pages
+- `getSEOBreakdown()` من `analyticsService` + SyncStatusBar
 
-- [x] Add unit tests for exposed Edge Functions. (Deno tests in supabase/functions/_tests/ — webhookSecurity, validation, auth helpers; run via `deno test` in CI edge-function-tests job)
-- [ ] Add smoke tests for login, account connection, scheduling, publishing, and billing flows.
-- [ ] Add end-to-end tests for the most critical user journeys.
-- [x] Add security scanning in CI (`gitleaks`, dependency audit, SAST). (gitleaks-action + npm audit --audit-level=high in ci.yml)
-- [x] Add a real lint configuration and ensure CI fails on lint errors. (eslint.config.js + CI lint job uses npm run lint without --if-present)
-- [x] Add monitoring for cron health, webhook failures, and Edge Function error rates. (monitor-health Edge Function — stalled posts, failed billing events, publish failure rate, retry queue)
-- [x] Add alerting for failed publishing, failed billing webhooks, and stalled background jobs. (monitor-health returns 503 on down; CI + deploy notify-failure jobs post to Slack via SLACK_WEBHOOK_URL secret)
-- [x] Verify staging and production are clearly separated. (.env.staging template; deploy.yml uses GitHub Environments with isolated secrets; smoke-test step runs monitor-health after every deploy)
+### ~~P1-09 · AdsTab — توصيل Meta Ads + Google Ads~~ ✅ منجز (جلسة سابقة)
+- يقرأ من `ad_campaign_facts` عبر `analyticsService` مع مفتاح `meta_ads`
+- Provider filter + per-campaign metrics + ROAS/CPC/CPA
 
-## P6 - Docs and Repository Hygiene
+### ~~P1-10 · InboxPage — توصيل social_messages~~ ✅ منجز (جلسة سابقة)
+- `getSocialMessagesAsConversations()` تقرأ من `social_messages` بـ priority_score ترتيب
+- intent badges + sentiment + smart views (hot-leads/complaints/price-inquiry)
+- Mark as read يحدّث `processed_at`
 
-- [x] Update `README.md` so setup instructions reflect the real migration and deployment path.
-- [x] Add a short architecture overview for frontend, database, and Edge Functions. (docs/ARCHITECTURE.md)
-- [x] Document Edge Function contracts and auth expectations. (docs/EDGE_FUNCTIONS.md)
-- [x] Add a deployment runbook and rollback checklist. (docs/DEPLOYMENT_RUNBOOK.md)
-- [x] Add an incident response checklist for publishing and billing failures. (docs/INCIDENT_RESPONSE.md)
-- [x] Add `.editorconfig`.
-- [x] Add Prettier config.
-- [x] Add ESLint config.
-- [x] Clean up mojibake / encoding issues in comments and docs. (fixed Arabic UTF-8 corruption in CrmIntegrationsPage.tsx, AdsOpsPage.tsx, AnalyticsPage.tsx)
-- [x] Decide whether `supabase.exe` should live in the repo; remove it if not required. (added supabase.exe to .gitignore — install via npm/brew instead)
+### P1-11 · OAuth Callback — اختبار وإصلاح كل منصة
+- **الملف:** `components/pages/OAuthCallbackPage.tsx` + `supabase/functions/google-oauth/`
+- **المشكلة:** OAuthCallbackPage بُني لكن لم يُختبر عملياً مع كل منصة
+- **المطلوب التحقق منه:**
+  - Facebook/Instagram: popup flow يُكمل ويحفظ token
+  - Google (GA4 + GSC + Google Ads): redirect flow → callback → asset selector
+  - TikTok: redirect flow مشابه لـ Google
+  - LinkedIn/X: redirect flow
+  - Shopify/WooCommerce/WordPress: API key flow (مختلف — بدون OAuth)
+- **الأثر:** بدون هذا لا يعمل أي ربط فعلي
 
-## Suggested Execution Order
+### ~~P1-06 · Page-Brand Match Confirmation Screen~~ ✅ منجز (جلسة سابقة)
+- `PageBrandMatchModal` + `calcNameScore` + `calcCategoryScore` + `computeMatchScore` في AccountsPage.tsx
+- `handleAssetsConfirmed` → match rows → `isMatchOpen` → `handleMatchConfirm` → `saveMatchScore`
+- `saveMatchScore` في socialAuthService.ts تحفظ في `social_accounts`
 
-- [x] Finish every P0 item before onboarding paying customers. ✓ Done
-- [x] Tackle P1 and P2 in the same hardening sprint. ✓ Done (partitioning deferred — N/A until data grows)
-- [x] Use P3 and P4 as the next product stabilization sprint. ✓ Done (mobile UX remaining below)
-- [ ] Keep P5 and P6 running in parallel as ongoing engineering hygiene.
+---
 
-## What's Left (2026-04-23)
+## 🟡 P2 — ميزات تُحسّن جودة المنتج بشكل ملحوظ (6 مهام)
 
-### Must-do before public launch
-- [ ] **P3 — Mobile UX**: Improve critical flows on mobile (publisher, scheduler, brief creation).
-- [ ] **P5 — Smoke tests**: Login, account connection, scheduling, publishing, billing.
-- [ ] **P5 — E2E tests**: Top 3 user journeys (onboard → create brand → publish post).
+### ~~P2-01 · Brand Knowledge Quick-Fill بالذكاء الاصطناعي~~ ✅ منجز 2026-04-27
+- زر "توليد AI" في 3 تبويبات: المنتجات / FAQ / سكريبتات (AI_SUPPORTED_TYPES)
+- `AIQuickFillModal`: loading → عرض 6-8 مقترحات → approve/edit/reject/save
+- `handleOpenAI` يجلب `getBrandHubProfile` + `callAIProxy(gemini-2.0-flash)` + parse JSON
+- `handleSaveAISuggestions` يحفظ الموافق عليها عبر `addKnowledgeEntry`
 
-### Deferred / When ready
-- [ ] **P2 — Partitioning**: `activity_logs`, `ai_usage_logs`, `post_analytics` — revisit when table exceeds ~1M rows.
-- [ ] **P5 — Staging parity**: Confirm staging and production are running the same migration version before each release.
+### ~~P2-02 · Import Historical Data Flow — استيراد البيانات التاريخية~~ ✅ منجز 2026-04-27
+- `components/pages/ImportDataModal.tsx` — 4 شاشات: Configure → Processing → Review → Done
+- يُفتح تلقائياً بعد Page-Brand Match على FB/Instagram
+- `callAIProxy(gemini-2.0-flash)` يستخرج: 5 FAQ + 3 شكاوى + 4 كلمات مفتاحية
+- Review: approve/reject كل عنصر → حفظ في `brand_knowledge` بـ source: historical_import
+
+### ~~P2-03 · Webhook Activation/Deactivation UI~~ ✅ منجز 2026-04-27
+- Toggle button (ON/OFF) في AssetCard مع نافذة تأكيد عند الإيقاف
+- `handleToggleWebhook` يستدعي `updateAssetMetadata(id, { webhookActive })` ويحدّث state
+- تحذير: "إيقاف Webhook يوقف استقبال الرسائل في Inbox"
+
+### ~~P2-04 · CRM Lead Creation من Inbox~~ ✅ منجز (جلسة سابقة)
+- تبويب `crm` في InboxPage مع كشف النية (hot-lead/price-inquiry/order-intent)
+- نموذج سريع: الاسم / الهاتف / البريد / الملاحظات
+- `createCrmLeadFromConversation` في `inboxService.ts` تحفظ في `crm_leads`
+
+### ~~P2-05 · Brand Voice Preview — معاينة صوت البراند مباشرة~~ ✅ منجز 2026-04-27
+- زر "معاينة الصوت" في رأس تبويب Voice في BrandHubPage (IIFE pattern لـ local state)
+- `generatePreview()` تستدعي `callAIProxy(gemini-2.0-flash)` بـ prompt يضم tone + keywords + guidelines
+- 3 بطاقات قابلة للنسخ: رد على شكوى / منشور ترويجي / رسالة ترحيب + زر "توليد معاينة جديدة"
+
+### ~~P2-06 · Multi-Brand Quick Duplicate~~ ✅ منجز (جلسة سابقة)
+- `DuplicateBrandModal` + زر "استنساخ" على كل بطاقة (onDuplicate prop)
+- `handleDuplicateConfirm` يستدعي `addBrand(newName, industry, undefined, country, websiteUrl)`
+- لا ينسخ الحسابات أو قاعدة المعرفة — يبدأ من صفر
+
+---
+
+## 🟢 P3 — تحسينات UX وجودة تجربة المستخدم (8 مهام)
+
+### ~~P3-01 · BrandHub Identity Tab — حقول الـ Wizard المفقودة~~ ✅ منجز 2026-04-27
+- تبويب Identity أصبح نموذج تعديل كامل: الصناعة (select) / وصف البراند (textarea)
+- نموذج العمل (select: b2c/b2b/ecommerce/...) + لغة التواصل (radio: ar/en/both)
+- أهداف البراند (7 أزرار toggle: awareness/leads/sales/bookings/engagement/support/recruitment)
+- الفئة العمرية (select) + ملخص الجمهور (textarea) + هاتف + إيميل
+- كل تغيير يحدّث `profile` state مباشرة → "حفظ التغييرات" يحفظ عبر `updateBrandProfile()`
+
+### ~~P3-02 · Knowledge Base — Duplicate Detection~~ ✅ منجز 2026-04-27
+- `titleSimilarity()` في BrandKnowledgePage: word-overlap ratio على عناوين نفس النوع
+- إذا تشابه > 60%: `window.confirm` يعرض اسم الإدخال المشابه + خيار الإضافة على أي حال
+- يعمل على الإدخالات الجديدة فقط (لا يُطبَّق على التعديلات)
+
+### ~~P3-03 · BrandBrainPage — Confidence Trend Chart~~ ✅ منجز 2026-04-27
+- تبويب "مسار الثقة" جديد في BrandBrainPage مع SVG polyline chart (لا مكتبة خارجية)
+- يجمع executions حسب اليوم ويحسب متوسط confidence كل يوم — آخر 30 يوم
+- 3 بطاقات ملخص + chart مع area fill + reference line للمتوسط + جدول تفصيلي قابل للتمرير
+
+### ~~P3-04 · Content Studio — Brand Context Indicator~~ ✅ منجز 2026-04-27
+- شارة "Voice: [brandName] · Full" في AI toolbar أعلى المحرر
+- قابلة للضغط لفتح Brand Hub عبر `onNavigate?.('brand-hub')`
+
+### ~~P3-05 · Inbox — Brand Context Selector~~ ✅ منجز 2026-04-27
+- مؤشر في أعلى تبويب AI في ActionPanel: "يرد بصوت [brandName] ← [Platform]"
+- IIFE pattern لتجنب state إضافي، يعرض أيقونة المنصة + اسم البراند
+
+### ~~P3-06 · Brand Data Export~~ ✅ منجز 2026-04-27
+- زر "تصدير" في رأس BrandHubPage بجانب "حفظ التغييرات"
+- يُنشئ JSON يشمل: الهوية + الصوت + الجمهور + consistencyScore
+- اسم الملف: `[brandName]_brand_profile.json`
+
+### ~~P3-07 · Mobile — Brand Quick Switch~~ ✅ منجز 2026-04-27
+- زر "تبديل" في brand header يفتح dropdown بقائمة كل البراندات
+- يظهر فقط إذا brands.length > 1 + BrandOption prop مُمرَّر من BrandRouter
+
+### ~~P3-08 · Knowledge Base — Version History~~ ✅ منجز 2026-04-27
+- Migration 044: جدول `brand_knowledge_history` + Trigger `trg_knowledge_version` يحفظ القيم القديمة عند تغيير العنوان/المحتوى
+- `getKnowledgeHistory(entryId)` في brandKnowledgeService.ts
+- زر "السجل" (ساعة) على كل EntryCard → modal مع قائمة الإصدارات + زر "استرجاع" لكل إصدار
+
+---
+
+## 🔵 P4 — بنية تحتية وأداء (6 مهام)
+
+### ~~P4-01 · Server-Side Intelligence Score كـ DB Function~~ ✅ منجز 2026-04-27
+- Migration 045: `compute_brand_intelligence_score(p_brand_id)` — 45 هوية + 20 صوت/جمهور + 15 اجتماعي + 20 معرفة = 100
+- Trigger BEFORE INSERT/UPDATE على brand_profiles يضبط consistency_score مباشرة في NEW
+- Triggers AFTER على brand_knowledge + social_accounts تُحدّث brand_profiles.consistency_score
+
+### ~~P4-02 · Token Auto-Refresh — التحقق من اكتمال التنفيذ~~ ✅ منجز (مراجعة 2026-04-27)
+- `supabase/functions/token-refresh/index.ts` مكتمل: FB/Instagram/Google/TikTok/LinkedIn-X
+- `REFRESH_WINDOW_DAYS = 7` — يلتقط التوكنات التي ستنتهي خلال 7 أيام
+- يحدّث `social_accounts.sync_status` + `brand_connections.status` + `integration_health_snapshots`
+- تحذيرات الـ UI (P1-03) تعرض الإشعارات في المنصة
+
+### ~~P4-03 · Brand Profile Caching~~ ✅ منجز 2026-04-27
+- `profileCache: Map<string, {profile, ts}>` في brandHubService.ts بـ TTL = 5 دقائق
+- `invalidateProfileCache(brandId)` تُستدعى تلقائياً في `updateBrandProfile`
+- بدون تغييرات في Components أو Zustand — الـ cache شفاف
+
+### ~~P4-04 · Missing Database Indexes~~ ✅ منجز (migration 042)
+- idx_social_accounts_brand_platform + idx_social_accounts_brand_status
+- idx_brand_knowledge_brand_type_active + idx_oauth_tokens_expiry_valid
+- idx_analytics_* + idx_social_messages_* في `042_performance_indexes.sql`
+
+### ~~P4-05 · Knowledge Content Length Validation~~ ✅ منجز (migration 043 + frontend)
+- `CHECK (char_length(content) <= 3000) NOT VALID` في `043_knowledge_content_length.sql`
+- EntryForm في BrandKnowledgePage لديها character counter + لا يُسمح بالحفظ عند التجاوز
+
+### ~~P4-06 · Per-Brand AI Rate Limiting~~ ✅ منجز 2026-04-27
+- `BRAND_DAILY_TOKEN_LIMIT` = 30,000 توكن/يوم per-brand (env: AI_BRAND_DAILY_TOKEN_LIMIT)
+- `checkBrandDailySpendCap(brandId)` تستعلم `ai_usage_logs` WHERE brand_id + today
+- فحص بعد user-level cap مباشرة — يُطبّق فقط عند وجود brand_id في الطلب
+
+---
+
+## 📊 ملخص تنفيذي
+
+| الأولوية | المهام | الوقت التقديري | من يتأثر |
+|-----------|--------|----------------|----------|
+| 🔴 P0 — حرج     | 2  | 1-2 أيام  | كل المستخدمين |
+| 🟠 P1 — أساسي   | 11 | 7-9 أيام  | Integration + Analytics + Inbox |
+| 🟡 P2 — مهم     | 6  | 4-6 أيام  | المستخدمون النشطون يومياً |
+| 🟢 P3 — UX      | 8  | 3-5 أيام  | جودة التجربة العامة |
+| 🔵 P4 — بنية    | 6  | 2-4 أيام  | الأداء والأمان |
+| **المجموع**     | **33** | **~3 أسابيع** | |
+
+---
+
+## ✅ منجز بالفعل
+
+| المهمة | الملف |
+|--------|-------|
+| Brand Onboarding Wizard — 7 خطوات كاملة | `BrandOnboardingWizard.tsx` |
+| Brand Intelligence Score في BrandsManagePage | `BrandsManagePage.tsx` |
+| Extended Brand Profile — types + migration | `types.ts` + `053_brand_profile_extended.sql` |
+| addBrand/updateBrand يقبلان country + website | `services/brandService.ts` |
+| brandHubService يقرأ ويكتب extended_profile | `services/brandHubService.ts` |
+| Brand Knowledge CRUD كامل مع بحث | `BrandKnowledgePage.tsx` |
+| Brand Brain — Skills / Executions / Knowledge | `BrandBrainPage.tsx` |
+| Brand Analysis + Competitor Widget | `BrandAnalysisPage.tsx` |
+| Integration Health Panel كامل | `IntegrationHealthPanel.tsx` |
+| AI Memory Service — backend كامل | `brandMemoryService.ts` |
+| OAuth Token Encryption Schema | `migrations/021_encrypt_oauth_tokens.sql` |
+| Asset Registry + Sync Status كامل | `migrations/048_asset_registry.sql` |
+| Learning Loop Migration | `migrations/050_learning_loop.sql` |
+| Smart Bot — 6 سيناريوهات + Wizard | `SmartBotPage.tsx` |
+| Campaign Brain كامل | `CampaignBrainPage.tsx` |
+| Analytics Hub — 8 tabs | `AnalyticsHubPage.tsx` |
+| **Integration System Phase 1** | |
+| Migration 037: sync_jobs, sync_logs, webhook_events, social_messages, ad_campaigns, ad_insights, products, integration_health_snapshots | `037_integration_system.sql` |
+| Migration 038: analytics_snapshots.source/date columns + cron jobs | `038_integration_cron_jobs.sql` |
+| Edge Function: token-refresh — Google + TikTok refresh grants | `functions/token-refresh/index.ts` |
+| Edge Function: sync-engine — GA4 + GSC + Shopify + Social analytics | `functions/sync-engine/index.ts` |
+| Edge Function: inbox-aggregator — FB/IG/YouTube messages + AI classify | `functions/inbox-aggregator/index.ts` |
+| Edge Function: ads-sync — Meta Ads + Google Ads campaigns + insights | `functions/ads-sync/index.ts` |
+| OAuthCallbackPage — يستقبل كل OAuth redirects + asset selector | `components/pages/OAuthCallbackPage.tsx` |
+| PlatformCatalogSection — 14 منصة + status badges + category filter | `components/PlatformCatalogSection.tsx` |
+| **DB Idempotency Fix (2026-04-26)** | |
+| إصلاح bare CREATE POLICY في 9 migration files | `015, 016, 017, 019, 029, 030, 032, 033, 034` |
+| إصلاح migration numbering conflict (035→037, 036→038) | renamed files |

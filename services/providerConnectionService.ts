@@ -109,6 +109,17 @@ type FigmaMeResponse = {
     };
 };
 
+export interface MetaAdsConnectionInput {
+    accessToken: string;
+    adAccountId: string;
+    adAccountName?: string;
+}
+
+export interface MetaAdsOAuthResult {
+    accessToken: string;
+    adAccounts: Array<{ id: string; name: string; currency: string }>;
+}
+
 export interface GoogleAdsConnectionInput {
     accessToken: string;
     developerToken: string;
@@ -174,6 +185,7 @@ export interface FigmaConnectionInput {
 }
 
 export type ProviderConnectionInputMap = {
+    meta_ads: MetaAdsConnectionInput;
     google_ads: GoogleAdsConnectionInput;
     ga4: GA4ConnectionInput;
     search_console: SearchConsoleConnectionInput;
@@ -239,6 +251,49 @@ export async function initiateGoogleOAuth(brandId: string, provider: Connectable
                 clearInterval(interval);
                 window.removeEventListener('message', messageHandler);
                 reject(new Error(data.error || 'OAuth flow failed'));
+            }
+        };
+
+        window.addEventListener('message', messageHandler);
+    });
+}
+
+export async function initiateMetaAdsOAuth(brandId: string): Promise<MetaAdsOAuthResult> {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    if (!supabaseUrl) throw new Error('VITE_SUPABASE_URL configuration missing.');
+
+    return new Promise((resolve, reject) => {
+        const authUrl = `${supabaseUrl}/functions/v1/meta-ads-oauth/init?brand_id=${encodeURIComponent(brandId)}`;
+        const popup = window.open(authUrl, 'oauth_meta_ads', 'width=600,height=700,left=300,top=100');
+
+        if (!popup) {
+            reject(new Error('Popup blocked! Please allow popups and try again.'));
+            return;
+        }
+
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            if (popup.closed) {
+                clearInterval(interval);
+                reject(new Error('Login popup was closed before completion.'));
+            } else if (attempts >= 120) {
+                clearInterval(interval);
+                popup.close();
+                reject(new Error('Meta Ads login timed out after 60 seconds.'));
+            }
+        }, 500);
+
+        const messageHandler = (event: MessageEvent) => {
+            const data = event.data;
+            if (data?.type === 'OAUTH_SUCCESS' && data?.provider === 'meta_ads') {
+                clearInterval(interval);
+                window.removeEventListener('message', messageHandler);
+                resolve({ accessToken: data.accessToken, adAccounts: data.adAccounts ?? [] });
+            } else if (data?.type === 'OAUTH_ERROR' && data?.provider === 'meta_ads') {
+                clearInterval(interval);
+                window.removeEventListener('message', messageHandler);
+                reject(new Error(data.error || 'Meta Ads OAuth failed'));
             }
         };
 
@@ -477,6 +532,57 @@ async function validateWordPressConnection(input: WordPressConnectionInput): Pro
         siteName: input.websiteName?.trim() || user.name || user.slug || new URL(normalizedUrl).hostname,
         username,
         normalizedUrl,
+    };
+}
+
+async function persistMetaAdsConnection(
+    brandId: string,
+    input: MetaAdsConnectionInput,
+): Promise<ProviderConnectionResult> {
+    const accessToken = trimRequired(input.accessToken, 'Meta Ads access token');
+    const adAccountId = trimRequired(input.adAccountId, 'Meta Ads ad account ID');
+
+    // Validate token by fetching account details from Marketing API
+    const resp = await fetch(
+        `https://graph.facebook.com/v23.0/${encodeURIComponent(adAccountId)}?fields=id,name,currency,account_status&access_token=${encodeURIComponent(accessToken)}`,
+    );
+    const accData = await resp.json();
+    if (!resp.ok || accData.error) {
+        throw new Error(accData.error?.message || 'Failed to validate Meta Ads account');
+    }
+
+    const accountName = accData.name?.trim() || input.adAccountName?.trim() || adAccountId;
+
+    const savedAccounts = await saveBrandAdAccounts(brandId, 'meta_ads', [{
+        external_account_id: adAccountId,
+        account_name: accountName,
+        currency: accData.currency ?? null,
+        status: 'active',
+    }]);
+
+    const primary = savedAccounts[0];
+    const connection = await upsertBrandConnectionByProvider(brandId, 'meta_ads', {
+        external_account_id: adAccountId,
+        external_account_name: accountName,
+        access_token: accessToken,
+        status: 'connected',
+        sync_health: 'healthy',
+        last_error: null,
+        last_sync_at: new Date().toISOString(),
+        metadata: buildStandardProviderMetadata(brandId, 'meta_ads', {
+            linked_assets: [accountName],
+            account_count: 1,
+        }),
+    });
+
+    await updateBrandConnectionReferences(connection.id, {
+        ad_account_id: primary?.id ?? null,
+    });
+
+    return {
+        connection,
+        linkedAssetLabels: [accountName],
+        assetCounts: { adAccounts: 1 },
     };
 }
 
@@ -1002,6 +1108,8 @@ export async function connectProvider<TProvider extends ConnectableBrandProvider
     input: ProviderConnectionInputMap[TProvider],
 ): Promise<ProviderConnectionResult> {
     switch (provider) {
+        case 'meta_ads':
+            return persistMetaAdsConnection(brandId, input as ProviderConnectionInputMap['meta_ads']);
         case 'google_ads':
             return persistGoogleAdsConnection(brandId, input as ProviderConnectionInputMap['google_ads']);
         case 'ga4':
@@ -1031,6 +1139,12 @@ export async function connectProvider<TProvider extends ConnectableBrandProvider
 
 function buildRefreshInput(connection: BrandConnection): ProviderConnectionInputMap[ConnectableBrandProvider] {
     switch (connection.provider) {
+        case 'meta_ads':
+            return {
+                accessToken: trimRequired(connection.access_token ?? '', 'Meta Ads access token'),
+                adAccountId: trimRequired(connection.external_account_id ?? '', 'Meta Ads ad account ID'),
+                adAccountName: connection.external_account_name ?? undefined,
+            };
         case 'google_ads':
             return {
                 accessToken: trimRequired(connection.access_token ?? '', 'Google Ads access token'),
@@ -1105,7 +1219,8 @@ export async function refreshProviderConnection(
     connection: BrandConnection,
 ): Promise<ProviderConnectionResult> {
     if (!(
-        connection.provider === 'google_ads'
+        connection.provider === 'meta_ads'
+        || connection.provider === 'google_ads'
         || connection.provider === 'ga4'
         || connection.provider === 'search_console'
         || connection.provider === 'shopify'

@@ -26,6 +26,7 @@ import {
 } from '../../services/providerConnectionService';
 import { connectSelectedAssets, fetchAvailableAssets, initiateSocialLogin } from '../../services/socialAuthService';
 import { SetupGuideModal, needsSetupGuide } from '../shared/SetupGuideModal';
+import { PlatformCatalogSection } from '../PlatformCatalogSection';
 import { disconnectSocialAccount, updateAccountStatus } from '../../services/socialAccountService';
 import { useLanguage } from '../../context/LanguageContext';
 import { useUIStore } from '../../stores/uiStore';
@@ -115,6 +116,7 @@ const PROVIDER_META: Record<Provider, {
     ga4: { icon: 'fas fa-chart-line', iconTone: 'bg-emerald-500/10 text-emerald-500', labelAr: 'Google Analytics 4', labelEn: 'Google Analytics 4', descriptionAr: 'مصدر الأداء والتحويل المرتبط بتقارير البراند.', descriptionEn: 'Performance and conversion source connected to brand reporting.', route: 'analytics' },
     search_console: { icon: 'fas fa-magnifying-glass-chart', iconTone: 'bg-cyan-500/10 text-cyan-500', labelAr: 'Search Console', labelEn: 'Search Console', descriptionAr: 'مصدر الظهور والبحث العضوي المرتبط بالبراند.', descriptionEn: 'Organic search visibility source linked to the brand.', route: 'seo-ops' },
     google_ads: { icon: 'fab fa-google', iconTone: 'bg-amber-500/10 text-amber-500', labelAr: 'Google Ads', labelEn: 'Google Ads', descriptionAr: 'حسابات Google Ads المرتبطة بالتقارير والحملات.', descriptionEn: 'Google Ads accounts linked to campaigns and reporting.', route: 'ads-ops' },
+    meta_ads: { icon: 'fab fa-facebook-square', iconTone: 'bg-blue-500/10 text-blue-500', labelAr: 'Meta Ads', labelEn: 'Meta Ads', descriptionAr: 'حسابات Meta Ads للإعلانات المدفوعة — منفصل عن Facebook Page.', descriptionEn: 'Meta Ads accounts for paid campaigns — separate from Facebook Page auth.', route: 'ads-ops' },
     woocommerce: { icon: 'fas fa-store', iconTone: 'bg-violet-500/10 text-violet-500', labelAr: 'WooCommerce', labelEn: 'WooCommerce', descriptionAr: 'متجر WooCommerce كمصدر تشغيل وطلبات.', descriptionEn: 'WooCommerce store used as an operational source.', route: 'crm' },
     shopify: { icon: 'fab fa-shopify', iconTone: 'bg-green-500/10 text-green-500', labelAr: 'Shopify', labelEn: 'Shopify', descriptionAr: 'متجر Shopify كمصدر للطلبات والبيانات التجارية.', descriptionEn: 'Shopify store connected for orders and commercial data.', route: 'crm' },
     wordpress: { icon: 'fab fa-wordpress', iconTone: 'bg-sky-500/10 text-sky-500', labelAr: 'WordPress', labelEn: 'WordPress', descriptionAr: 'اتصال WordPress لنشر المحتوى أو مزامنة الموقع.', descriptionEn: 'WordPress connection for publishing or site sync.', route: 'seo-ops' },
@@ -127,7 +129,6 @@ const PROVIDER_META: Record<Provider, {
 
 const COMING_SOON_SECTIONS = {
     ads: [
-        { id: 'meta-ads', icon: 'fab fa-facebook-square', tone: 'bg-blue-500/10 text-blue-500', titleAr: 'Meta Ads', titleEn: 'Meta Ads', descriptionAr: 'إدارة ربط حسابات الإعلانات وأصول البيزنس من نفس الشاشة.', descriptionEn: 'Connect ad accounts and business assets from this workspace.' },
         { id: 'tiktok-ads', icon: 'fab fa-tiktok', tone: 'bg-zinc-900/20 text-light-text dark:text-dark-text', titleAr: 'TikTok Ads', titleEn: 'TikTok Ads', descriptionAr: 'ربط حسابات TikTok Ads مع المقاييس والحملات.', descriptionEn: 'Connect TikTok Ads accounts to metrics and campaigns.' },
     ],
     analytics: [
@@ -153,7 +154,7 @@ const COMING_SOON_SECTIONS = {
 const SOCIAL_PROVIDER_SET = new Set<Provider>(['instagram', 'x', 'linkedin', 'tiktok', 'youtube', 'snapchat']);
 
 const CONNECTABLE_PROVIDER_SECTIONS = {
-    ads: ['google_ads'],
+    ads: ['google_ads', 'meta_ads'],
     analytics: ['ga4', 'search_console'],
     automation: ['slack', 'zapier', 'n8n'],
     files: ['google_drive', 'figma'],
@@ -178,6 +179,7 @@ type ProviderFieldConfig = {
 };
 
 const PROVIDER_FIELD_CONFIG: Record<ConnectableBrandProvider, ProviderFieldConfig[]> = {
+    meta_ads: [], // OAuth popup — no manual fields
     google_ads: [
         { key: 'accessToken', labelAr: 'Access Token', labelEn: 'Access token', placeholderAr: 'ألصق Google access token', placeholderEn: 'Paste a Google access token' },
         { key: 'developerToken', labelAr: 'Developer Token', labelEn: 'Developer token', placeholderAr: 'ألصق Google Ads developer token', placeholderEn: 'Paste a Google Ads developer token' },
@@ -256,6 +258,8 @@ function buildProviderFormValues(
     connection?: BrandConnection | null,
 ): Record<string, string> {
     switch (provider) {
+        case 'meta_ads':
+            return {};  // OAuth popup — no manual form values
         case 'google_ads':
             return {
                 accessToken: connection?.access_token ?? '',
@@ -327,6 +331,8 @@ function buildProviderPayload(
     values: Record<string, string>,
 ): ProviderConnectionInputMap[ConnectableBrandProvider] {
     switch (provider) {
+        case 'meta_ads':
+            return { accessToken: values.accessToken ?? '', adAccountId: values.adAccountId ?? '' };
         case 'google_ads':
             return {
                 accessToken: values.accessToken ?? '',
@@ -398,6 +404,8 @@ function buildProviderPayload(
 
 function getProviderActionLabel(provider: ConnectableBrandProvider, ar: boolean): string {
     switch (provider) {
+        case 'meta_ads':
+            return ar ? 'ربط Meta Ads' : 'Connect Meta Ads';
         case 'google_ads':
             return ar ? 'ربط Google Ads' : 'Connect Google Ads';
         case 'ga4':
@@ -1000,6 +1008,12 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     const [providerError, setProviderError] = useState<string | null>(null);
     const [providerActionId, setProviderActionId] = useState<string | null>(null);
     const [setupPlatform, setSetupPlatform] = useState<SocialPlatform | null>(null);
+    const [metaAdsPickerState, setMetaAdsPickerState] = useState<{
+        accessToken: string;
+        adAccounts: Array<{ id: string; name: string; currency: string }>;
+        mode: ProviderDialogState['mode'];
+        connection?: BrandConnection | null;
+    } | null>(null);
 
     const accountsByPlatform = useMemo(() => {
         const grouped: Partial<Record<SocialPlatform, SocialAccount[]>> = {};
@@ -1044,11 +1058,15 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
     };
 
     const openProviderDialog = (provider: ConnectableBrandProvider, mode: ProviderDialogState['mode'], connection?: BrandConnection | null) => {
+        if (provider === 'meta_ads') {
+            handleMetaAdsOAuthConnect(mode, connection);
+            return;
+        }
         if (provider === 'google_ads' || provider === 'ga4' || provider === 'search_console' || provider === 'google_drive') {
             handleGoogleOAuthConnect(provider, mode, connection);
             return;
         }
-        
+
         setProviderDialog({ provider, mode, connection });
         setProviderFormValues(buildProviderFormValues(provider, connection));
         setProviderError(null);
@@ -1081,6 +1099,58 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         } catch (error) {
             console.error('IntegrationsPage Google OAuth failed:', error);
             addNotification(NotificationType.Error, error instanceof Error ? error.message : (ar ? 'فشل بدء أو استكمال الربط بخوادم مزود الخدمة.' : 'Failed to connect to the provider servers.'));
+        } finally {
+            setProviderActionId(null);
+        }
+    };
+
+    const handleMetaAdsOAuthConnect = async (mode: ProviderDialogState['mode'], connection?: BrandConnection | null) => {
+        const actionId = connection?.id ?? 'meta_ads';
+        setProviderActionId(actionId);
+        try {
+            const { initiateMetaAdsOAuth } = await import('../../services/providerConnectionService');
+            const { accessToken, adAccounts } = await initiateMetaAdsOAuth(brandId);
+            if (adAccounts.length === 1) {
+                const result = await connectProvider(brandId, 'meta_ads', {
+                    accessToken,
+                    adAccountId: adAccounts[0].id,
+                    adAccountName: adAccounts[0].name,
+                });
+                addNotification(
+                    NotificationType.Success,
+                    ar
+                        ? `تم ربط Meta Ads بنجاح${result.linkedAssetLabels.length > 0 ? ` مع ${result.linkedAssetLabels.length} أصل مرتبط.` : '.'}`
+                        : `Meta Ads connected successfully${result.linkedAssetLabels.length > 0 ? ` with ${result.linkedAssetLabels.length} linked assets.` : '.'}`,
+                );
+                await refreshData();
+            } else {
+                setMetaAdsPickerState({ accessToken, adAccounts, mode, connection });
+            }
+        } catch (error) {
+            console.error('IntegrationsPage Meta Ads OAuth failed:', error);
+            addNotification(NotificationType.Error, error instanceof Error ? error.message : (ar ? 'فشل ربط Meta Ads.' : 'Failed to connect Meta Ads.'));
+        } finally {
+            setProviderActionId(null);
+        }
+    };
+
+    const handleMetaAdsPickerSelect = async (adAccountId: string, adAccountName: string) => {
+        if (!metaAdsPickerState) return;
+        const { accessToken } = metaAdsPickerState;
+        setProviderActionId('meta_ads');
+        setMetaAdsPickerState(null);
+        try {
+            const result = await connectProvider(brandId, 'meta_ads', { accessToken, adAccountId, adAccountName });
+            addNotification(
+                NotificationType.Success,
+                ar
+                    ? `تم ربط Meta Ads بنجاح${result.linkedAssetLabels.length > 0 ? ` مع ${result.linkedAssetLabels.length} أصل مرتبط.` : '.'}`
+                    : `Meta Ads connected successfully${result.linkedAssetLabels.length > 0 ? ` with ${result.linkedAssetLabels.length} linked assets.` : '.'}`,
+            );
+            await refreshData();
+        } catch (error) {
+            console.error('IntegrationsPage Meta Ads picker failed:', error);
+            addNotification(NotificationType.Error, error instanceof Error ? error.message : (ar ? 'فشل حفظ حساب Meta Ads.' : 'Failed to save the Meta Ads account.'));
         } finally {
             setProviderActionId(null);
         }
@@ -1312,12 +1382,38 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     </div>
                 )}
 
+                {/* ── Platform Catalog — all 14 platforms ─────────────── */}
+                <PageSection
+                    title={ar ? 'المنصات المتاحة' : 'Platform Catalog'}
+                    description={ar ? 'اربط المنصات لتفعيل النشر والتحليلات والإعلانات والبريد الوارد.' : 'Connect platforms to enable publishing, analytics, ads, and inbox.'}
+                >
+                    <PlatformCatalogSection
+                        brandId={brandId}
+                        socialAccounts={socialAccounts}
+                        brandConnections={brandConnections}
+                        onConnect={(providerKey) => {
+                            // Route to social OAuth or provider connect dialog
+                            if (['facebook','instagram','tiktok','youtube','linkedin','x','pinterest'].includes(providerKey)) {
+                                onNavigate('social-ops/accounts');
+                            } else {
+                                setIsIntentModalOpen(true);
+                            }
+                        }}
+                        onManage={() => onNavigate('integration-os')}
+                        onDisconnect={() => { /* handled inside PlatformCatalogSection */ }}
+                        addNotification={addNotification}
+                    />
+                </PageSection>
+
                 {/* ── Integration Health Center ────────────────────────── */}
                 <PageSection
                     title={ar ? 'صحة الاتصالات' : 'Connection Health'}
                     description={ar ? 'حالة كل أصل مربوط — التوكن، المزامنة، الوظائف، والتنبيهات.' : 'Status of every connected asset — token, sync, purpose, and alerts.'}
                 >
-                    <IntegrationHealthCenter brandId={brandId} />
+                    <IntegrationHealthCenter
+                        brandId={brandId}
+                        onReauth={(_assetId, platform) => handleConnectPlatform(platform)}
+                    />
                 </PageSection>
 
                 <PageSection title="Publishing" description={ar ? 'قنوات النشر الحية وحسابات السوشيال المتصلة. من هنا ترى الحالة الفعلية للحسابات، ثم تفتح شاشة القنوات إذا احتجت إدارة الأصول أو إعادة التهيئة.' : 'Live publishing channels and connected social accounts. Use this section to review real account state, then open the channels screen when you need deeper asset management.'} actions={(
@@ -1656,6 +1752,55 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                     onClose={() => setSetupPlatform(null)}
                     ar={ar}
                 />
+            )}
+
+            {metaAdsPickerState && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setMetaAdsPickerState(null)}>
+                    <div className="surface-panel w-full max-w-md rounded-[1.75rem] p-6" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10">
+                                    <i className="fab fa-facebook-square text-lg text-blue-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold text-light-text dark:text-dark-text">
+                                        {ar ? 'اختر حساب Meta Ads' : 'Select Meta Ads account'}
+                                    </h3>
+                                    <p className="mt-1 text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                                        {ar ? 'تم العثور على أكثر من حساب إعلاني — اختر الحساب الذي تريد ربطه بهذا البراند.' : 'Multiple ad accounts found — pick the one to link to this brand.'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" onClick={() => setMetaAdsPickerState(null)} className="rounded-xl p-2 text-light-text-secondary hover:bg-light-bg hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-bg dark:hover:text-dark-text">
+                                <i className="fas fa-times text-sm" />
+                            </button>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                            {metaAdsPickerState.adAccounts.map((account) => (
+                                <button
+                                    key={account.id}
+                                    type="button"
+                                    disabled={providerActionId === 'meta_ads'}
+                                    onClick={() => handleMetaAdsPickerSelect(account.id, account.name)}
+                                    className="flex w-full items-center justify-between rounded-[1.25rem] border border-light-border/80 bg-light-card/90 px-4 py-3 text-start hover:border-brand-primary/40 hover:bg-brand-primary/5 disabled:opacity-70 dark:border-dark-border/70 dark:bg-dark-card/85"
+                                >
+                                    <div>
+                                        <p className="text-sm font-semibold text-light-text dark:text-dark-text">{account.name}</p>
+                                        <p className="mt-0.5 text-xs text-light-text-secondary dark:text-dark-text-secondary">{account.id} · {account.currency}</p>
+                                    </div>
+                                    <i className="fas fa-chevron-right text-xs text-light-text-secondary dark:text-dark-text-secondary" />
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setMetaAdsPickerState(null)}
+                            className="mt-4 rounded-xl border border-light-border px-4 py-2 text-sm font-semibold text-light-text-secondary hover:text-light-text dark:border-dark-border dark:text-dark-text-secondary dark:hover:text-dark-text"
+                        >
+                            {ar ? 'إلغاء' : 'Cancel'}
+                        </button>
+                    </div>
+                </div>
             )}
         </>
     );

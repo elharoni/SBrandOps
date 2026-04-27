@@ -474,38 +474,53 @@ ALTER TABLE platform_posts       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE performance_records  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_feedback_logs     ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY goals_brand_access ON goals
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = goals.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY campaigns_brand_access ON campaigns
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = campaigns.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY content_plans_brand_access ON content_plans
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = content_plans.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY content_items_brand_access ON content_items
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = content_items.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY creative_briefs_brand_access ON creative_briefs
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = creative_briefs.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY design_prompts_brand_access ON design_prompts
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = design_prompts.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY approvals_brand_access ON approvals
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = approvals.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY publishing_jobs_brand_access ON publishing_jobs
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = publishing_jobs.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY platform_posts_brand_access ON platform_posts
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = platform_posts.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY performance_records_brand_access ON performance_records
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = performance_records.brand_id AND brands.user_id = auth.uid()));
-
-CREATE POLICY ai_feedback_logs_brand_access ON ai_feedback_logs
-    FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = ai_feedback_logs.brand_id AND brands.user_id = auth.uid()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'goals' AND policyname = 'goals_brand_access') THEN
+        CREATE POLICY goals_brand_access ON goals
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = goals.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'campaigns' AND policyname = 'campaigns_brand_access') THEN
+        CREATE POLICY campaigns_brand_access ON campaigns
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = campaigns.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'content_plans' AND policyname = 'content_plans_brand_access') THEN
+        CREATE POLICY content_plans_brand_access ON content_plans
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = content_plans.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'content_items' AND policyname = 'content_items_brand_access') THEN
+        CREATE POLICY content_items_brand_access ON content_items
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = content_items.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'creative_briefs' AND policyname = 'creative_briefs_brand_access') THEN
+        CREATE POLICY creative_briefs_brand_access ON creative_briefs
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = creative_briefs.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'design_prompts' AND policyname = 'design_prompts_brand_access') THEN
+        CREATE POLICY design_prompts_brand_access ON design_prompts
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = design_prompts.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'approvals' AND policyname = 'approvals_brand_access') THEN
+        CREATE POLICY approvals_brand_access ON approvals
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = approvals.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'publishing_jobs' AND policyname = 'publishing_jobs_brand_access') THEN
+        CREATE POLICY publishing_jobs_brand_access ON publishing_jobs
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = publishing_jobs.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'platform_posts' AND policyname = 'platform_posts_brand_access') THEN
+        CREATE POLICY platform_posts_brand_access ON platform_posts
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = platform_posts.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'performance_records' AND policyname = 'performance_records_brand_access') THEN
+        CREATE POLICY performance_records_brand_access ON performance_records
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = performance_records.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ai_feedback_logs' AND policyname = 'ai_feedback_logs_brand_access') THEN
+        CREATE POLICY ai_feedback_logs_brand_access ON ai_feedback_logs
+            FOR ALL USING (EXISTS (SELECT 1 FROM brands WHERE brands.id = ai_feedback_logs.brand_id AND brands.user_id = auth.uid()));
+    END IF;
+END $$;
 
 -- ── Helper: get campaign health score ────────────────────────────────────────
 -- Calculates a 0-100 health score based on content completion rate and avg engagement

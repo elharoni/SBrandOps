@@ -413,48 +413,89 @@ RETURNS SETOF UUID LANGUAGE sql STABLE AS $$
 $$;
 
 -- Generic brand-scoped policy factory
-CREATE POLICY crm_customers_brand_access ON crm_customers
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_identities_brand_access ON crm_customer_identities
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_addresses_brand_access ON crm_addresses
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_orders_brand_access ON crm_orders
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_order_items_brand_access ON crm_order_items
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_tags_brand_access ON crm_customer_tags
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_tag_assignments_brand_access ON crm_customer_tag_assignments
-    FOR ALL USING (
-        customer_id IN (SELECT id FROM crm_customers WHERE brand_id IN (SELECT crm_user_brand_ids()))
-    );
-CREATE POLICY crm_segments_brand_access ON crm_segments
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_segment_rules_brand_access ON crm_segment_rules
-    FOR ALL USING (
-        segment_id IN (SELECT id FROM crm_segments WHERE brand_id IN (SELECT crm_user_brand_ids()))
-    );
-CREATE POLICY crm_notes_brand_access ON crm_notes
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_activities_brand_access ON crm_activities
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_assignments_brand_access ON crm_assignments
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_tasks_brand_access ON crm_tasks
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_lifecycle_brand_access ON crm_lifecycle_states
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_store_connections_brand_access ON crm_store_connections
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_sync_jobs_brand_access ON crm_sync_jobs
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_webhook_events_brand_access ON crm_webhook_events
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_automations_brand_access ON crm_automations
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_feature_flags_brand_access ON crm_feature_flags
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_customers' AND policyname = 'crm_customers_brand_access') THEN
+        CREATE POLICY crm_customers_brand_access ON crm_customers
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_customer_identities' AND policyname = 'crm_identities_brand_access') THEN
+        CREATE POLICY crm_identities_brand_access ON crm_customer_identities
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_addresses' AND policyname = 'crm_addresses_brand_access') THEN
+        CREATE POLICY crm_addresses_brand_access ON crm_addresses
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_orders' AND policyname = 'crm_orders_brand_access') THEN
+        CREATE POLICY crm_orders_brand_access ON crm_orders
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_order_items' AND policyname = 'crm_order_items_brand_access') THEN
+        CREATE POLICY crm_order_items_brand_access ON crm_order_items
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_customer_tags' AND policyname = 'crm_tags_brand_access') THEN
+        CREATE POLICY crm_tags_brand_access ON crm_customer_tags
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_customer_tag_assignments' AND policyname = 'crm_tag_assignments_brand_access') THEN
+        CREATE POLICY crm_tag_assignments_brand_access ON crm_customer_tag_assignments
+            FOR ALL USING (
+                customer_id IN (SELECT id FROM crm_customers WHERE brand_id IN (SELECT crm_user_brand_ids()))
+            );
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_segments' AND policyname = 'crm_segments_brand_access') THEN
+        CREATE POLICY crm_segments_brand_access ON crm_segments
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_segment_rules' AND policyname = 'crm_segment_rules_brand_access') THEN
+        CREATE POLICY crm_segment_rules_brand_access ON crm_segment_rules
+            FOR ALL USING (
+                segment_id IN (SELECT id FROM crm_segments WHERE brand_id IN (SELECT crm_user_brand_ids()))
+            );
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_notes' AND policyname = 'crm_notes_brand_access') THEN
+        CREATE POLICY crm_notes_brand_access ON crm_notes
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_activities' AND policyname = 'crm_activities_brand_access') THEN
+        CREATE POLICY crm_activities_brand_access ON crm_activities
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_assignments' AND policyname = 'crm_assignments_brand_access') THEN
+        CREATE POLICY crm_assignments_brand_access ON crm_assignments
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_tasks' AND policyname = 'crm_tasks_brand_access') THEN
+        CREATE POLICY crm_tasks_brand_access ON crm_tasks
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_lifecycle_states' AND policyname = 'crm_lifecycle_brand_access') THEN
+        CREATE POLICY crm_lifecycle_brand_access ON crm_lifecycle_states
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_store_connections' AND policyname = 'crm_store_connections_brand_access') THEN
+        CREATE POLICY crm_store_connections_brand_access ON crm_store_connections
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_sync_jobs' AND policyname = 'crm_sync_jobs_brand_access') THEN
+        CREATE POLICY crm_sync_jobs_brand_access ON crm_sync_jobs
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_webhook_events' AND policyname = 'crm_webhook_events_brand_access') THEN
+        CREATE POLICY crm_webhook_events_brand_access ON crm_webhook_events
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_automations' AND policyname = 'crm_automations_brand_access') THEN
+        CREATE POLICY crm_automations_brand_access ON crm_automations
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_feature_flags' AND policyname = 'crm_feature_flags_brand_access') THEN
+        CREATE POLICY crm_feature_flags_brand_access ON crm_feature_flags
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+END $$;
 
 -- ── updated_at trigger ───────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION set_updated_at()

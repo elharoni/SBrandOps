@@ -51,10 +51,19 @@ export async function getBrandKnowledge(
 
 // ── Write ─────────────────────────────────────────────────────────────────────
 
+const MAX_CONTENT_LENGTH = 3000;
+
+function validateContent(content: string) {
+    if (content.length > MAX_CONTENT_LENGTH) {
+        throw new Error(`المحتوى يتجاوز الحد المسموح (${content.length.toLocaleString('ar-EG')} / ${MAX_CONTENT_LENGTH.toLocaleString('ar-EG')} حرف). قصّره لتحسين دقة الذكاء الاصطناعي.`);
+    }
+}
+
 export async function addKnowledgeEntry(
     brandId: string,
     entry: Pick<BrandKnowledgeEntry, 'type' | 'title' | 'content' | 'metadata' | 'sortOrder'>,
 ): Promise<BrandKnowledgeEntry> {
+    validateContent(entry.content ?? '');
     const { data, error } = await supabase
         .from('brand_knowledge')
         .insert({
@@ -77,6 +86,7 @@ export async function updateKnowledgeEntry(
     entryId: string,
     updates: Partial<Pick<BrandKnowledgeEntry, 'title' | 'content' | 'metadata' | 'sortOrder' | 'isActive'>>,
 ): Promise<void> {
+    if (updates.content !== undefined) validateContent(updates.content);
     const { error } = await supabase
         .from('brand_knowledge')
         .update({
@@ -113,6 +123,38 @@ export async function clearKnowledgeByType(
         .eq('type', type);
 
     if (error) throw new Error(error.message);
+}
+
+// ── Version History ───────────────────────────────────────────────────────────
+
+export interface KnowledgeHistoryEntry {
+    id: string;
+    knowledgeId: string;
+    versionNumber: number;
+    title: string;
+    content: string;
+    changedAt: string;
+}
+
+export async function getKnowledgeHistory(entryId: string): Promise<KnowledgeHistoryEntry[]> {
+    const { data, error } = await supabase
+        .from('brand_knowledge_history')
+        .select('*')
+        .eq('knowledge_id', entryId)
+        .order('version_number', { ascending: false });
+
+    if (error) {
+        console.warn('[KnowledgeHistory] fetch error:', error.message);
+        return [];
+    }
+    return (data ?? []).map(row => ({
+        id: row.id,
+        knowledgeId: row.knowledge_id,
+        versionNumber: row.version_number,
+        title: row.title,
+        content: row.content,
+        changedAt: row.changed_at,
+    }));
 }
 
 // ── Format helpers for AI prompts ─────────────────────────────────────────────

@@ -57,6 +57,61 @@ const PURPOSE_CONFIG: Record<AssetPurpose, { labelAr: string; labelEn: string; i
 
 const ALL_PURPOSES: AssetPurpose[] = [AP.Publishing, AP.Inbox, AP.Analytics, AP.Commerce, AP.Ads, AP.Seo];
 
+// ─── P1-04: Scope Validation ──────────────────────────────────────────────────
+
+type ScopeFeature = 'publishing' | 'inbox' | 'analytics' | 'ads';
+
+const SCOPE_FEATURE_LABELS: Record<ScopeFeature, { ar: string; en: string; icon: string }> = {
+    publishing: { ar: 'نشر',      en: 'Publishing', icon: 'fa-paper-plane' },
+    inbox:      { ar: 'رسائل',   en: 'Inbox',      icon: 'fa-inbox'       },
+    analytics:  { ar: 'تحليلات', en: 'Analytics',  icon: 'fa-chart-pie'   },
+    ads:        { ar: 'إعلانات', en: 'Ads',         icon: 'fa-bullhorn'    },
+};
+
+const REQUIRED_SCOPES: Record<string, Partial<Record<ScopeFeature, string[]>>> = {
+    Facebook: {
+        publishing: ['pages_manage_posts', 'pages_read_engagement'],
+        inbox:      ['pages_messaging', 'pages_messaging_subscriptions'],
+        analytics:  ['read_insights', 'pages_read_engagement'],
+        ads:        ['ads_read', 'ads_management'],
+    },
+    Instagram: {
+        publishing: ['instagram_content_publish', 'pages_read_engagement'],
+        inbox:      ['instagram_manage_messages'],
+        analytics:  ['instagram_manage_insights'],
+        ads:        ['ads_read'],
+    },
+    TikTok: {
+        publishing: ['video.upload', 'video.list'],
+        analytics:  ['user.insights.creator.info.query'],
+    },
+    LinkedIn: {
+        publishing: ['w_member_social', 'r_organization_social'],
+        analytics:  ['r_organization_social'],
+    },
+    X: {
+        publishing: ['tweet.write', 'tweet.read'],
+        analytics:  ['tweet.read', 'users.read'],
+    },
+};
+
+function getScopeStatus(
+    platform: string,
+    scopesGranted: string[],
+): { feature: ScopeFeature; granted: boolean; missing: string[] }[] {
+    const platformKey = Object.keys(REQUIRED_SCOPES).find(
+        k => platform.toLowerCase().includes(k.toLowerCase()),
+    );
+    if (!platformKey) return [];
+    const required = REQUIRED_SCOPES[platformKey];
+    if (!required) return [];
+
+    return (Object.entries(required) as [ScopeFeature, string[]][]).map(([feature, needed]) => {
+        const missing = needed.filter(s => !scopesGranted.includes(s));
+        return { feature, granted: missing.length === 0, missing };
+    });
+}
+
 // ─── Health summary bar ───────────────────────────────────────────────────────
 
 const HealthSummary: React.FC<{ assets: IntegrationHealth[]; ar: boolean }> = ({ assets, ar }) => {
@@ -122,10 +177,13 @@ const AssetCard: React.FC<{
     onUpdatePurposes: (id: string, purposes: AssetPurpose[]) => Promise<void>;
     onSetPrimary: (id: string) => Promise<void>;
     onMarkStatus: (id: string, status: SyncStatus) => Promise<void>;
-}> = ({ asset, ar, onUpdatePurposes, onSetPrimary, onMarkStatus }) => {
+    onToggleWebhook: (id: string, active: boolean) => Promise<void>;
+}> = ({ asset, ar, onUpdatePurposes, onSetPrimary, onMarkStatus, onToggleWebhook }) => {
     const [editingPurposes, setEditingPurposes] = useState(false);
     const [localPurposes, setLocalPurposes] = useState<AssetPurpose[]>(asset.purposes);
     const [saving, setSaving] = useState(false);
+    const [webhookConfirm, setWebhookConfirm] = useState(false);
+    const [webhookToggling, setWebhookToggling] = useState(false);
 
     const statusCfg = SYNC_STATUS_CONFIG[asset.syncStatus];
     const typeCfg   = ASSET_TYPE_LABELS[asset.assetType];
@@ -197,16 +255,25 @@ const AssetCard: React.FC<{
                 </div>
             )}
 
-            {/* Token expiry warning */}
-            {asset.tokenExpiringSoon && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl bg-orange-500/8 px-3 py-2">
-                    <i className="fas fa-key text-xs text-orange-500" />
-                    <p className="text-xs text-orange-700 dark:text-orange-400">
-                        {ar ? 'التوكن سينتهي قريباً' : 'Token expiring soon'}
-                        {asset.tokenExpiresAt && ` — ${new Date(asset.tokenExpiresAt).toLocaleDateString(ar ? 'ar-EG' : 'en-US')}`}
-                    </p>
-                </div>
-            )}
+            {/* Token expiry warning — countdown timer */}
+            {asset.tokenExpiringSoon && (() => {
+                const daysLeft = asset.tokenExpiresAt
+                    ? Math.max(0, Math.ceil((new Date(asset.tokenExpiresAt).getTime() - Date.now()) / 86_400_000))
+                    : null;
+                const urgent = daysLeft !== null && daysLeft <= 3;
+                return (
+                    <div className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 ${urgent ? 'bg-rose-500/10' : 'bg-orange-500/8'}`}>
+                        <i className={`fas fa-key text-xs ${urgent ? 'text-rose-500 animate-pulse' : 'text-orange-500'}`} />
+                        <p className={`text-xs ${urgent ? 'text-rose-700 dark:text-rose-400 font-semibold' : 'text-orange-700 dark:text-orange-400'}`}>
+                            {daysLeft !== null
+                                ? ar
+                                    ? `ينتهي خلال ${daysLeft} يوم${daysLeft === 1 ? '' : 'اً'}`
+                                    : `Expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`
+                                : ar ? 'التوكن سينتهي قريباً' : 'Token expiring soon'}
+                        </p>
+                    </div>
+                );
+            })()}
 
             {/* Meta row */}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
@@ -220,11 +287,64 @@ const AssetCard: React.FC<{
                         {new Intl.NumberFormat(ar ? 'ar-EG' : 'en-US').format(asset.followersCount)}
                     </span>
                 )}
-                {asset.webhookActive && (
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                        <i className="fas fa-bolt text-[9px]" />
-                        {ar ? 'Webhook نشط' : 'Webhook active'}
+                <button
+                    onClick={() => asset.webhookActive ? setWebhookConfirm(true) : (async () => {
+                        setWebhookToggling(true);
+                        await onToggleWebhook(asset.id, true);
+                        setWebhookToggling(false);
+                    })()}
+                    disabled={webhookToggling}
+                    title={ar
+                        ? (asset.webhookActive ? 'إيقاف Webhook' : 'تفعيل Webhook')
+                        : (asset.webhookActive ? 'Disable Webhook' : 'Enable Webhook')}
+                    className={`flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors ${
+                        asset.webhookActive
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-red-500/10 hover:text-red-500'
+                            : 'bg-slate-500/10 text-slate-500 hover:bg-emerald-500/10 hover:text-emerald-500'
+                    }`}
+                >
+                    <i className={`fas fa-bolt text-[9px] ${webhookToggling ? 'fa-spin' : ''}`} />
+                    <span className="text-[10px] font-medium">
+                        {asset.webhookActive ? (ar ? 'Webhook نشط' : 'Webhook ON') : (ar ? 'Webhook معطّل' : 'Webhook OFF')}
                     </span>
+                </button>
+
+                {/* Webhook disable confirmation */}
+                {webhookConfirm && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setWebhookConfirm(false)}>
+                        <div className="w-full max-w-sm rounded-2xl bg-light-card dark:bg-dark-card p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 mb-3">
+                                <i className="fas fa-triangle-exclamation text-amber-500" />
+                            </div>
+                            <h3 className="text-sm font-bold text-light-text dark:text-dark-text mb-1">
+                                {ar ? 'إيقاف الـ Webhook؟' : 'Disable Webhook?'}
+                            </h3>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mb-4">
+                                {ar
+                                    ? 'إيقاف Webhook يوقف استقبال الرسائل الجديدة في صندوق الوارد تلقائياً. يمكنك إعادة تفعيله في أي وقت.'
+                                    : 'Disabling Webhook stops automatic inbox message delivery. You can re-enable it anytime.'}
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={async () => {
+                                        setWebhookConfirm(false);
+                                        setWebhookToggling(true);
+                                        await onToggleWebhook(asset.id, false);
+                                        setWebhookToggling(false);
+                                    }}
+                                    className="flex-1 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600"
+                                >
+                                    {ar ? 'إيقاف' : 'Disable'}
+                                </button>
+                                <button
+                                    onClick={() => setWebhookConfirm(false)}
+                                    className="flex-1 rounded-xl bg-light-bg px-3 py-2 text-xs font-semibold text-light-text dark:bg-dark-bg dark:text-dark-text"
+                                >
+                                    {ar ? 'إلغاء' : 'Cancel'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
                 {asset.scopesGranted.length > 0 && (
                     <span className="flex items-center gap-1">
@@ -233,6 +353,61 @@ const AssetCard: React.FC<{
                     </span>
                 )}
             </div>
+
+            {/* ── P1-04: Scope Validation ── */}
+            {(() => {
+                const scopeStatus = getScopeStatus(asset.platform, asset.scopesGranted);
+                if (scopeStatus.length === 0) return null;
+                const hasMissing = scopeStatus.some(s => !s.granted);
+                return (
+                    <div className="mt-3 rounded-xl border border-light-border/40 dark:border-dark-border/40 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 bg-light-bg/50 dark:bg-dark-bg/50">
+                            <p className="text-[11px] font-semibold text-light-text-secondary dark:text-dark-text-secondary">
+                                {ar ? 'الصلاحيات الممنوحة' : 'Granted Permissions'}
+                            </p>
+                            {hasMissing && (
+                                <span className="text-[10px] font-semibold text-orange-500 flex items-center gap-1">
+                                    <i className="fas fa-triangle-exclamation text-[9px]" />
+                                    {ar ? 'صلاحيات ناقصة' : 'Missing scopes'}
+                                </span>
+                            )}
+                        </div>
+                        <div className="divide-y divide-light-border/20 dark:divide-dark-border/20">
+                            {scopeStatus.map(({ feature, granted, missing }) => {
+                                const featureCfg = SCOPE_FEATURE_LABELS[feature];
+                                return (
+                                    <div key={feature} className="flex items-center gap-2 px-3 py-2">
+                                        <i className={`fas ${featureCfg.icon} text-[10px] w-3 text-center ${granted ? 'text-emerald-500' : 'text-orange-400'}`} />
+                                        <span className="flex-1 text-[11px] text-light-text dark:text-dark-text">
+                                            {ar ? featureCfg.ar : featureCfg.en}
+                                        </span>
+                                        {granted ? (
+                                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                                <i className="fas fa-check text-[9px]" />
+                                                {ar ? 'ممنوح' : 'Granted'}
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-500" title={missing.join(', ')}>
+                                                <i className="fas fa-xmark text-[9px]" />
+                                                {ar ? `يحتاج ${missing.length} صلاحية` : `Needs ${missing.length} scope${missing.length > 1 ? 's' : ''}`}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        {hasMissing && (
+                            <div className="px-3 py-2 bg-orange-500/5 border-t border-orange-500/20">
+                                <p className="text-[10px] text-orange-600 dark:text-orange-400 mb-1.5">
+                                    {ar
+                                        ? 'لإصلاح الصلاحيات الناقصة: افصل الحساب وأعد ربطه عبر صفحة التكاملات.'
+                                        : 'To fix missing scopes: disconnect and reconnect this account from the Integrations page.'}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* Purposes */}
             <div className="mt-3">
@@ -353,6 +528,15 @@ export const IntegrationHealthPanel: React.FC<IntegrationHealthPanelProps> = ({
         addNotification(NotificationType.Success, ar ? 'تم تحديث الحالة.' : 'Status updated.');
     };
 
+    const handleToggleWebhook = async (id: string, active: boolean) => {
+        await updateAssetMetadata(id, { webhookActive: active });
+        setAssets(prev => prev.map(a => a.id === id ? { ...a, webhookActive: active } : a));
+        addNotification(
+            NotificationType.Success,
+            ar ? (active ? 'تم تفعيل Webhook' : 'تم إيقاف Webhook') : (active ? 'Webhook enabled' : 'Webhook disabled'),
+        );
+    };
+
     if (loading) {
         return (
             <div className="space-y-3">
@@ -437,6 +621,7 @@ export const IntegrationHealthPanel: React.FC<IntegrationHealthPanelProps> = ({
                         onUpdatePurposes={handleUpdatePurposes}
                         onSetPrimary={handleSetPrimary}
                         onMarkStatus={handleMarkStatus}
+                        onToggleWebhook={handleToggleWebhook}
                     />
                 ))}
             </div>

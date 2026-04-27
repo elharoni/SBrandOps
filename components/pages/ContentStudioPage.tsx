@@ -551,6 +551,35 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
                 )}
             </div>
 
+            {/* ── Brand Context Indicator (P3-04) ─────────────────────────── */}
+            {(() => {
+                const hasVoice = (brandProfile.brandVoice?.toneDescription?.length ?? 0) > 0
+                    || (brandProfile.brandVoice?.keywords?.length ?? 0) > 0;
+                const hasContext = hasVoice || (brandProfile.description?.length ?? 0) > 10;
+                const hasFullContext = hasContext && (brandProfile.keySellingPoints?.length ?? 0) > 0;
+                const contextLevel = hasFullContext ? (ar ? 'Full' : 'Full')
+                    : hasContext ? (ar ? 'Partial' : 'Partial')
+                    : (ar ? 'Minimal' : 'Minimal');
+                const contextColor = hasFullContext ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/8'
+                    : hasContext ? 'text-amber-400 border-amber-500/30 bg-amber-500/8'
+                    : 'text-rose-400 border-rose-500/30 bg-rose-500/8';
+                return (
+                    <button
+                        onClick={() => onNavigate?.('brand-hub')}
+                        className={`inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-semibold transition-all hover:opacity-80 ${contextColor}`}
+                        title={ar ? 'فتح Brand Hub' : 'Open Brand Hub'}
+                    >
+                        <i className="fas fa-brain text-[10px]" />
+                        <span>
+                            {ar
+                                ? `يستخدم صوت: ${brandProfile.brandName || '—'} — سياق: ${contextLevel}`
+                                : `Voice: ${brandProfile.brandName || '—'} — Context: ${contextLevel}`}
+                        </span>
+                        <i className="fas fa-arrow-up-right-from-square text-[9px] opacity-60" />
+                    </button>
+                );
+            })()}
+
             {/* ── Brief context banner ─────────────────────────────────────── */}
             {briefContext && (
                 <div className="surface-panel rounded-2xl bg-gradient-to-r from-brand-primary/10 via-transparent to-transparent p-4">
@@ -661,6 +690,20 @@ export const ContentStudioPage: React.FC<ContentStudioPageProps> = ({
                     <div className="surface-panel overflow-hidden rounded-2xl">
                         {/* AI toolbar */}
                         <div className="flex flex-wrap items-center gap-1.5 border-b border-dark-border bg-dark-bg/40 px-4 py-3">
+                            {/* Brand context indicator */}
+                            <button
+                                type="button"
+                                onClick={() => onNavigate?.('brand-hub')}
+                                title={ar ? 'فتح Brand Hub' : 'Open Brand Hub'}
+                                className="flex items-center gap-1.5 rounded-lg border border-brand-primary/20 bg-brand-primary/8 px-2.5 py-1.5 text-[10px] font-semibold text-brand-secondary transition-colors hover:bg-brand-primary/15 me-1"
+                            >
+                                <i className="fas fa-brain text-[9px]" />
+                                <span className="hidden sm:inline">{ar ? 'صوت:' : 'Voice:'}</span>
+                                <span className="max-w-[80px] truncate">{brandProfile.brandName}</span>
+                                <span className="text-dark-text-secondary/60">·</span>
+                                <span className="text-dark-text-secondary">{ar ? 'كامل' : 'Full'}</span>
+                            </button>
+                            <span className="h-4 w-px bg-dark-border" />
                             {/* Generate from title */}
                             <button
                                 type="button"

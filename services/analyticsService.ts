@@ -3,7 +3,9 @@ import {
     BriefPerformanceRollup,
     PlatformAnalyticsData,
     PostPerformance,
+    SEOBreakdown,
     SocialPlatform,
+    SyncJobStatus,
     WatchlistPerformanceRollup,
 } from '../types';
 import { supabase } from './supabaseClient';
@@ -155,14 +157,17 @@ async function getConnectedSourceSummaries(
     const sourceSummaries: NonNullable<AnalyticsData['connectedSources']> = {};
     const ga4Connection = getActiveBrandConnection(context?.brandConnections, 'ga4');
     const searchConsoleConnection = getActiveBrandConnection(context?.brandConnections, 'search_console');
+    const metaAdsConnection = getActiveBrandConnection(context?.brandConnections, 'meta_ads');
+    const googleAdsConnection = getActiveBrandConnection(context?.brandConnections, 'google_ads');
     const ga4Property = getReferencedAnalyticsProperty(ga4Connection, context?.brandAssets ?? null);
     const searchConsoleProperty = getReferencedSearchConsoleProperty(searchConsoleConnection, context?.brandAssets ?? null);
     const ga4Website = getReferencedWebsite(ga4Connection, context?.brandAssets ?? null, 'ga4');
     const searchConsoleWebsite = getReferencedWebsite(searchConsoleConnection, context?.brandAssets ?? null, 'search_console');
     const sinceDateString = sinceDate.toISOString().split('T')[0];
+    const hasAdsConnection = !!(metaAdsConnection || googleAdsConnection);
 
-    const [ga4Result, searchResult] = await Promise.all([
-        // GA4 facts
+    const [ga4Result, searchResult, ga4SnapshotResult, gscSnapshotResult, adInsightsResult] = await Promise.all([
+        // GA4 facts (primary — from legacy analytics_page_facts table)
         (ga4Connection || ga4Property) ? (async () => {
             let q: any = supabase
                 .from('analytics_page_facts')
@@ -174,7 +179,7 @@ async function getConnectedSourceSummaries(
             return q;
         })() : Promise.resolve({ data: null, error: null }),
 
-        // Search Console facts
+        // Search Console facts (primary — from legacy seo_page_facts table)
         (searchConsoleConnection || searchConsoleProperty) ? (async () => {
             let q: any = supabase
                 .from('seo_page_facts')
@@ -185,21 +190,53 @@ async function getConnectedSourceSummaries(
             if (searchConsoleProperty?.id) q = q.eq('search_console_property_id', searchConsoleProperty.id);
             return q;
         })() : Promise.resolve({ data: null, error: null }),
+
+        // GA4 fallback — sync-engine writes daily_summary rows to analytics_snapshots (source='ga4')
+        supabase
+            .from('analytics_snapshots')
+            .select('date, metric_name, value, metadata')
+            .eq('brand_id', brandId)
+            .eq('source', 'ga4')
+            .eq('metric_name', 'daily_summary')
+            .gte('date', sinceDateString)
+            .order('date', { ascending: false }),
+
+        // GSC fallback — sync-engine writes daily_summary rows to analytics_snapshots (source='gsc')
+        supabase
+            .from('analytics_snapshots')
+            .select('date, metric_name, value, metadata')
+            .eq('brand_id', brandId)
+            .eq('source', 'gsc')
+            .eq('metric_name', 'daily_summary')
+            .gte('date', sinceDateString)
+            .order('date', { ascending: false }),
+
+        // Ad campaign facts — data-sync writes to ad_campaign_facts (one row per campaign per day)
+        hasAdsConnection ? supabase
+            .from('ad_campaign_facts')
+            .select('fact_date, provider, spend, impressions, reach, clicks, conversions, ctr, cpc, roas, campaign_id')
+            .eq('brand_id', brandId)
+            .gte('fact_date', sinceDateString)
+            .order('fact_date', { ascending: false }) : Promise.resolve({ data: null, error: null }),
     ]);
 
-    if (!ga4Result.error && ga4Result.data) {
-        const facts = ga4Result.data;
-        const sessions = facts.reduce((sum: number, r: any) => sum + Number(r.sessions ?? 0), 0);
-        const engagedSessions = facts.reduce((sum: number, r: any) => sum + Number(r.engaged_sessions ?? 0), 0);
-        const bouncedSessions = facts.reduce((sum: number, r: any) => sum + Number(r.bounced_sessions ?? 0), 0);
-        const keyEvents = facts.reduce((sum: number, r: any) => sum + Number(r.key_events ?? 0), 0);
-        const transactions = facts.reduce((sum: number, r: any) => sum + Number(r.transactions ?? 0), 0);
-        const revenue = facts.reduce((sum: number, r: any) => sum + Number(r.revenue ?? 0), 0);
-        const weightedEngagement = facts.reduce(
+    // ── GA4 ─────────────────────────────────────────────────────────────────────
+    // Prefer analytics_page_facts; fall back to analytics_snapshots when empty
+    const ga4Facts = (!ga4Result.error && ga4Result.data && ga4Result.data.length > 0)
+        ? ga4Result.data
+        : null;
+
+    if (ga4Facts) {
+        const sessions = ga4Facts.reduce((sum: number, r: any) => sum + Number(r.sessions ?? 0), 0);
+        const engagedSessions = ga4Facts.reduce((sum: number, r: any) => sum + Number(r.engaged_sessions ?? 0), 0);
+        const bouncedSessions = ga4Facts.reduce((sum: number, r: any) => sum + Number(r.bounced_sessions ?? 0), 0);
+        const keyEvents = ga4Facts.reduce((sum: number, r: any) => sum + Number(r.key_events ?? 0), 0);
+        const transactions = ga4Facts.reduce((sum: number, r: any) => sum + Number(r.transactions ?? 0), 0);
+        const revenue = ga4Facts.reduce((sum: number, r: any) => sum + Number(r.revenue ?? 0), 0);
+        const weightedEngagement = ga4Facts.reduce(
             (sum: number, r: any) => sum + (Number(r.avg_engagement_time_sec ?? 0) * Number(r.sessions ?? 0)),
             0,
         );
-
         sourceSummaries.ga4 = {
             propertyId: ga4Property?.property_id ?? ga4Connection?.external_account_id ?? 'ga4',
             propertyName: ga4Property?.property_name ?? ga4Connection?.external_account_name ?? 'Google Analytics 4',
@@ -210,21 +247,51 @@ async function getConnectedSourceSummaries(
             revenue,
             bounceRate: sessions > 0 ? bouncedSessions / sessions : 0,
             avgEngagementTimeSec: sessions > 0 ? weightedEngagement / sessions : 0,
-            lastFactDate: facts.reduce((latest: string | null, r: any) => {
+            lastFactDate: ga4Facts.reduce((latest: string | null, r: any) => {
                 const next = typeof r.fact_date === 'string' ? r.fact_date : null;
                 if (!next) return latest;
                 return latest && latest > next ? latest : next;
             }, null),
         };
+    } else if (!ga4SnapshotResult.error && ga4SnapshotResult.data && ga4SnapshotResult.data.length > 0) {
+        // Fallback: daily_summary rows from sync-engine in analytics_snapshots
+        const snapRows = ga4SnapshotResult.data;
+        let sessions = 0, bouncedSessions = 0, conversions = 0, weightedEngagementSec = 0;
+        for (const r of snapRows) {
+            const m = (r.metadata ?? {}) as Record<string, number>;
+            const s = m.sessions ?? 0;
+            sessions += s;
+            bouncedSessions += (m.bounce_rate ?? 0) * s;
+            conversions += m.conversions ?? 0;
+            weightedEngagementSec += (m.avg_session_duration ?? 0) * s;
+        }
+        const latestMeta = (snapRows[0]?.metadata ?? {}) as Record<string, unknown>;
+        const propertyId = String(latestMeta.property_id ?? ga4Connection?.external_account_id ?? 'ga4');
+        sourceSummaries.ga4 = {
+            propertyId,
+            propertyName: ga4Connection?.external_account_name ?? 'Google Analytics 4',
+            websiteUrl: ga4Website?.url ?? null,
+            sessions,
+            engagedSessions: 0,
+            keyEvents: conversions,
+            revenue: 0,
+            bounceRate: sessions > 0 ? bouncedSessions / sessions : 0,
+            avgEngagementTimeSec: sessions > 0 ? weightedEngagementSec / sessions : 0,
+            lastFactDate: snapRows[0]?.date ?? null,
+        };
     }
 
-    if (!searchResult.error && searchResult.data) {
-        const facts = searchResult.data;
-        const clicks = facts.reduce((sum: number, r: any) => sum + Number(r.clicks ?? 0), 0);
-        const impressions = facts.reduce((sum: number, r: any) => sum + Number(r.impressions ?? 0), 0);
-        const positions = facts.map((r: any) => Number(r.position ?? 0)).filter((v: number) => v > 0);
-        const indexedPages = new Set(facts.map((r: any) => r.page_url as string).filter(Boolean)).size;
+    // ── Search Console ────────────────────────────────────────────────────────────
+    // Prefer seo_page_facts; fall back to analytics_snapshots when empty
+    const gscFacts = (!searchResult.error && searchResult.data && searchResult.data.length > 0)
+        ? searchResult.data
+        : null;
 
+    if (gscFacts) {
+        const clicks = gscFacts.reduce((sum: number, r: any) => sum + Number(r.clicks ?? 0), 0);
+        const impressions = gscFacts.reduce((sum: number, r: any) => sum + Number(r.impressions ?? 0), 0);
+        const positions = gscFacts.map((r: any) => Number(r.position ?? 0)).filter((v: number) => v > 0);
+        const indexedPages = new Set(gscFacts.map((r: any) => r.page_url as string).filter(Boolean)).size;
         sourceSummaries.searchConsole = {
             siteUrl: searchConsoleProperty?.site_url ?? searchConsoleWebsite?.url ?? searchConsoleConnection?.external_account_name ?? 'Search Console',
             clicks,
@@ -232,11 +299,71 @@ async function getConnectedSourceSummaries(
             ctr: impressions > 0 ? clicks / impressions : 0,
             avgPosition: positions.length > 0 ? positions.reduce((s: number, v: number) => s + v, 0) / positions.length : 0,
             indexedPages,
-            lastFactDate: facts.reduce((latest: string | null, r: any) => {
+            lastFactDate: gscFacts.reduce((latest: string | null, r: any) => {
                 const next = typeof r.fact_date === 'string' ? r.fact_date : null;
                 if (!next) return latest;
                 return latest && latest > next ? latest : next;
             }, null),
+        };
+    } else if (!gscSnapshotResult.error && gscSnapshotResult.data && gscSnapshotResult.data.length > 0) {
+        const snapRows = gscSnapshotResult.data;
+        let clicks = 0, impressions = 0;
+        const positions: number[] = [];
+        for (const r of snapRows) {
+            const m = (r.metadata ?? {}) as Record<string, number>;
+            clicks += m.clicks ?? 0;
+            impressions += m.impressions ?? 0;
+            if (m.position && m.position > 0) positions.push(m.position);
+        }
+        const latestMeta = (snapRows[0]?.metadata ?? {}) as Record<string, unknown>;
+        const siteUrl = String(latestMeta.site_url ?? searchConsoleConnection?.external_account_name ?? 'Search Console');
+        sourceSummaries.searchConsole = {
+            siteUrl,
+            clicks,
+            impressions,
+            ctr: impressions > 0 ? clicks / impressions : 0,
+            avgPosition: positions.length > 0 ? positions.reduce((s, v) => s + v, 0) / positions.length : 0,
+            indexedPages: 0,
+            lastFactDate: snapRows[0]?.date ?? null,
+        };
+    }
+
+    // ── Ads ───────────────────────────────────────────────────────────────────────
+    if (!adInsightsResult.error && adInsightsResult.data && adInsightsResult.data.length > 0) {
+        const rows = adInsightsResult.data;
+        let totalSpend = 0, totalImpressions = 0, totalClicks = 0, totalConversions = 0;
+        let weightedCtr = 0, weightedCpc = 0, weightedRoas = 0;
+        const providerSet = new Set<string>();
+        const campaignIds = new Set<string>();
+
+        for (const r of rows) {
+            const spend = Number(r.spend ?? 0);
+            const impr = Number(r.impressions ?? 0);
+            const clicks = Number(r.clicks ?? 0);
+            totalSpend += spend;
+            totalImpressions += impr;
+            totalClicks += clicks;
+            totalConversions += Number(r.conversions ?? 0);
+            if (r.ctr != null) weightedCtr += Number(r.ctr) * impr;
+            if (r.cpc != null) weightedCpc += Number(r.cpc) * clicks;
+            if (r.roas != null) weightedRoas += Number(r.roas) * spend;
+            if (r.provider) providerSet.add(String(r.provider));
+            if (r.campaign_id) campaignIds.add(String(r.campaign_id));
+        }
+
+        const lastInsightDate = rows[0]?.fact_date ?? null;
+        sourceSummaries.ads = {
+            totalSpend,
+            totalImpressions,
+            totalClicks,
+            totalConversions,
+            totalConversionValue: 0,
+            avgCtr: totalImpressions > 0 ? weightedCtr / totalImpressions : 0,
+            avgCpc: totalClicks > 0 ? weightedCpc / totalClicks : 0,
+            avgRoas: totalSpend > 0 ? weightedRoas / totalSpend : 0,
+            providers: Array.from(providerSet),
+            campaignCount: campaignIds.size,
+            lastInsightDate: typeof lastInsightDate === 'string' ? lastInsightDate : null,
         };
     }
 
@@ -564,6 +691,97 @@ export async function getPlatformAnalyticsData(brandId: string, platform: Social
             topPosts: [],
             aiSummary: 'لا تتوفر بيانات كافية بعد. ابدأ بنشر محتوى لترى التحليلات هنا.'
         };
+    }
+}
+
+export async function getSEOBreakdown(brandId: string, period: string = '30d'): Promise<SEOBreakdown> {
+    try {
+        const sinceDateString = getPeriodDate(period).toISOString().split('T')[0];
+        const { data, error } = await supabase
+            .from('seo_page_facts')
+            .select('page_url, query, clicks, impressions, position')
+            .eq('brand_id', brandId)
+            .gte('fact_date', sinceDateString);
+
+        if (error || !data || data.length === 0) return { topQueries: [], topPages: [] };
+
+        const queryMap = new Map<string, { clicks: number; impressions: number; positionSum: number; count: number }>();
+        const pageMap = new Map<string, { clicks: number; impressions: number; positionSum: number; count: number }>();
+
+        for (const row of data) {
+            const clicks = Number(row.clicks ?? 0);
+            const impressions = Number(row.impressions ?? 0);
+            const position = Number(row.position ?? 0);
+
+            if (row.query) {
+                const e = queryMap.get(row.query) ?? { clicks: 0, impressions: 0, positionSum: 0, count: 0 };
+                queryMap.set(row.query, { clicks: e.clicks + clicks, impressions: e.impressions + impressions, positionSum: e.positionSum + position, count: e.count + 1 });
+            }
+            if (row.page_url) {
+                const e = pageMap.get(row.page_url) ?? { clicks: 0, impressions: 0, positionSum: 0, count: 0 };
+                pageMap.set(row.page_url, { clicks: e.clicks + clicks, impressions: e.impressions + impressions, positionSum: e.positionSum + position, count: e.count + 1 });
+            }
+        }
+
+        const topQueries = Array.from(queryMap.entries())
+            .map(([query, d]) => ({
+                query,
+                clicks: d.clicks,
+                impressions: d.impressions,
+                ctr: d.impressions > 0 ? d.clicks / d.impressions : 0,
+                avgPosition: d.count > 0 ? d.positionSum / d.count : 0,
+            }))
+            .sort((a, b) => b.clicks - a.clicks)
+            .slice(0, 10);
+
+        const topPages = Array.from(pageMap.entries())
+            .map(([pageUrl, d]) => ({
+                pageUrl,
+                clicks: d.clicks,
+                impressions: d.impressions,
+                ctr: d.impressions > 0 ? d.clicks / d.impressions : 0,
+                avgPosition: d.count > 0 ? d.positionSum / d.count : 0,
+            }))
+            .sort((a, b) => b.clicks - a.clicks)
+            .slice(0, 10);
+
+        return { topQueries, topPages };
+    } catch (error) {
+        console.warn('getSEOBreakdown failed:', error);
+        return { topQueries: [], topPages: [] };
+    }
+}
+
+export async function getLastSyncJobs(brandId: string): Promise<SyncJobStatus[]> {
+    try {
+        const { data, error } = await supabase
+            .from('analytics_sync_jobs')
+            .select('provider, status, started_at, finished_at, records_synced, error_message')
+            .eq('brand_id', brandId)
+            .order('started_at', { ascending: false })
+            .limit(20);
+
+        if (error || !data) return [];
+
+        const seen = new Set<string>();
+        const result: SyncJobStatus[] = [];
+        for (const row of data) {
+            if (!seen.has(row.provider)) {
+                seen.add(row.provider);
+                result.push({
+                    provider: row.provider,
+                    status: row.status as 'running' | 'success' | 'failed',
+                    startedAt: row.started_at,
+                    finishedAt: row.finished_at ?? null,
+                    recordsSynced: Number(row.records_synced ?? 0),
+                    errorMessage: row.error_message ?? null,
+                });
+            }
+        }
+        return result;
+    } catch (error) {
+        console.warn('getLastSyncJobs failed:', error);
+        return [];
     }
 }
 

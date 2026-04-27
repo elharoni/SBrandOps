@@ -40,7 +40,7 @@ export async function initiateSocialLogin(platform: SocialPlatform): Promise<Aut
             // read_insights + ads_read require Advanced/Standard Access App Review → added later.
             // instagram_basic removed (deprecated by Meta since 2023).
             const scopes = platform === SocialPlatform.Facebook
-                ? 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content'
+                ? 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_read_user_content,pages_messaging,pages_messaging_subscriptions'
                 : 'pages_show_list,pages_read_engagement,instagram_content_publish,instagram_manage_insights,instagram_manage_messages';
 
             window.FB.login((response: any) => {
@@ -343,4 +343,25 @@ export async function updateAssetPurposes(
         .eq('id', assetId);
 
     if (error) throw error;
+}
+
+/** حفظ نتيجة مطابقة الصفحة مع البراند بعد تأكيد المستخدم */
+export async function saveMatchScore(
+    brandId: string,
+    platform: SocialPlatform,
+    externalAccountId: string,
+    matchScore: number,
+): Promise<void> {
+    const { error } = await supabase
+        .from('social_accounts')
+        .update({
+            match_score: Math.round(Math.min(100, Math.max(0, matchScore))),
+            confirmed_by_user: true,
+            confirmed_at: new Date().toISOString(),
+        })
+        .eq('brand_id', brandId)
+        .eq('platform', platform)
+        .eq('external_account_id', externalAccountId);
+
+    if (error) console.warn('saveMatchScore failed:', error.message);
 }

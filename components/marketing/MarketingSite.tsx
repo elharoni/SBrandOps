@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { publicPageToPath } from '../../config/routes';
@@ -7,7 +7,7 @@ import { SBrandOpsLogo } from '../SBrandOpsLogo';
 import { BillingCycle, DEFAULT_PUBLIC_PRICING_PLAN_IDS, PRICING_PLANS, getBillingAmount } from '../../config/pricingPlans';
 import { openBillingCheckout } from '../../services/billingCheckoutService';
 
-type MarketingPageId = 'home' | 'about' | 'pricing' | 'billing' | 'contact' | 'security' | 'terms' | 'privacy' | 'dpa' | 'refunds' | 'cookies';
+type MarketingPageId = 'home' | 'about' | 'features' | 'for-agencies' | 'for-ecommerce' | 'pricing' | 'billing' | 'contact' | 'demo' | 'thank-you' | 'security' | 'terms' | 'privacy' | 'dpa' | 'refunds' | 'cookies';
 interface MarketingSiteProps { pageId: MarketingPageId; isAuthenticated: boolean; }
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -92,6 +92,7 @@ const CASE_STUDIES = [
 const TESTIMONIALS = [
     { name: 'Nour A.', roleAr: 'مديرة نمو — متجر إلكتروني', roleEn: 'Growth Lead — E-commerce Brand', quoteAr: 'أهم فرق فعلي هو أن المحتوى والإعلانات والتحليلات أصبحت مترابطة داخل نفس القرار اليومي.', quoteEn: 'The biggest improvement was having content, ads, and analytics tied into the same daily operating decision.', initials: 'NA', gFrom: 'from-cyan-500', gTo: 'to-blue-600' },
     { name: 'Kareem S.', roleAr: 'مؤسس وكالة تسويق', roleEn: 'Agency Founder', quoteAr: 'بدل متابعة العملاء عبر أدوات متفرقة، أصبح لدينا مركز تشغيل واحد يوضح ما يجب تنفيذه الآن.', quoteEn: 'Instead of tracking clients across disconnected tools, we have one operating center that shows what needs action now.', initials: 'KS', gFrom: 'from-indigo-500', gTo: 'to-purple-600' },
+    { name: 'Sara M.', roleAr: 'مديرة براند — شركة ناشئة', roleEn: 'Brand Manager — Startup', quoteAr: 'Brand Brain وحده غيّر طريقة عملنا — كل المحتوى الآن يبدو وكأن شخصاً واحداً يكتبه.', quoteEn: 'Brand Brain alone changed how we work — every piece of content now sounds like one consistent voice.', initials: 'SM', gFrom: 'from-emerald-500', gTo: 'to-cyan-600' },
 ];
 
 const SUPPORT_PATHS = [
@@ -103,7 +104,7 @@ const SUPPORT_PATHS = [
 type LegalBlock = { heading?: string; text: string };
 type LegalPageDef = { arTitle: string; enTitle: string; effective: string; arBlocks: LegalBlock[]; enBlocks: LegalBlock[] };
 
-const LEGAL_COPY: Record<Exclude<MarketingPageId, 'home' | 'about' | 'pricing' | 'billing' | 'contact' | 'security'>, LegalPageDef> = {
+const LEGAL_COPY: Record<Exclude<MarketingPageId, 'home' | 'about' | 'features' | 'for-agencies' | 'for-ecommerce' | 'pricing' | 'billing' | 'contact' | 'demo' | 'thank-you' | 'security'>, LegalPageDef> = {
     terms: {
         arTitle: 'شروط الاستخدام', enTitle: 'Terms of Service', effective: 'April 26, 2026',
         enBlocks: [
@@ -370,6 +371,26 @@ const HeroDashboardMock: React.FC = () => {
     );
 };
 
+const FadeInSection: React.FC<{ children: React.ReactNode; delay?: string }> = ({ children, delay = '' }) => {
+    const ref = useRef<HTMLDivElement>(null);
+    const [visible, setVisible] = useState(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect(); } },
+            { threshold: 0.07 }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+    return (
+        <div ref={ref} className={`transition-all duration-700 ease-out ${delay} ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            {children}
+        </div>
+    );
+};
+
 const RouteLink: React.FC<{ href: string; className?: string; children: React.ReactNode; onClick?: () => void }> = ({ href, className, children, onClick }) => (
     href.includes('#')
         ? <a href={href} className={className} onClick={onClick}>{children}</a>
@@ -388,17 +409,55 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+    useEffect(() => {
+        const titles: Record<MarketingPageId, { ar: string; en: string }> = {
+            home:           { ar: 'SBrandOps — نظام تشغيل البراند الذكي',    en: 'SBrandOps — AI-Powered Brand Operating System' },
+            about:          { ar: 'من نحن — SBrandOps',                       en: 'About Us — SBrandOps' },
+            features:       { ar: 'المميزات — SBrandOps',                     en: 'Features — SBrandOps' },
+            'for-agencies': { ar: 'للوكالات التسويقية — SBrandOps',           en: 'For Marketing Agencies — SBrandOps' },
+            'for-ecommerce':{ ar: 'للتجارة الإلكترونية — SBrandOps',          en: 'For E-commerce — SBrandOps' },
+            pricing:        { ar: 'الأسعار — SBrandOps',                      en: 'Pricing — SBrandOps' },
+            billing:        { ar: 'الفوترة — SBrandOps',                      en: 'Billing — SBrandOps' },
+            contact:        { ar: 'تواصل معنا — SBrandOps',                   en: 'Contact — SBrandOps' },
+            demo:           { ar: 'احجز عرضاً — SBrandOps',                   en: 'Book a Demo — SBrandOps' },
+            'thank-you':    { ar: 'شكراً لك — SBrandOps',                     en: 'Thank You — SBrandOps' },
+            security:       { ar: 'الأمان — SBrandOps',                       en: 'Security — SBrandOps' },
+            terms:          { ar: 'شروط الاستخدام — SBrandOps',               en: 'Terms of Service — SBrandOps' },
+            privacy:        { ar: 'سياسة الخصوصية — SBrandOps',              en: 'Privacy Policy — SBrandOps' },
+            dpa:            { ar: 'اتفاقية معالجة البيانات — SBrandOps',      en: 'DPA — SBrandOps' },
+            refunds:        { ar: 'سياسة الاسترجاع — SBrandOps',             en: 'Refund Policy — SBrandOps' },
+            cookies:        { ar: 'سياسة ملفات الارتباط — SBrandOps',        en: 'Cookie Policy — SBrandOps' },
+        };
+        document.title = isArabic ? titles[pageId].ar : titles[pageId].en;
+    }, [pageId, isArabic]);
+
+    useEffect(() => {
+        const setMeta = (property: string, content: string) => {
+            let el = document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
+            if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
+            el.setAttribute('content', content);
+        };
+        const desc = isArabic
+            ? 'خطط للمحتوى، انشر عبر القنوات، وراقب الأداء من نظام تشغيل براند واحد مدعوم بالذكاء الاصطناعي.'
+            : 'Plan content, publish across channels, and monitor performance from one AI-powered brand operating system.';
+        setMeta('og:title', document.title);
+        setMeta('og:description', desc);
+        setMeta('og:type', 'website');
+        setMeta('og:site_name', 'SBrandOps');
+    }, [pageId, isArabic]);
+
     const publicPlans = useMemo(() => PRICING_PLANS.filter(plan => DEFAULT_PUBLIC_PRICING_PLAN_IDS.includes(plan.id)), []);
     const primaryLabel = isAuthenticated ? (isArabic ? 'افتح التطبيق' : 'Open App') : (isArabic ? 'ابدأ التجربة المجانية' : 'Start Free Trial');
     const appLabel = isAuthenticated ? (isArabic ? 'اذهب إلى مساحة العمل' : 'Go to Workspace') : primaryLabel;
-    const contactLabel = isArabic ? 'احجز عرضًا مباشرًا' : 'Book Demo';
+    const contactLabel = isArabic ? 'تواصل معنا' : 'Contact Us';
     const primaryCtaAction = () => navigate(isAuthenticated ? '/app' : '/register');
 
     const navItems = [
-        { id: 'home' as const, label: isArabic ? 'الرئيسية' : 'Home', href: publicPageToPath('home') },
-        { id: 'about' as const, label: isArabic ? 'من نحن' : 'About', href: publicPageToPath('about') },
-        { id: 'pricing' as const, label: isArabic ? 'الأسعار' : 'Pricing', href: publicPageToPath('pricing') },
-        { id: 'contact' as const, label: isArabic ? 'تواصل معنا' : 'Contact', href: publicPageToPath('contact') },
+        { id: 'home' as const,     label: isArabic ? 'الرئيسية' : 'Home',     href: publicPageToPath('home') },
+        { id: 'features' as const, label: isArabic ? 'المميزات' : 'Features',  href: publicPageToPath('features') },
+        { id: 'pricing' as const,  label: isArabic ? 'الأسعار' : 'Pricing',   href: publicPageToPath('pricing') },
+        { id: 'about' as const,    label: isArabic ? 'من نحن' : 'About',      href: publicPageToPath('about') },
+        { id: 'contact' as const,  label: isArabic ? 'تواصل معنا' : 'Contact', href: publicPageToPath('contact') },
     ];
 
     const handlePlanCheckout = async (planId: string) => {
@@ -451,29 +510,40 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                             <div className="mt-8 flex flex-wrap gap-3">
                                 <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 hover:bg-blue-500">
                                     {primaryLabel}
-                                    <i className="fas fa-arrow-right text-xs transition-transform group-hover:translate-x-0.5" />
+                                    <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
                                 </button>
                                 <Link to={publicPageToPath('contact')} className="inline-flex items-center gap-2 rounded-[14px] border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:border-white/30 hover:bg-white/10">
                                     <i className="fas fa-calendar-check text-xs text-cyan-400" />
                                     {contactLabel}
                                 </Link>
                             </div>
-                            <div className="mt-10">
-                                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/25">{isArabic ? 'تكاملات أساسية' : 'Core integrations'}</p>
-                                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-                                    {['Meta', 'Instagram', 'TikTok', 'LinkedIn', 'Google', 'Shopify'].map(name => (
-                                        <span key={name} className="text-xs font-semibold text-white/30">{name}</span>
-                                    ))}
-                                </div>
+                            <p className="mt-5 text-[11px] text-white/30">
+                                {isArabic ? '🔒 لا بطاقة ائتمانية · ألغِ متى تشاء · مبني للسوق العربي' : '🔒 No credit card required · Cancel anytime · Built Arabic-First'}
+                            </p>
+                            <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
+                                {[
+                                    { val: '+200',  lAr: 'براند نشط',      lEn: 'Active Brands' },
+                                    { val: '50K+',  lAr: 'منشور جُدوِل',   lEn: 'Posts Scheduled' },
+                                    { val: '10',    lAr: 'وحدة متكاملة',   lEn: 'Integrated Modules' },
+                                ].map(stat => (
+                                    <div key={stat.val}>
+                                        <p className="text-xl font-black text-white">{stat.val}</p>
+                                        <p className="mt-0.5 text-[10px] text-white/35">{isArabic ? stat.lAr : stat.lEn}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <HeroDashboardMock />
+                        <div className="hidden lg:block">
+                            <HeroDashboardMock />
+                        </div>
                     </div>
                 </div>
             </section>
+            <div className="pointer-events-none -mt-6 h-12 bg-gradient-to-b from-[#070B1F]/20 to-transparent dark:from-[#070B1F]/40" />
 
             {/* PROBLEM */}
             <section className="py-20">
+                <FadeInSection>
                 <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المشكلة' : 'The Problem'}</p>
@@ -500,10 +570,12 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         ))}
                     </div>
                 </div>
+                </FadeInSection>
             </section>
 
             {/* MODULES GRID */}
             <section id="product" className="py-20">
+                <FadeInSection>
                 <div className="mb-12">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'النظام' : 'The System'}</p>
                     <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
@@ -526,7 +598,43 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         </div>
                     ))}
                 </div>
+                </FadeInSection>
             </section>
+
+            {/* ARABIC-FIRST */}
+            <div className="mb-4 overflow-hidden rounded-[20px] border border-blue-500/20 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-cyan-500/5 px-8 py-8 dark:border-blue-500/15 dark:from-blue-500/8 dark:via-indigo-500/5 dark:to-cyan-500/5">
+                <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                    <div>
+                        <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-600 dark:text-blue-400">Arabic-First</span>
+                        </div>
+                        <h3 className="mt-3 text-2xl font-bold leading-snug text-slate-950 dark:text-white">
+                            {isArabic
+                                ? 'مبني للسوق العربي — لا مجرد ترجمة لأداة غربية.'
+                                : 'Built for the Arab market — not a translated Western tool.'}
+                        </h3>
+                        <p className="mt-2 max-w-xl text-sm leading-7 text-slate-500 dark:text-slate-400">
+                            {isArabic
+                                ? 'واجهة RTL + LTR بالكامل، توليد محتوى عربي متقن، دعم أسواق MENA متعددة، وتشغيل متعدد البراندات داخل مساحة عمل واحدة.'
+                                : 'Full RTL + LTR interface, polished Arabic content generation, multi-market MENA support, and multi-brand operations inside one workspace.'}
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
+                        {[
+                            { icon: 'fa-language',     ar: 'Arabic + English UI',      en: 'Arabic + English UI' },
+                            { icon: 'fa-globe',        ar: 'دعم أسواق MENA',           en: 'MENA market support' },
+                            { icon: 'fa-building-2',   ar: 'تعدد البراندات',           en: 'Multi-brand workspace' },
+                            { icon: 'fa-wand-sparkles', ar: 'محتوى عربي بصوت البراند', en: 'Arabic brand-voice AI' },
+                        ].map(chip => (
+                            <span key={chip.en} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                                <i className={`fas ${chip.icon} text-[10px] text-blue-500`} />
+                                {isArabic ? chip.ar : chip.en}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </div>
 
             {/* AI LAYER */}
             <section className="relative overflow-hidden rounded-[2rem] bg-[#070B1F] px-8 py-20" style={{ margin: '0 -1.5rem' }}>
@@ -567,37 +675,49 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
 
             {/* HOW IT WORKS */}
             <section id="workflow" className="py-20">
+                <FadeInSection>
                 <div className="mb-12">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'طريقة العمل' : 'How It Works'}</p>
                     <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
                         {isArabic ? 'من إضافة البراند إلى التحسين المستمر في 6 خطوات' : 'From brand setup to continuous optimization in 6 steps.'}
                     </h2>
                 </div>
-                <div className="space-y-3">
+                <div className="flex flex-col">
                     {WORKFLOW_STEPS.map((step, i) => (
-                        <div key={i} className="grid gap-4 rounded-[20px] border border-slate-200 bg-white p-5 transition-all hover:border-blue-500/30 dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[64px_1fr_2fr] lg:items-center lg:gap-6">
-                            <div className="flex items-center gap-3 lg:block lg:text-center">
-                                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)]">
-                                    <i className={`fas ${step.icon} text-sm`} />
+                        <React.Fragment key={i}>
+                            <div className="grid gap-4 rounded-[20px] border border-slate-200 bg-white p-5 transition-all hover:border-blue-500/30 dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[64px_1fr_2fr] lg:items-center lg:gap-6">
+                                <div className="flex items-center gap-3 lg:block lg:text-center">
+                                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)]">
+                                        <i className={`fas ${step.icon} text-sm`} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400 lg:mt-1 lg:block">{step.num}</span>
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-400 lg:mt-1 lg:block">{step.num}</span>
+                                <h3 className="text-base font-bold text-slate-950 dark:text-white">{isArabic ? step.ar : step.en}</h3>
+                                <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? step.aSub : step.eSub}</p>
                             </div>
-                            <h3 className="text-base font-bold text-slate-950 dark:text-white">{isArabic ? step.ar : step.en}</h3>
-                            <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? step.aSub : step.eSub}</p>
-                        </div>
+                            {i < WORKFLOW_STEPS.length - 1 && (
+                                <div className="flex items-center gap-1 py-1 ps-6">
+                                    <div className="h-4 w-px bg-gradient-to-b from-blue-500/40 to-blue-500/10" />
+                                    <i className="fas fa-chevron-down -ms-px text-[8px] text-blue-500/40" />
+                                </div>
+                            )}
+                        </React.Fragment>
                     ))}
                 </div>
+                </FadeInSection>
             </section>
 
             {/* BEFORE / AFTER */}
             <section className="py-20">
+                <FadeInSection>
                 <div className="mb-12">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'قبل وبعد' : 'Before vs After'}</p>
                     <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
                         {isArabic ? 'من فوضى الأدوات إلى نظام تشغيل واحد' : 'From scattered tools to one operating system.'}
                     </h2>
                 </div>
-                <div className="overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-800">
+                <div className="overflow-x-auto rounded-[20px] border border-slate-200 dark:border-slate-800">
+                  <div className="min-w-[520px]">
                     <div className="grid grid-cols-[44px_1fr_1fr] bg-slate-50 dark:bg-[#0c1321]">
                         <div />
                         <div className="border-x border-slate-200 px-5 py-3 dark:border-slate-800">
@@ -623,11 +743,14 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                             </div>
                         </div>
                     ))}
+                  </div>
                 </div>
+                </FadeInSection>
             </section>
 
             {/* USE CASES */}
             <section className="py-20">
+                <FadeInSection>
                 <div className="mb-12">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'حالات الاستخدام' : 'Use Cases'}</p>
                     <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
@@ -648,10 +771,12 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         </div>
                     ))}
                 </div>
+                </FadeInSection>
             </section>
 
             {/* INTEGRATIONS */}
             <section className="rounded-[20px] border border-slate-200 bg-white px-8 py-14 dark:border-slate-800 dark:bg-slate-900">
+                <FadeInSection>
                 <div className="mb-8 text-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'التكاملات' : 'Integrations'}</p>
                     <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'اربط الأدوات التي تستخدمها بالفعل' : 'Connect the tools you already use.'}</h2>
@@ -667,10 +792,12 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         <span className="text-sm text-slate-400">{isArabic ? '+ المزيد قريبًا' : '+ More coming'}</span>
                     </div>
                 </div>
+                </FadeInSection>
             </section>
 
             {/* SOCIAL PROOF */}
             <section className="py-20">
+                <FadeInSection>
                 <div className="mb-12">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'أثر تشغيلي واضح' : 'Operational Proof'}</p>
                     <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
@@ -702,6 +829,7 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         </div>
                     ))}
                 </div>
+                </FadeInSection>
             </section>
 
             {/* PRICING PREVIEW */}
@@ -758,19 +886,20 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
 
             {/* FAQ */}
             <section id="faq" className="py-20">
+                <FadeInSection>
                 <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'الأسئلة الشائعة' : 'FAQ'}</p>
                         <h2 className="mt-4 text-3xl font-bold leading-snug text-slate-950 dark:text-white">{isArabic ? 'الأسئلة الأساسية قبل الاشتراك' : 'Core questions before you sign up.'}</h2>
                         <p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'لم تجد إجابة؟ تواصل معنا مباشرة.' : "Didn't find your answer? Talk to us directly."}</p>
                         <Link to={publicPageToPath('contact')} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
-                            {isArabic ? 'تواصل معنا' : 'Contact us'} <i className="fas fa-arrow-right text-xs" />
+                            {isArabic ? 'تواصل معنا' : 'Contact us'} <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs`} />
                         </Link>
                     </div>
                     <div className="space-y-2">
                         {FAQ_ITEMS.map((item, i) => (
                             <div key={i} className="overflow-hidden rounded-[20px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="flex w-full items-center justify-between px-5 py-4" style={{ textAlign: isArabic ? 'right' : 'left' }}>
+                                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i} className="flex w-full items-center justify-between px-5 py-4" style={{ textAlign: isArabic ? 'right' : 'left' }}>
                                     <span className="text-sm font-semibold text-slate-950 dark:text-white">{isArabic ? item.arQ : item.enQ}</span>
                                     <i className={`fas fa-chevron-down ms-3 flex-shrink-0 text-xs text-slate-400 transition-transform duration-200 ${openFaq === i ? 'rotate-180' : ''}`} />
                                 </button>
@@ -783,6 +912,7 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         ))}
                     </div>
                 </div>
+                </FadeInSection>
             </section>
 
             {/* BOTTOM CTA */}
@@ -805,12 +935,15 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                     </p>
                     <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                         <button onClick={primaryCtaAction} className="inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 hover:bg-blue-500">
-                            {primaryLabel} <i className="fas fa-arrow-right text-xs" />
+                            {primaryLabel} <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs`} />
                         </button>
                         <Link to={publicPageToPath('contact')} className="inline-flex items-center gap-2 rounded-[14px] border border-white/15 px-7 py-3.5 text-sm font-semibold text-white transition-all hover:border-white/30 hover:bg-white/5">
                             {contactLabel}
                         </Link>
                     </div>
+                    <p className="mt-4 text-[11px] text-white/30">
+                        {isArabic ? 'لا بطاقة ائتمانية مطلوبة · ألغِ الاشتراك متى تشاء' : 'No credit card required · Cancel anytime'}
+                    </p>
                 </div>
             </section>
         </>
@@ -1050,13 +1183,397 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
         );
     };
 
+    // ── FEATURES ──────────────────────────────────────────────────────────────
+    const renderFeatures = () => {
+        const DETAILED_MODULES = [
+            { icon: 'fa-fingerprint', color: 'bg-cyan-500/15 text-cyan-400', title: 'Brand Hub', arFeatures: ['هوية البراند وصوته وقيمه في مرجع AI حي', 'مكتبة الأصول: ألوان، خطوط، لوجو', 'تسجيل الجمهور المستهدف وشخصياته', 'نقاط البيع الأساسية وإرشادات الاتساق'], enFeatures: ['AI-powered brand identity, voice & values reference', 'Asset library: colors, fonts, logos', 'Target audience profiles & personas', 'Key selling points & consistency guidelines'] },
+            { icon: 'fa-brain', color: 'bg-indigo-500/15 text-indigo-400', title: 'Campaign Brain', arFeatures: ['من الهدف إلى الاستراتيجية التسويقية تلقائياً', 'تقويم محتوى مولود بالذكاء الاصطناعي', 'تحديد KPIs وقياس الأداء', 'ربط الحملات بالميزانية والنتائج الفعلية'], enFeatures: ['Goal → marketing strategy auto-generation', 'AI-generated content calendar', 'KPI definition & performance tracking', 'Budget-linked campaign results tracking'] },
+            { icon: 'fa-pen-nib', color: 'bg-blue-500/15 text-blue-400', title: 'Content Studio', arFeatures: ['14 مهارة محتوى: تغريدات، ريلز، مقالات، إعلانات', 'Kanban: من الفكرة إلى الموافقة إلى النشر', 'توليد بصوت البراند دائماً', 'تعاون الفريق مع تعليقات وإصدارات'], enFeatures: ['14 content skills: captions, reels, articles, ads', 'Kanban: idea → approval → publish pipeline', 'All output in brand voice automatically', 'Team collaboration with comments & versions'] },
+            { icon: 'fa-share-nodes', color: 'bg-violet-500/15 text-violet-400', title: 'Social Publishing', arFeatures: ['جدولة ونشر على Instagram, TikTok, Meta, LinkedIn', 'تخصيص المنشور لكل منصة تلقائياً', 'جدول نشر بصري (Calendar view)', 'مراقبة التفاعل بعد النشر'], enFeatures: ['Schedule & publish to Instagram, TikTok, Meta, LinkedIn', 'Auto-customize post format per platform', 'Visual publishing calendar', 'Post-publish engagement monitoring'] },
+            { icon: 'fa-rectangle-ad', color: 'bg-orange-500/15 text-orange-400', title: 'Ads Ops', arFeatures: ['مراقبة أداء Meta Ads و Google Ads', 'توصيات التوسع والتوقف مبنية على البيانات', 'توليد نسخ إعلانية بصوت البراند', 'تقارير ROAS وتكلفة الاكتساب'], enFeatures: ['Meta Ads & Google Ads performance monitoring', 'Data-driven scaling & pause recommendations', 'AI ad copy generation in brand voice', 'ROAS & cost-per-acquisition reports'] },
+            { icon: 'fa-magnifying-glass-chart', color: 'bg-emerald-500/15 text-emerald-400', title: 'SEO Ops', arFeatures: ['توليد SEO briefs من الكلمات المفتاحية تلقائياً', 'تتبع ترتيب المقالات في نتائج البحث', 'ربط GA4 لتحليل حركة المرور', 'توصيات تحسين المحتوى الموجه للبحث'], enFeatures: ['Auto SEO brief generation from keywords', 'Article ranking tracker in search results', 'GA4 integration for traffic analysis', 'Search-optimized content improvement tips'] },
+            { icon: 'fa-inbox', color: 'bg-cyan-500/15 text-cyan-400', title: 'Inbox Ops', arFeatures: ['بريد وارد موحد: تعليقات + رسائل + تذاكر', 'تحليل المشاعر التلقائي لكل رسالة', 'توجيه ذكي للردود بحسب الأولوية', 'إنشاء عملاء محتملين في CRM من المحادثات'], enFeatures: ['Unified inbox: comments + DMs + tickets', 'Auto sentiment analysis per message', 'Smart reply routing by priority', 'CRM lead creation from conversations'] },
+            { icon: 'fa-robot', color: 'bg-purple-500/15 text-purple-400', title: 'Smart Bot', arFeatures: ['6 سيناريوهات مبيعات جاهزة للتخصيص', 'يرد بصوت البراند الأصيل تلقائياً', 'يتعلم من المحادثات لتحسين الردود', 'تسليم سلس للدعم البشري عند الحاجة'], enFeatures: ['6 ready-to-customize sales scenarios', 'Auto-replies in authentic brand voice', 'Learns from conversations to improve', 'Seamless handoff to human support'] },
+            { icon: 'fa-chart-mixed', color: 'bg-blue-500/15 text-blue-400', title: 'Analytics Hub', arFeatures: ['8 تابات: Social, Ads, SEO, GA4, Email وأكثر', 'رؤى AI تحوّل البيانات إلى قرارات', 'مقارنة الفترات الزمنية والاتجاهات', 'تقارير PDF قابلة للتصدير'], enFeatures: ['8 tabs: Social, Ads, SEO, GA4, Email & more', 'AI insights turning data into decisions', 'Period comparisons & trend analysis', 'Exportable PDF reports'] },
+            { icon: 'fa-circle-nodes', color: 'bg-slate-400/15 text-slate-400', title: 'Integrations OS', arFeatures: ['ربط المنصات مع تسجيل نوع الأصل ووظيفته', 'مراقبة صحة كل تكامل في الوقت الفعلي', 'تحديث Tokens تلقائي بدون انقطاع', 'دعم 11+ منصة: Meta, TikTok, Google, Shopify وأكثر'], enFeatures: ['Connect platforms with asset type & purpose registry', 'Real-time integration health monitoring', 'Auto token refresh without downtime', '11+ platforms: Meta, TikTok, Google, Shopify & more'] },
+        ];
+        const COMPARE_ROWS = [
+            { feature: isArabic ? 'دعم العربية RTL' : 'Arabic RTL support',      sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Brand Brain AI' : 'Brand Brain AI memory',     sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Campaign Brain' : 'Campaign Brain planning',   sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Smart Bot مبيعات' : 'Sales smart bot',         sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'SEO Ops مدمج' : 'Built-in SEO Ops',           sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'CRM داخلي' : 'Built-in CRM',                  sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Ads Analytics مدمج' : 'Integrated Ads Analytics', sbo: true, hootsuite: true, buffer: false },
+            { feature: isArabic ? 'جدولة متعددة القنوات' : 'Multi-channel scheduling', sbo: true, hootsuite: true, buffer: true },
+            { feature: isArabic ? 'تحليلات الأداء' : 'Performance analytics',    sbo: true,  hootsuite: true,  buffer: true },
+            { feature: isArabic ? 'تعاون الفريق' : 'Team collaboration',         sbo: true,  hootsuite: true,  buffer: true },
+        ];
+        const Check = ({ v }: { v: boolean }) => v
+            ? <i className="fas fa-check text-cyan-400" />
+            : <i className="fas fa-xmark text-slate-600" />;
+        return (
+            <>
+                {/* Hero */}
+                <section className="py-16">
+                    <div className="text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المميزات الكاملة' : 'Full Feature Set'}</p>
+                        <h1 className="mt-4 text-4xl font-black text-slate-950 dark:text-white md:text-5xl">{isArabic ? 'كل ما تحتاجه لتشغيل البراند' : 'Everything you need to run your brand'}</h1>
+                        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? '10 وحدات متكاملة، كل واحدة مبنية لتحل مشكلة تشغيلية حقيقية — وكلها تعمل معاً بدون تنسيق يدوي.' : '10 integrated modules, each built to solve a real operational problem — all working together without manual coordination.'}</p>
+                        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                            <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">{primaryLabel}</button>
+                            <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'شاهد العرض التجريبي' : 'Watch Demo'}</Link>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Modules grid */}
+                <section className="py-8">
+                    <div className="grid gap-5 md:grid-cols-2">
+                        {DETAILED_MODULES.map(mod => (
+                            <div key={mod.title} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                <div className="mb-4 flex items-center gap-3">
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${mod.color}`}>
+                                        <i className={`fas ${mod.icon} text-lg`} />
+                                    </div>
+                                    <h3 className="text-base font-bold text-slate-950 dark:text-white">{mod.title}</h3>
+                                </div>
+                                <ul className="space-y-2">
+                                    {(isArabic ? mod.arFeatures : mod.enFeatures).map(f => (
+                                        <li key={f} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                            <i className="fas fa-circle-check mt-0.5 flex-shrink-0 text-xs text-cyan-500" />
+                                            {f}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Comparison table */}
+                <section className="py-16">
+                    <div className="mb-8 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المقارنة' : 'Comparison'}</p>
+                        <h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">{isArabic ? 'SBrandOps مقابل البدائل' : 'SBrandOps vs. Alternatives'}</h2>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{isArabic ? 'لماذا الفرق العربية تختار SBrandOps؟' : 'Why teams choose SBrandOps over existing tools'}</p>
+                    </div>
+                    <div className="overflow-x-auto rounded-[20px] border border-slate-200 dark:border-slate-800">
+                        <table className="w-full min-w-[560px] text-sm">
+                            <thead>
+                                <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+                                    <th className="px-5 py-3.5 text-start font-semibold text-slate-700 dark:text-slate-200 w-1/2">{isArabic ? 'الميزة' : 'Feature'}</th>
+                                    <th className="px-5 py-3.5 text-center font-bold text-blue-600 dark:text-blue-400">SBrandOps</th>
+                                    <th className="px-5 py-3.5 text-center font-semibold text-slate-500">Hootsuite</th>
+                                    <th className="px-5 py-3.5 text-center font-semibold text-slate-500">Buffer</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {COMPARE_ROWS.map((row, i) => (
+                                    <tr key={row.feature} className={`border-b border-slate-100 dark:border-slate-800/60 ${i % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-900/30'}`}>
+                                        <td className="px-5 py-3 text-slate-700 dark:text-slate-200">{row.feature}</td>
+                                        <td className="px-5 py-3 text-center"><Check v={row.sbo} /></td>
+                                        <td className="px-5 py-3 text-center"><Check v={row.hootsuite} /></td>
+                                        <td className="px-5 py-3 text-center"><Check v={row.buffer} /></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                {/* Bottom CTA */}
+                <section className="mb-8 rounded-[2rem] bg-[#070B1F] px-8 py-14 text-center">
+                    <h2 className="text-3xl font-black text-white">{isArabic ? 'جاهز لتجربة الفرق؟' : 'Ready to experience the difference?'}</h2>
+                    <p className="mt-3 text-sm text-white/50">{isArabic ? 'انضم اليوم — لا بطاقة ائتمانية مطلوبة.' : 'Join today — no credit card required.'}</p>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                        <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition-colors">{primaryLabel}</button>
+                        <Link to={publicPageToPath('pricing')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض الأسعار' : 'View Pricing'}</Link>
+                    </div>
+                </section>
+            </>
+        );
+    };
+
+    // ── FOR AGENCIES ──────────────────────────────────────────────────────────
+    const renderForAgencies = () => {
+        const PAIN_POINTS = [
+            { icon: 'fa-layer-group', ar: 'فوضى الأدوات المتعددة', en: 'Tool fragmentation chaos', dAr: 'كل عميل يحتاج أدوات منفصلة — وانتقال الفريق بينها يضيع 30% من وقت التسليم.', dEn: 'Every client needs separate tools — switching eats 30% of your delivery time.' },
+            { icon: 'fa-user-slash', ar: 'ضعف اتساق البراند', en: 'Inconsistent brand voice', dAr: 'الحفاظ على هوية كل عميل عبر كاتبين وعشر منصات شبه مستحيل.', dEn: 'Maintaining each client\'s identity across writers and 10 platforms is nearly impossible.' },
+            { icon: 'fa-chart-bar', ar: 'تقارير التسليم مؤلمة', en: 'Reporting is painful', dAr: 'جمع البيانات من منصات مختلفة وتنسيق تقارير العملاء يستهلك أياماً كاملة.', dEn: 'Collecting data from multiple platforms and formatting client reports consumes full days.' },
+            { icon: 'fa-people-arrows', ar: 'قابلية التوسع محدودة', en: 'Limited scalability', dAr: 'كل عميل جديد يعني عبء إدارة إضافي — لا تستطيع النمو بدون توظيف مستمر.', dEn: 'Every new client adds management overhead — you can\'t scale without constant hiring.' },
+        ];
+        const SOLUTIONS = [
+            { icon: 'fa-fingerprint', ar: 'مساحة عمل منفصلة لكل عميل', en: 'Separate workspace per client', dAr: 'Brand Hub لكل عميل مع هويته وأصوله وجمهوره المستهدف.', dEn: 'Brand Hub per client with their own identity, assets, and target audience.' },
+            { icon: 'fa-brain', ar: 'AI يعرف صوت كل عميل', en: 'AI that knows each client\'s voice', dAr: 'كل طلب محتوى يمر عبر Brand Brain المخصص للعميل — اتساق تلقائي.', dEn: 'Every content request passes through that client\'s Brand Brain — automatic consistency.' },
+            { icon: 'fa-chart-mixed', ar: 'تقارير جاهزة للعملاء', en: 'Client-ready reports in one click', dAr: 'Analytics Hub يجمع كل منصات العميل في تقرير واحد قابل للتصدير.', dEn: 'Analytics Hub unifies all client platforms in one exportable report.' },
+            { icon: 'fa-rocket', ar: 'إنتاج محتوى أسرع 3×', en: '3× faster content production', dAr: 'Content Studio مع 14 مهارة AI تختصر وقت الكتابة من ساعات إلى دقائق.', dEn: 'Content Studio with 14 AI skills cuts writing time from hours to minutes.' },
+        ];
+        return (
+            <>
+                <section className="py-16">
+                    <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'للوكالات التسويقية' : 'For Marketing Agencies'}</p>
+                            <h1 className="mt-4 text-4xl font-black leading-tight text-slate-950 dark:text-white md:text-5xl">
+                                {isArabic ? <>أدر عشرات العملاء<br /><span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">من نظام تشغيل واحد</span></> : <>Manage dozens of clients<br /><span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">from one operating system</span></>}
+                            </h1>
+                            <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'SBrandOps صُمّم للوكالات التي تدير براندات متعددة — كل عميل له مساحة عمل منفصلة، وكل المحتوى يُنتج بصوت البراند الصحيح.' : 'SBrandOps is built for agencies managing multiple brands — each client has a separate workspace, and all content is generated in the right brand voice.'}</p>
+                            <div className="mt-8 flex flex-wrap gap-3">
+                                <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">{primaryLabel}</button>
+                                <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'احجز عرضاً' : 'Book Demo'}</Link>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {[{ num: '+200', ar: 'براند مدار', en: 'brands managed' }, { num: '10×', ar: 'سرعة الإنتاج', en: 'faster production' }, { num: '5 دقائق', ar: 'لتقرير العميل', en: 'client report' }, { num: '100%', ar: 'اتساق البراند', en: 'brand consistency' }].map(s => (
+                                <div key={s.num} className="rounded-[20px] border border-slate-200 bg-white p-5 text-center dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{s.num}</p>
+                                    <p className="mt-1 text-xs text-slate-500">{isArabic ? s.ar : s.en}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="py-8">
+                    <div className="mb-8">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-red-500">{isArabic ? 'المشكلة' : 'The Problem'}</p>
+                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'ما تعاني منه الوكالات اليوم' : 'What agencies struggle with today'}</h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {PAIN_POINTS.map(p => (
+                            <div key={p.en} className="flex gap-4 rounded-[20px] border border-red-100 bg-red-50/50 p-5 dark:border-red-900/30 dark:bg-red-900/10">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                                    <i className={`fas ${p.icon} text-red-500`} />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? p.ar : p.en}</p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? p.dAr : p.dEn}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="py-8">
+                    <div className="mb-8">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-cyan-500">{isArabic ? 'الحل' : 'The Solution'}</p>
+                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'كيف يحل SBrandOps المشكلة' : 'How SBrandOps solves it'}</h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {SOLUTIONS.map(s => (
+                            <div key={s.en} className="flex gap-4 rounded-[20px] border border-cyan-100 bg-cyan-50/40 p-5 dark:border-cyan-900/30 dark:bg-cyan-900/10">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-900/40">
+                                    <i className={`fas ${s.icon} text-cyan-600 dark:text-cyan-400`} />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? s.ar : s.en}</p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? s.dAr : s.dEn}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="mb-8 rounded-[2rem] bg-[#070B1F] px-8 py-14 text-center">
+                    <h2 className="text-3xl font-black text-white">{isArabic ? 'ابدأ إدارة عملائك بنظام واحد' : 'Start managing all your clients in one system'}</h2>
+                    <p className="mt-3 text-sm text-white/50">{isArabic ? 'وفّر ساعات أسبوعية لفريقك واضبط معايير البراند لكل عميل.' : 'Save hours weekly for your team and set brand standards for every client.'}</p>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                        <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition-colors">{primaryLabel}</button>
+                        <Link to={publicPageToPath('pricing')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض الأسعار' : 'View Pricing'}</Link>
+                    </div>
+                </section>
+            </>
+        );
+    };
+
+    // ── FOR ECOMMERCE ─────────────────────────────────────────────────────────
+    const renderForEcommerce = () => {
+        const PAIN_POINTS = [
+            { icon: 'fa-cart-arrow-down', ar: 'إعلانات وتحليلات منفصلة', en: 'Ads and analytics disconnected', dAr: 'لا يمكن ربط إنفاق الإعلانات بالمبيعات الفعلية من داشبورد واحد.', dEn: 'You can\'t link ad spend to actual sales from one dashboard.' },
+            { icon: 'fa-pen-slash', ar: 'إنتاج محتوى بطيء', en: 'Slow content production', dAr: 'كتابة نسخ المنتجات والإعلانات والبريد الإلكتروني يدوياً يستهلك الوقت كله.', dEn: 'Writing product copy, ads, and emails manually consumes all your time.' },
+            { icon: 'fa-headset', ar: 'الرد على العملاء متشتت', en: 'Scattered customer conversations', dAr: 'تعليقات Instagram ورسائل Facebook والتذاكر في أماكن مختلفة — لا تتابع حقيقي.', dEn: 'Instagram comments, Facebook messages, and tickets scattered — no real follow-up.' },
+            { icon: 'fa-fingerprint', ar: 'البراند لا يظهر بشكل متسق', en: 'Brand shows up inconsistently', dAr: 'كل منصة تبدو مختلفة لأن لا مرجع موحد لصوت البراند وأصوله.', dEn: 'Every platform looks different because there\'s no unified brand voice reference.' },
+        ];
+        const SOLUTIONS = [
+            { icon: 'fa-rectangle-ad', ar: 'Ads + Analytics في داشبورد واحد', en: 'Ads + Analytics in one dashboard', dAr: 'Ads Ops وAnalytics Hub مترابطان — ارى ROAS وقرارات التوسع في لحظة.', dEn: 'Ads Ops and Analytics Hub connected — see ROAS and scaling decisions instantly.' },
+            { icon: 'fa-wand-magic-sparkles', ar: 'نسخ منتجات وإعلانات بلحظات', en: 'Product copy & ads in seconds', dAr: 'Content Studio ينتج وصف المنتج والإعلان والبريد الإلكتروني بصوت البراند تلقائياً.', dEn: 'Content Studio generates product descriptions, ads, and emails in your brand voice.' },
+            { icon: 'fa-inbox', ar: 'بريد وارد موحد للعملاء', en: 'Unified customer inbox', dAr: 'كل الرسائل والتعليقات في Inbox Ops مع تحليل المشاعر وردود ذكية.', dEn: 'All messages and comments in Inbox Ops with sentiment analysis and smart replies.' },
+            { icon: 'fa-robot', ar: 'بوت مبيعات يعمل 24/7', en: 'Sales bot working 24/7', dAr: 'Smart Bot يرد على استفسارات المنتجات، يكمل المبيعات، ويحول بأسلوب البراند.', dEn: 'Smart Bot answers product inquiries, completes sales, and converts in brand style.' },
+        ];
+        return (
+            <>
+                <section className="py-16">
+                    <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{isArabic ? 'للتجارة الإلكترونية' : 'For E-commerce'}</p>
+                            <h1 className="mt-4 text-4xl font-black leading-tight text-slate-950 dark:text-white md:text-5xl">
+                                {isArabic ? <>حوّل الإنفاق الإعلاني<br /><span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">إلى إيرادات قابلة للقياس</span></> : <>Turn ad spend into<br /><span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">measurable revenue</span></>}
+                            </h1>
+                            <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'ربط الإعلانات بالمحتوى بالتحليلات بالعملاء في نظام واحد — هذا ما يحتاجه متجرك لاتخاذ قرارات أسرع وتحقيق نمو أعلى.' : 'Connecting ads to content to analytics to customers in one system — that\'s what your store needs to make faster decisions and achieve higher growth.'}</p>
+                            <div className="mt-8 flex flex-wrap gap-3">
+                                <button onClick={primaryCtaAction} className="rounded-[14px] bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 hover:bg-orange-400 transition-all">{primaryLabel}</button>
+                                <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'احجز عرضاً' : 'Book Demo'}</Link>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {[{ num: '3.2×', ar: 'متوسط تحسين ROAS', en: 'avg. ROAS improvement' }, { num: '-60%', ar: 'وقت إنتاج المحتوى', en: 'content production time' }, { num: '24/7', ar: 'Smart Bot نشط', en: 'Smart Bot active' }, { num: '1 لوحة', ar: 'للإعلانات والتحليلات', en: 'for ads & analytics' }].map(s => (
+                                <div key={s.num} className="rounded-[20px] border border-slate-200 bg-white p-5 text-center dark:border-slate-800 dark:bg-slate-900">
+                                    <p className="text-3xl font-black text-orange-500">{s.num}</p>
+                                    <p className="mt-1 text-xs text-slate-500">{isArabic ? s.ar : s.en}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="py-8">
+                    <div className="mb-8">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-red-500">{isArabic ? 'المشكلة' : 'The Problem'}</p>
+                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'ما يعاني منه متجرك اليوم' : 'What your store struggles with today'}</h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {PAIN_POINTS.map(p => (
+                            <div key={p.en} className="flex gap-4 rounded-[20px] border border-red-100 bg-red-50/50 p-5 dark:border-red-900/30 dark:bg-red-900/10">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                                    <i className={`fas ${p.icon} text-red-500`} />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? p.ar : p.en}</p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? p.dAr : p.dEn}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="py-8">
+                    <div className="mb-8">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{isArabic ? 'الحل' : 'The Solution'}</p>
+                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'كيف يُضاعف SBrandOps نمو متجرك' : 'How SBrandOps multiplies your store\'s growth'}</h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {SOLUTIONS.map(s => (
+                            <div key={s.en} className="flex gap-4 rounded-[20px] border border-orange-100 bg-orange-50/40 p-5 dark:border-orange-900/30 dark:bg-orange-900/10">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/40">
+                                    <i className={`fas ${s.icon} text-orange-500`} />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? s.ar : s.en}</p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? s.dAr : s.dEn}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="mb-8 rounded-[2rem] bg-[#070B1F] px-8 py-14 text-center">
+                    <h2 className="text-3xl font-black text-white">{isArabic ? 'ابدأ تحسين ROAS متجرك اليوم' : 'Start improving your store\'s ROAS today'}</h2>
+                    <p className="mt-3 text-sm text-white/50">{isArabic ? 'لا بطاقة ائتمانية — ابدأ التجربة المجانية وشاهد الفرق في أول أسبوع.' : 'No credit card — start free and see the difference in your first week.'}</p>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                        <button onClick={primaryCtaAction} className="rounded-[14px] bg-orange-500 px-7 py-3 text-sm font-semibold text-white hover:bg-orange-400 transition-colors">{primaryLabel}</button>
+                        <Link to={publicPageToPath('features')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض كل المميزات' : 'See All Features'}</Link>
+                    </div>
+                </section>
+            </>
+        );
+    };
+
+    // ── DEMO ──────────────────────────────────────────────────────────────────
+    const renderDemo = () => {
+        const DEMO_HIGHLIGHTS = [
+            { icon: 'fa-fingerprint',         ar: 'Brand Brain حي',         en: 'Live Brand Brain',            dAr: 'شاهد كيف يبني الذكاء الاصطناعي هوية براند كاملة من وصف بسيط.', dEn: 'See how AI builds a complete brand identity from a simple description.' },
+            { icon: 'fa-brain',               ar: 'خطة حملة بضغطة زر',     en: 'Campaign plan in one click',  dAr: 'من الهدف التسويقي إلى تقويم محتوى كامل في دقائق.', dEn: 'From marketing goal to a full content calendar in minutes.' },
+            { icon: 'fa-wand-magic-sparkles', ar: 'توليد محتوى فوري',       en: 'Instant content generation', dAr: '14 مهارة محتوى تعمل بصوت البراند — إعلان، ريل، بريف SEO.', dEn: '14 content skills in brand voice — ad, reel, SEO brief on demand.' },
+            { icon: 'fa-chart-mixed',         ar: 'Analytics Hub مدمج',     en: 'Unified Analytics Hub',       dAr: 'كل منصاتك في داشبورد واحد مع رؤى AI تشرح الأرقام.', dEn: 'All your platforms in one dashboard with AI insights explaining the numbers.' },
+        ];
+        return (
+            <section className="py-16">
+                <div className="mx-auto max-w-3xl text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'العرض التجريبي' : 'Book a Demo'}</p>
+                    <h1 className="mt-4 text-4xl font-black text-slate-950 dark:text-white">{isArabic ? 'شاهد SBrandOps في العمل' : 'See SBrandOps in action'}</h1>
+                    <p className="mt-4 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'احجز جلسة 30 دقيقة مع فريقنا ونريك كيف يعمل النظام على بياناتك الفعلية.' : 'Book a 30-minute session with our team and we\'ll show you the system working on your actual data.'}</p>
+                </div>
+
+                {/* What you'll see */}
+                <div className="mx-auto mt-12 max-w-2xl">
+                    <h2 className="mb-6 text-center text-lg font-bold text-slate-950 dark:text-white">{isArabic ? 'ما ستشاهده في العرض' : 'What you\'ll see in the demo'}</h2>
+                    <div className="space-y-3">
+                        {DEMO_HIGHLIGHTS.map(h => (
+                            <div key={h.en} className="flex items-start gap-4 rounded-[16px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+                                    <i className={`fas ${h.icon} text-blue-500`} />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? h.ar : h.en}</p>
+                                    <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{isArabic ? h.dAr : h.dEn}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Calendly embed placeholder */}
+                <div className="mx-auto mt-12 max-w-3xl">
+                    <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                        <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+                            <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? 'احجز موعدك' : 'Schedule your session'}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">{isArabic ? '30 دقيقة · عبر Google Meet أو Zoom' : '30 minutes · Google Meet or Zoom'}</p>
+                        </div>
+                        {/* Calendly inline widget — replace data-url with your real Calendly link */}
+                        <div
+                            className="calendly-inline-widget min-h-[500px] w-full"
+                            data-url="https://calendly.com/sbrandops/demo?hide_gdpr_banner=1&background_color=ffffff&text_color=0f172a&primary_color=2563EB"
+                        />
+                        <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async />
+                    </div>
+                    <p className="mt-4 text-center text-xs text-slate-400">{isArabic ? 'أو تواصل معنا مباشرة:' : 'Or reach us directly:'} <a href="mailto:demo@sbrandops.com" className="text-blue-600 hover:underline dark:text-blue-400">demo@sbrandops.com</a></p>
+                </div>
+            </section>
+        );
+    };
+
+    // ── THANK YOU ────────────────────────────────────────────────────────────
+    const renderThankYou = () => (
+        <section className="flex min-h-[70vh] items-center justify-center py-16">
+            <div className="mx-auto max-w-lg text-center">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-cyan-500/15">
+                    <i className="fas fa-circle-check text-4xl text-cyan-400" />
+                </div>
+                <h1 className="text-4xl font-black text-slate-950 dark:text-white">{isArabic ? 'شكراً لك!' : 'Thank you!'}</h1>
+                <p className="mt-4 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'استلمنا طلبك وسيتواصل معك فريقنا خلال 24 ساعة.' : 'We received your request and our team will be in touch within 24 hours.'}</p>
+                <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                    <Link to={publicPageToPath('home')} className="rounded-[14px] bg-blue-600 px-7 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition-colors">{isArabic ? 'العودة للرئيسية' : 'Back to Home'}</Link>
+                    <Link to="/register" className="rounded-[14px] border border-slate-300 px-7 py-3 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'ابدأ التجربة المجانية' : 'Start Free Trial'}</Link>
+                </div>
+                <div className="mt-12 grid grid-cols-3 gap-4 text-center">
+                    {[
+                        { icon: 'fa-rocket',       ar: 'لوحة تشغيل واحدة', en: 'One operating system' },
+                        { icon: 'fa-brain',         ar: 'AI مدرّب على بياناتك', en: 'AI trained on your data' },
+                        { icon: 'fa-chart-mixed',   ar: 'تحليلات موحدة', en: 'Unified analytics' },
+                    ].map(f => (
+                        <div key={f.en} className="rounded-[16px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                            <i className={`fas ${f.icon} text-xl text-blue-600 dark:text-blue-400`} />
+                            <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">{isArabic ? f.ar : f.en}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+
     const renderPage = () => {
         switch (pageId) {
-            case 'about': return renderAbout();
-            case 'pricing': return renderPricing();
-            case 'billing': return renderBilling();
-            case 'contact': return renderContact();
-            case 'security': return renderSecurity();
+            case 'about':        return renderAbout();
+            case 'features':     return renderFeatures();
+            case 'for-agencies': return renderForAgencies();
+            case 'for-ecommerce':return renderForEcommerce();
+            case 'demo':         return renderDemo();
+            case 'thank-you':    return renderThankYou();
+            case 'pricing':      return renderPricing();
+            case 'billing':      return renderBilling();
+            case 'contact':      return renderContact();
+            case 'security':     return renderSecurity();
             case 'terms':
             case 'privacy':
             case 'dpa':

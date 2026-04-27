@@ -79,7 +79,13 @@
       "Bash(node -e \"require\\('pdfjs-dist'\\)\")",
       "Bash(git status *)",
       "Bash(grep -E \"\\\\.\\(tsx?|sql\\)$\")",
-      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep -E \"\\\\.\\(toml|json\\)$\")",
+      "Bash(awk 'NR>=1213 && NR<=1480 {print NR\": \"$0}' components/pages/InboxPage.tsx)",
+      "Bash(grep -E \"^\\\\d+: *\\(<div|<\\\\/div|return \\\\\\(|\\\\\\);$|^};\\)\")",
+      "Bash(python3 -c ' *)"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

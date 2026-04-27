@@ -19,6 +19,10 @@ export interface Brand {
     id: string;
     name: string;
     logoUrl: string;
+    industry?: string;
+    country?: string;
+    websiteUrl?: string;
+    createdAt?: string;
 }
 
 export enum NotificationType {
@@ -113,6 +117,7 @@ export interface ConnectedAsset {
     token_expires_at?: string;
     token_is_valid: boolean;
     connection_status: string;
+    scopes_granted?: string[];
 }
 
 export const PLATFORM_ASSETS: { [key in SocialPlatform]: { icon: string; color: string; textColor: string; hexColor: string; } } = {
@@ -559,6 +564,19 @@ export interface AnalyticsData {
             indexedPages: number;
             lastFactDate: string | null;
         };
+        ads?: {
+            totalSpend: number;
+            totalImpressions: number;
+            totalClicks: number;
+            totalConversions: number;
+            totalConversionValue: number;
+            avgCtr: number;
+            avgCpc: number;
+            avgRoas: number;
+            providers: string[];
+            campaignCount: number;
+            lastInsightDate: string | null;
+        };
     };
     topPosts: PostPerformance[];
     followerGrowth: {
@@ -570,6 +588,36 @@ export interface AnalyticsData {
         rate: number;
     }[];
     platformBreakdown?: Record<string, { impressions: number; engagement: number }>;
+}
+
+export interface SEOQueryRow {
+    query: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    avgPosition: number;
+}
+
+export interface SEOPageRow {
+    pageUrl: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    avgPosition: number;
+}
+
+export interface SEOBreakdown {
+    topQueries: SEOQueryRow[];
+    topPages: SEOPageRow[];
+}
+
+export interface SyncJobStatus {
+    provider: string;
+    status: 'running' | 'success' | 'failed';
+    startedAt: string;
+    finishedAt: string | null;
+    recordsSynced: number;
+    errorMessage: string | null;
 }
 
 export interface BriefPerformanceRollup {
@@ -818,6 +866,47 @@ export enum ConversationType {
     Comment = 'Comment',
     Mention = 'Mention',
 }
+
+export type InboxItemType =
+    | 'dm'
+    | 'facebook_comment'
+    | 'instagram_comment'
+    | 'ad_comment'
+    | 'mention'
+    | 'story_reply';
+
+export type ReplyMode =
+    | 'dm'
+    | 'public_comment_reply'
+    | 'private_comment_reply'
+    | 'ad_comment_reply';
+
+export type OpportunityStage =
+    | 'new_inquiry'
+    | 'qualified_lead'
+    | 'price_sent'
+    | 'negotiation'
+    | 'order_confirmed'
+    | 'payment_pending'
+    | 'closed_won'
+    | 'closed_lost';
+
+export interface InboxOpportunity {
+    id: string;
+    stage: OpportunityStage;
+    value: number;
+    probability: number;
+    title: string;
+    status: 'open' | 'won' | 'lost' | 'on_hold';
+}
+
+export interface InboxFollowup {
+    id: string;
+    dueAt: Date;
+    type: string;
+    status: 'pending' | 'done' | 'overdue' | 'cancelled';
+    messageTemplate?: string;
+}
 export enum ConversationIntent {
     PurchaseInquiry = 'Purchase Inquiry',
     GeneralQuestion = 'General Question',
@@ -835,7 +924,7 @@ export interface InboxConversation {
     platform: SocialPlatform;
     type: ConversationType;
     user: { name: string; handle: string; avatarUrl: string };
-    messages: { id: string; sender: 'user' | 'agent'; text: string; timestamp: Date }[];
+    messages: { id: string; sender: 'user' | 'agent'; text: string; timestamp: Date; deliveryStatus?: 'sending' | 'sent' | 'failed' }[];
     lastMessageTimestamp: Date;
     isRead: boolean;
     assignee: string;
@@ -850,6 +939,18 @@ export interface InboxConversation {
     crmCustomerId?: string | null;
     accountName?: string | null;
     accountId?: string | null;
+    // Commercial intelligence (migration 046)
+    leadScore?: number;
+    itemType?: InboxItemType;
+    commercialIntent?: string;
+    productInterest?: string;
+    estimatedValue?: number;
+    nextBestAction?: string;
+    opportunity?: InboxOpportunity | null;
+    followups?: InboxFollowup[];
+    // Ad attribution
+    adCampaignId?: string | null;
+    adId?: string | null;
 }
 
 // --- Workflow & Integrations ---

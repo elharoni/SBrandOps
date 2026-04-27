@@ -2,14 +2,234 @@
 // Brand Knowledge Base — قاعدة معرفة البراند (المنتجات / FAQ / سياسات / منافسين / سكريبتات)
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { NotificationType, BrandKnowledgeEntry, BrandKnowledgeType } from '../../types';
+import { NotificationType, BrandKnowledgeEntry, BrandKnowledgeType, Brand } from '../../types';
 import {
     getBrandKnowledge,
     addKnowledgeEntry,
     updateKnowledgeEntry,
     deleteKnowledgeEntry,
+    getKnowledgeHistory,
+    KnowledgeHistoryEntry,
 } from '../../services/brandKnowledgeService';
+import { getBrandHubProfile } from '../../services/brandHubService';
+import { callAIProxy, AIQuotaError } from '../../services/aiProxy';
 import { useLanguage } from '../../context/LanguageContext';
+
+// ── AI Quick-Fill types ───────────────────────────────────────────────────────
+
+type SuggestionStatus = 'pending' | 'approved' | 'rejected' | 'editing';
+
+interface AISuggestion {
+    id: number;
+    title: string;
+    content: string;
+    status: SuggestionStatus;
+    editTitle: string;
+    editContent: string;
+}
+
+// ── AI prompt builder ─────────────────────────────────────────────────────────
+
+function buildAIPrompt(type: BrandKnowledgeType, brandName: string, industry: string, description: string, audience: string, values: string): string {
+    const context = `
+اسم البراند: ${brandName}
+الصناعة: ${industry || 'غير محدد'}
+وصف البراند: ${description || 'غير متوفر'}
+الجمهور المستهدف: ${audience || 'غير محدد'}
+قيم البراند: ${values || 'غير محدد'}
+`.trim();
+
+    if (type === 'product') {
+        return `أنت خبير تسويق ومحتوى. بناءً على معلومات البراند التالية، اقترح 6 إدخالات لقسم "المنتجات والخدمات" في قاعدة معرفة البراند.
+
+${context}
+
+المطلوب: أنشئ 6 إدخالات واقعية ومقنعة للمنتجات أو الخدمات التي قد يقدمها هذا البراند. كل إدخال يتضمن عنوان واضح ووصف يشمل الميزات الرئيسية والسعر التقريبي والجمهور المستهدف.
+
+أعد النتيجة بتنسيق JSON فقط — مصفوفة من الكائنات، كل كائن له: "title" (عنوان قصير) و"content" (وصف 50-150 كلمة). بدون أي نص خارج JSON.`;
+    }
+
+    if (type === 'faq') {
+        return `أنت خبير خدمة عملاء. بناءً على معلومات البراند التالية، اقترح 6 أسئلة شائعة مع إجاباتها لقاعدة المعرفة.
+
+${context}
+
+المطلوب: أنشئ 6 أسئلة يطرحها العملاء بشكل متكرر مع إجابات دقيقة وواضحة. ركز على الأسئلة المتعلقة بالسعر والشحن والضمان والدعم والخدمات.
+
+أعد النتيجة بتنسيق JSON فقط — مصفوفة من الكائنات، كل كائن له: "title" (السؤال) و"content" (الإجابة الكاملة 40-120 كلمة). بدون أي نص خارج JSON.`;
+    }
+
+    return `أنت خبير مبيعات وتواصل. بناءً على معلومات البراند التالية، اقترح 6 سكريبتات محادثة للرد على العملاء في سيناريوهات مختلفة.
+
+${context}
+
+المطلوب: أنشئ 6 سكريبتات جاهزة لسيناريوهات: استفسار عن المنتج، طلب خصم، شكوى، رد على اعتراض سعري، إغلاق بيع، ومتابعة ما بعد الشراء. كل سكريبت بأسلوب احترافي يناسب صوت البراند.
+
+أعد النتيجة بتنسيق JSON فقط — مصفوفة من الكائنات، كل كائن له: "title" (اسم السيناريو) و"content" (السكريبت الكامل 50-150 كلمة). بدون أي نص خارج JSON.`;
+}
+
+// ── AI Quick-Fill Modal ───────────────────────────────────────────────────────
+
+const AIQuickFillModal: React.FC<{
+    ar: boolean;
+    tabLabelAr: string;
+    tabLabelEn: string;
+    isGenerating: boolean;
+    suggestions: AISuggestion[];
+    isSaving: boolean;
+    onToggleStatus: (id: number, status: SuggestionStatus) => void;
+    onEditField: (id: number, field: 'editTitle' | 'editContent', value: string) => void;
+    onSave: () => void;
+    onClose: () => void;
+}> = ({ ar, tabLabelAr, tabLabelEn, isGenerating, suggestions, isSaving, onToggleStatus, onEditField, onSave, onClose }) => {
+    const approvedCount = suggestions.filter(s => s.status === 'approved').length;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-dark-border bg-dark-card shadow-2xl">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-dark-border px-6 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/15">
+                            <i className="fas fa-wand-magic-sparkles text-brand-secondary text-sm" />
+                        </div>
+                        <div>
+                            <p className="font-bold text-white text-sm">
+                                {ar ? 'توليد تلقائي بالذكاء الاصطناعي' : 'AI Quick-Fill'}
+                            </p>
+                            <p className="text-xs text-dark-text-secondary">
+                                {ar ? `تبويب: ${tabLabelAr}` : `Tab: ${tabLabelEn}`}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary hover:text-white transition-colors">
+                        <i className="fas fa-xmark text-sm" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+                    {isGenerating ? (
+                        <div className="py-20 text-center">
+                            <i className="fas fa-wand-magic-sparkles fa-spin text-3xl text-brand-secondary mb-4 block" />
+                            <p className="font-bold text-white">{ar ? 'AI يحلل ملف براندك...' : 'AI is analyzing your brand...'}</p>
+                            <p className="text-xs text-dark-text-secondary mt-1">{ar ? 'يستغرق 5-10 ثوانٍ' : 'Takes 5-10 seconds'}</p>
+                        </div>
+                    ) : suggestions.length === 0 ? (
+                        <div className="py-16 text-center text-dark-text-secondary">
+                            <i className="fas fa-circle-exclamation text-2xl mb-3 block" />
+                            <p className="text-sm">{ar ? 'لم يتم توليد اقتراحات.' : 'No suggestions generated.'}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-xs text-dark-text-secondary pb-1">
+                                {ar
+                                    ? `راجع الاقتراحات — وافق ✓ أو عدّل ✎ أو ارفض ✗ كل إدخال قبل الحفظ`
+                                    : `Review suggestions — approve ✓, edit ✎, or reject ✗ each entry before saving`}
+                            </p>
+                            {suggestions.map(s => (
+                                <div
+                                    key={s.id}
+                                    className={`rounded-2xl border p-4 transition-all ${
+                                        s.status === 'approved'  ? 'border-emerald-500/40 bg-emerald-500/5' :
+                                        s.status === 'rejected'  ? 'border-dark-border/30 bg-dark-bg/30 opacity-50' :
+                                        s.status === 'editing'   ? 'border-brand-primary/40 bg-brand-primary/5' :
+                                        'border-dark-border bg-dark-bg/40'
+                                    }`}
+                                >
+                                    {s.status === 'editing' ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                value={s.editTitle}
+                                                onChange={e => onEditField(s.id, 'editTitle', e.target.value)}
+                                                className="w-full rounded-xl border border-dark-border bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-brand-primary/60"
+                                            />
+                                            <textarea
+                                                value={s.editContent}
+                                                onChange={e => onEditField(s.id, 'editContent', e.target.value.slice(0, 3000))}
+                                                rows={3}
+                                                className="w-full resize-none rounded-xl border border-dark-border bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-brand-primary/60"
+                                            />
+                                            <button
+                                                onClick={() => onToggleStatus(s.id, 'approved')}
+                                                className="text-xs font-bold text-emerald-400 hover:text-emerald-300"
+                                            >
+                                                <i className="fas fa-check me-1" />
+                                                {ar ? 'حفظ التعديل' : 'Save Edit'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-start gap-3">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-white text-sm">{s.title}</p>
+                                                <p className="mt-1 text-xs text-dark-text-secondary leading-relaxed line-clamp-3">{s.content}</p>
+                                            </div>
+                                            <div className="flex flex-shrink-0 items-center gap-1">
+                                                <button
+                                                    onClick={() => onToggleStatus(s.id, s.status === 'approved' ? 'pending' : 'approved')}
+                                                    title={ar ? 'وافق' : 'Approve'}
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-colors ${
+                                                        s.status === 'approved'
+                                                            ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-400'
+                                                            : 'border-dark-border text-dark-text-secondary hover:border-emerald-500/40 hover:text-emerald-400'
+                                                    }`}
+                                                >
+                                                    <i className="fas fa-check" />
+                                                </button>
+                                                <button
+                                                    onClick={() => onToggleStatus(s.id, 'editing')}
+                                                    title={ar ? 'عدّل' : 'Edit'}
+                                                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-dark-border text-xs text-dark-text-secondary transition-colors hover:border-brand-primary/40 hover:text-brand-secondary"
+                                                >
+                                                    <i className="fas fa-pen" />
+                                                </button>
+                                                <button
+                                                    onClick={() => onToggleStatus(s.id, s.status === 'rejected' ? 'pending' : 'rejected')}
+                                                    title={ar ? 'ارفض' : 'Reject'}
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-colors ${
+                                                        s.status === 'rejected'
+                                                            ? 'border-rose-500/60 bg-rose-500/20 text-rose-400'
+                                                            : 'border-dark-border text-dark-text-secondary hover:border-rose-400/40 hover:text-rose-400'
+                                                    }`}
+                                                >
+                                                    <i className="fas fa-xmark" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </>
+                    )}
+                </div>
+
+                {/* Footer */}
+                {!isGenerating && suggestions.length > 0 && (
+                    <div className="flex items-center justify-between border-t border-dark-border px-6 py-4">
+                        <p className="text-xs text-dark-text-secondary">
+                            {ar
+                                ? `${approvedCount} من ${suggestions.length} موافق عليه`
+                                : `${approvedCount} of ${suggestions.length} approved`}
+                        </p>
+                        <div className="flex gap-2">
+                            <button onClick={onClose} className="rounded-xl border border-dark-border px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-white transition-colors">
+                                {ar ? 'إلغاء' : 'Cancel'}
+                            </button>
+                            <button
+                                onClick={onSave}
+                                disabled={approvedCount === 0 || isSaving}
+                                className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                            >
+                                <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'} text-xs`} />
+                                {ar ? `حفظ الموافق عليها (${approvedCount})` : `Save Approved (${approvedCount})`}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 // ── Tab config ────────────────────────────────────────────────────────────────
 
@@ -94,8 +314,9 @@ const EntryCard: React.FC<{
     ar: boolean;
     onEdit: (entry: BrandKnowledgeEntry) => void;
     onDelete: (id: string) => void;
+    onHistory: (entry: BrandKnowledgeEntry) => void;
     isDeleting: boolean;
-}> = ({ entry, ar, onEdit, onDelete, isDeleting }) => (
+}> = ({ entry, ar, onEdit, onDelete, onHistory, isDeleting }) => (
     <div className="rounded-2xl border border-dark-border bg-dark-bg/50 p-4 transition-all hover:border-dark-border/80">
         <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
@@ -103,6 +324,13 @@ const EntryCard: React.FC<{
                 <p className="mt-1.5 text-xs leading-relaxed text-dark-text-secondary line-clamp-3">{entry.content}</p>
             </div>
             <div className="flex flex-shrink-0 items-center gap-1.5">
+                <button
+                    onClick={() => onHistory(entry)}
+                    title={ar ? 'سجل الإصدارات' : 'Version history'}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary transition-colors hover:border-violet-400/40 hover:text-violet-400"
+                >
+                    <i className="fas fa-clock-rotate-left text-xs" />
+                </button>
                 <button
                     onClick={() => onEdit(entry)}
                     className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary transition-colors hover:border-brand-primary/40 hover:text-brand-secondary"
@@ -145,13 +373,24 @@ const EntryForm: React.FC<{
                 placeholder={ar ? tab.placeholderTitleAr : tab.placeholderTitleEn}
                 className="w-full rounded-xl border border-dark-border bg-dark-bg px-4 py-2.5 text-sm text-white outline-none transition focus:border-brand-primary/60 placeholder:text-dark-text-secondary/50"
             />
-            <textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                rows={4}
-                placeholder={ar ? tab.placeholderContentAr : tab.placeholderContentEn}
-                className="w-full resize-none rounded-xl border border-dark-border bg-dark-bg px-4 py-2.5 text-sm text-white outline-none transition focus:border-brand-primary/60 placeholder:text-dark-text-secondary/50"
-            />
+            <div className="relative">
+                <textarea
+                    value={content}
+                    onChange={e => setContent(e.target.value.slice(0, 3000))}
+                    rows={4}
+                    placeholder={ar ? tab.placeholderContentAr : tab.placeholderContentEn}
+                    className={`w-full resize-none rounded-xl border bg-dark-bg px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-dark-text-secondary/50 ${
+                        content.length > 2700
+                            ? 'border-red-500/60 focus:border-red-500'
+                            : 'border-dark-border focus:border-brand-primary/60'
+                    }`}
+                />
+                <span className={`absolute bottom-2 end-3 text-[10px] font-mono ${
+                    content.length > 2700 ? 'text-red-400' : 'text-dark-text-secondary/50'
+                }`}>
+                    {content.length}/3000
+                </span>
+            </div>
             <div className="flex justify-end gap-2">
                 <button
                     onClick={onCancel}
@@ -161,7 +400,7 @@ const EntryForm: React.FC<{
                 </button>
                 <button
                     onClick={() => onSave(title.trim(), content.trim())}
-                    disabled={!title.trim() || !content.trim() || isSaving}
+                    disabled={!title.trim() || !content.trim() || isSaving || content.length > 3000}
                     className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
                 >
                     <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'} text-xs`} />
@@ -172,15 +411,21 @@ const EntryForm: React.FC<{
     );
 };
 
+// ── AI-enabled tab types ──────────────────────────────────────────────────────
+
+const AI_SUPPORTED_TYPES: BrandKnowledgeType[] = ['product', 'faq', 'scenario_script'];
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 interface BrandKnowledgePageProps {
     brandId: string;
+    brand?: Brand;
     addNotification: (type: NotificationType, message: string) => void;
 }
 
 export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
     brandId,
+    brand,
     addNotification,
 }) => {
     const { language } = useLanguage();
@@ -194,6 +439,17 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
     const [isSaving, setIsSaving]               = useState(false);
     const [deletingId, setDeletingId]           = useState<string | null>(null);
     const [search, setSearch]                   = useState('');
+
+    // AI Quick-Fill state
+    const [showAIModal, setShowAIModal]         = useState(false);
+    const [isGenerating, setIsGenerating]       = useState(false);
+    const [aiSuggestions, setAISuggestions]     = useState<AISuggestion[]>([]);
+    const [isSavingAI, setIsSavingAI]           = useState(false);
+
+    // Version history state
+    const [historyEntry, setHistoryEntry]       = useState<BrandKnowledgeEntry | null>(null);
+    const [historyItems, setHistoryItems]       = useState<KnowledgeHistoryEntry[]>([]);
+    const [historyLoading, setHistoryLoading]   = useState(false);
 
     const tab = KNOWLEDGE_TABS.find(t => t.type === activeType)!;
 
@@ -211,7 +467,31 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
 
     useEffect(() => { load(); }, [load]);
 
+    const titleSimilarity = (a: string, b: string): number => {
+        const wordsOf = (s: string) => s.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const aw = new Set(wordsOf(a));
+        const bw = wordsOf(b);
+        if (!aw.size || !bw.length) return 0;
+        const matches = bw.filter(w => aw.has(w)).length;
+        return matches / Math.max(aw.size, bw.length);
+    };
+
     const handleSave = async (title: string, content: string) => {
+        // Duplicate detection on new entries only
+        if (!editingEntry) {
+            const similar = entries
+                .filter(e => e.type === activeType)
+                .find(e => titleSimilarity(e.title, title) > 0.6);
+            if (similar) {
+                const proceed = window.confirm(
+                    ar
+                        ? `عنصر مشابه موجود: "${similar.title}"\nهل تريد الإضافة على أي حال؟`
+                        : `Similar entry exists: "${similar.title}"\nAdd anyway?`,
+                );
+                if (!proceed) return;
+            }
+        }
+
         setIsSaving(true);
         try {
             if (editingEntry) {
@@ -262,6 +542,118 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
         setEditingEntry(null);
     };
 
+    const handleOpenHistory = async (entry: BrandKnowledgeEntry) => {
+        setHistoryEntry(entry);
+        setHistoryLoading(true);
+        setHistoryItems([]);
+        const items = await getKnowledgeHistory(entry.id);
+        setHistoryItems(items);
+        setHistoryLoading(false);
+    };
+
+    const handleRestoreVersion = async (version: KnowledgeHistoryEntry) => {
+        if (!historyEntry) return;
+        if (!window.confirm(ar ? `استرجاع الإصدار ${version.versionNumber}؟` : `Restore version ${version.versionNumber}?`)) return;
+        try {
+            await updateKnowledgeEntry(brandId, historyEntry.id, {
+                title: version.title,
+                content: version.content,
+            });
+            setEntries(prev => prev.map(e => e.id === historyEntry.id
+                ? { ...e, title: version.title, content: version.content }
+                : e,
+            ));
+            addNotification(NotificationType.Success, ar ? 'تم استرجاع الإصدار.' : 'Version restored.');
+            setHistoryEntry(null);
+        } catch {
+            addNotification(NotificationType.Error, ar ? 'فشل الاسترجاع.' : 'Restore failed.');
+        }
+    };
+
+    // ── AI Quick-Fill handlers ─────────────────────────────────────────────────
+
+    const handleOpenAI = async () => {
+        setShowAIModal(true);
+        setIsGenerating(true);
+        setAISuggestions([]);
+        try {
+            const brandName = brand?.name ?? 'براند';
+            const profile = await getBrandHubProfile(brandId, brandName);
+            const industry   = profile.industry ?? brand?.industry ?? '';
+            const description = (profile as any).description ?? '';
+            const audience   = profile.brandAudiences?.map((a: any) => a.name ?? a).join('، ') ?? '';
+            const values     = profile.values?.join('، ') ?? '';
+
+            const prompt = buildAIPrompt(activeType, brandName, industry, description, audience, values);
+            const result = await callAIProxy({ model: 'gemini-2.0-flash', prompt, feature: 'knowledge_quickfill', brand_id: brandId });
+
+            // Parse JSON — strip markdown code fences if present
+            const raw = result.text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+            const parsed: { title: string; content: string }[] = JSON.parse(raw);
+
+            setAISuggestions(
+                parsed.slice(0, 8).map((item, i) => ({
+                    id: i,
+                    title: item.title ?? '',
+                    content: (item.content ?? '').slice(0, 3000),
+                    status: 'pending',
+                    editTitle: item.title ?? '',
+                    editContent: (item.content ?? '').slice(0, 3000),
+                }))
+            );
+        } catch (err) {
+            setShowAIModal(false);
+            if (err instanceof AIQuotaError) {
+                addNotification(NotificationType.Error, ar ? 'تجاوزت حد الاستخدام اليومي للذكاء الاصطناعي.' : 'AI daily quota exceeded.');
+            } else {
+                addNotification(NotificationType.Error, ar ? 'فشل التوليد التلقائي. حاول مرة أخرى.' : 'AI generation failed. Try again.');
+            }
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleToggleSuggestionStatus = (id: number, status: SuggestionStatus) => {
+        setAISuggestions(prev => prev.map(s => {
+            if (s.id !== id) return s;
+            if (status === 'approved' && s.status === 'editing') {
+                return { ...s, status: 'approved', title: s.editTitle, content: s.editContent };
+            }
+            return { ...s, status };
+        }));
+    };
+
+    const handleEditSuggestionField = (id: number, field: 'editTitle' | 'editContent', value: string) => {
+        setAISuggestions(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    };
+
+    const handleSaveAISuggestions = async () => {
+        const approved = aiSuggestions.filter(s => s.status === 'approved');
+        if (!approved.length) return;
+        setIsSavingAI(true);
+        try {
+            const baseOrder = entries.filter(e => e.type === activeType).length;
+            for (let i = 0; i < approved.length; i++) {
+                const s = approved[i];
+                const entry = await addKnowledgeEntry(brandId, {
+                    type: activeType,
+                    title: s.title,
+                    content: s.content,
+                    metadata: { source: 'ai_quickfill' },
+                    sortOrder: baseOrder + i,
+                });
+                setEntries(prev => [...prev, entry]);
+            }
+            addNotification(NotificationType.Success, ar ? `تم حفظ ${approved.length} إدخال بنجاح.` : `${approved.length} entries saved.`);
+            setShowAIModal(false);
+            setAISuggestions([]);
+        } catch {
+            addNotification(NotificationType.Error, ar ? 'فشل حفظ الاقتراحات.' : 'Failed to save suggestions.');
+        } finally {
+            setIsSavingAI(false);
+        }
+    };
+
     // Filtered entries for active tab + search
     const visibleEntries = entries
         .filter(e => e.type === activeType)
@@ -275,6 +667,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
     const countByType = (t: BrandKnowledgeType) => entries.filter(e => e.type === t).length;
 
     return (
+        <>
         <div className="flex flex-col gap-6">
             {/* Page header */}
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -291,13 +684,24 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                             : 'Everything you add here feeds AI across all platform tools — replies, content, ads, and creative briefs.'}
                     </p>
                 </div>
-                <button
-                    onClick={() => { setEditingEntry(null); setShowForm(true); }}
-                    className="flex items-center gap-2 rounded-2xl bg-brand-primary px-5 py-3 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5"
-                >
-                    <i className="fas fa-plus text-xs" />
-                    {ar ? 'إضافة إدخال' : 'Add Entry'}
-                </button>
+                <div className="flex items-center gap-2">
+                    {AI_SUPPORTED_TYPES.includes(activeType) && (
+                        <button
+                            onClick={handleOpenAI}
+                            className="flex items-center gap-2 rounded-2xl border border-brand-primary/30 bg-brand-primary/10 px-4 py-3 text-sm font-bold text-brand-secondary transition-all hover:bg-brand-primary/20 hover:-translate-y-0.5"
+                        >
+                            <i className="fas fa-wand-magic-sparkles text-xs" />
+                            {ar ? 'توليد بالذكاء الاصطناعي' : 'AI Quick-Fill'}
+                        </button>
+                    )}
+                    <button
+                        onClick={() => { setEditingEntry(null); setShowForm(true); }}
+                        className="flex items-center gap-2 rounded-2xl bg-brand-primary px-5 py-3 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5"
+                    >
+                        <i className="fas fa-plus text-xs" />
+                        {ar ? 'إضافة إدخال' : 'Add Entry'}
+                    </button>
+                </div>
             </div>
 
             {/* Stats strip */}
@@ -344,14 +748,26 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                             <p className="text-xs text-dark-text-secondary">{visibleEntries.length} {ar ? 'إدخال' : 'entries'}</p>
                         </div>
                     </div>
-                    <div className="relative">
-                        <i className="fas fa-search absolute start-3 top-1/2 -translate-y-1/2 text-xs text-dark-text-secondary/50" />
-                        <input
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder={ar ? 'بحث...' : 'Search...'}
-                            className="rounded-xl border border-dark-border bg-dark-bg ps-8 pe-3 py-2 text-xs text-white outline-none transition w-44 focus:border-brand-primary/60 placeholder:text-dark-text-secondary/50"
-                        />
+                    <div className="flex items-center gap-2">
+                        {AI_SUPPORTED_TYPES.includes(activeType) && (
+                            <button
+                                onClick={handleOpenAI}
+                                disabled={isGenerating}
+                                className="flex items-center gap-1.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-xs font-bold text-brand-secondary transition-colors hover:bg-brand-primary/20 disabled:opacity-50"
+                            >
+                                <i className={`fas ${isGenerating ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'} text-[10px]`} />
+                                {ar ? 'توليد AI' : 'AI Fill'}
+                            </button>
+                        )}
+                        <div className="relative">
+                            <i className="fas fa-search absolute start-3 top-1/2 -translate-y-1/2 text-xs text-dark-text-secondary/50" />
+                            <input
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder={ar ? 'بحث...' : 'Search...'}
+                                className="rounded-xl border border-dark-border bg-dark-bg ps-8 pe-3 py-2 text-xs text-white outline-none transition w-44 focus:border-brand-primary/60 placeholder:text-dark-text-secondary/50"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -389,6 +805,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                                 ar={ar}
                                 onEdit={handleEdit}
                                 onDelete={handleDelete}
+                                onHistory={handleOpenHistory}
                                 isDeleting={deletingId === entry.id}
                             />
                         ))}
@@ -419,5 +836,83 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                 )}
             </div>
         </div>
+
+        {/* AI Quick-Fill Modal */}
+        {showAIModal && (
+            <AIQuickFillModal
+                ar={ar}
+                tabLabelAr={tab.labelAr}
+                tabLabelEn={tab.labelEn}
+                isGenerating={isGenerating}
+                suggestions={aiSuggestions}
+                isSaving={isSavingAI}
+                onToggleStatus={handleToggleSuggestionStatus}
+                onEditField={handleEditSuggestionField}
+                onSave={handleSaveAISuggestions}
+                onClose={() => { setShowAIModal(false); setAISuggestions([]); }}
+            />
+        )}
+
+        {/* Version History Modal */}
+        {historyEntry && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryEntry(null)} />
+                <div className="relative z-10 w-full max-w-lg rounded-2xl border border-dark-border bg-dark-card shadow-2xl flex flex-col max-h-[80vh]">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-dark-border flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
+                                <i className="fas fa-clock-rotate-left text-violet-400 text-sm" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-white text-sm">{ar ? 'سجل الإصدارات' : 'Version History'}</p>
+                                <p className="text-xs text-dark-text-secondary truncate max-w-[200px]">{historyEntry.title}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setHistoryEntry(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary hover:text-white transition-colors">
+                            <i className="fas fa-xmark text-sm" />
+                        </button>
+                    </div>
+
+                    {/* Body */}
+                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                        {historyLoading ? (
+                            <div className="py-12 text-center">
+                                <i className="fas fa-spinner fa-spin text-2xl text-violet-400" />
+                            </div>
+                        ) : historyItems.length === 0 ? (
+                            <div className="py-12 text-center space-y-3">
+                                <i className="fas fa-clock-rotate-left text-3xl text-dark-text-secondary/30" />
+                                <p className="text-sm font-semibold text-dark-text-secondary">{ar ? 'لا توجد إصدارات سابقة' : 'No previous versions'}</p>
+                                <p className="text-xs text-dark-text-secondary/60">{ar ? 'تظهر الإصدارات عند تعديل العنوان أو المحتوى' : 'Versions appear when title or content is edited'}</p>
+                            </div>
+                        ) : (
+                            historyItems.map(v => (
+                                <div key={v.id} className="rounded-2xl border border-dark-border bg-dark-bg/50 p-4 space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-black text-violet-400">v{v.versionNumber}</span>
+                                            <span className="text-xs text-dark-text-secondary">
+                                                {new Date(v.changedAt).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRestoreVersion(v)}
+                                            className="flex items-center gap-1.5 rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-1.5 text-xs font-bold text-violet-400 transition-colors hover:bg-violet-500/20"
+                                        >
+                                            <i className="fas fa-rotate-left text-[9px]" />
+                                            {ar ? 'استرجاع' : 'Restore'}
+                                        </button>
+                                    </div>
+                                    <p className="text-sm font-semibold text-white">{v.title}</p>
+                                    <p className="text-xs text-dark-text-secondary line-clamp-3 leading-relaxed">{v.content}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };

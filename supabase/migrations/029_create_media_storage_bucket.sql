@@ -23,11 +23,14 @@ ON CONFLICT (id) DO UPDATE SET
     file_size_limit    = EXCLUDED.file_size_limit,
     allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Drop any old permissive policies
-DROP POLICY IF EXISTS "media_upload_authenticated" ON storage.objects;
-DROP POLICY IF EXISTS "media_read_public"          ON storage.objects;
-DROP POLICY IF EXISTS "media_update_owner"         ON storage.objects;
-DROP POLICY IF EXISTS "media_delete_owner"         ON storage.objects;
+-- Drop any old permissive policies (idempotent)
+DROP POLICY IF EXISTS "media_upload_authenticated"  ON storage.objects;
+DROP POLICY IF EXISTS "media_read_public"           ON storage.objects;
+DROP POLICY IF EXISTS "media_update_owner"          ON storage.objects;
+DROP POLICY IF EXISTS "media_delete_owner"          ON storage.objects;
+DROP POLICY IF EXISTS "media_upload_own_folder"     ON storage.objects;
+DROP POLICY IF EXISTS "media_update_own_folder"     ON storage.objects;
+DROP POLICY IF EXISTS "media_delete_own_folder"     ON storage.objects;
 
 -- Upload: user can only write into their own folder ({userId}/...)
 CREATE POLICY "media_upload_own_folder"

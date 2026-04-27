@@ -21,7 +21,7 @@ import { supabase } from './supabaseClient';
 export type Provider =
     | 'meta'       | 'instagram'  | 'x'          | 'linkedin'
     | 'tiktok'     | 'youtube'    | 'snapchat'
-    | 'ga4'        | 'search_console' | 'google_ads'
+    | 'ga4'        | 'search_console' | 'google_ads' | 'meta_ads'
     | 'woocommerce'| 'shopify'    | 'wordpress'
     | 'slack'      | 'zapier'     | 'n8n'        | 'google_drive' | 'figma';
 
@@ -36,6 +36,7 @@ export const BRAND_CONNECTION_PROVIDER_OWNERSHIP = {
     ga4: 'analytics',
     search_console: 'seo',
     google_ads: 'ads',
+    meta_ads: 'ads',
     woocommerce: 'commerce',
     shopify: 'commerce',
     wordpress: 'cms',
@@ -48,6 +49,7 @@ export const BRAND_CONNECTION_PROVIDER_OWNERSHIP = {
 
 export const CONNECTABLE_BRAND_PROVIDERS = [
     'google_ads',
+    'meta_ads',
     'ga4',
     'search_console',
     'shopify',

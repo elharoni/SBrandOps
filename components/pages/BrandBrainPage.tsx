@@ -12,7 +12,7 @@ interface BrandBrainPageProps {
     addNotification?: (type: NotificationType, message: string) => void;
 }
 
-type ActiveTab = 'skills' | 'executions' | 'knowledge';
+type ActiveTab = 'skills' | 'executions' | 'knowledge' | 'trend';
 type PeriodDays = 7 | 30 | 90;
 
 // Arabic labels for each skill type (from SKILL_REGISTRY)
@@ -166,10 +166,34 @@ export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandNa
         return acc;
     }, {});
 
+    // ── Confidence trend data (last 30 days from executions) ─────────────────
+    const today = new Date();
+    const trendDays = Array.from({ length: 30 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - (29 - i));
+        return { date: d.toISOString().slice(0, 10), label: `${d.getDate()}/${d.getMonth() + 1}` };
+    });
+    const execByDay = executions.reduce<Record<string, number[]>>((acc, ex) => {
+        const day = ex.createdAt.slice(0, 10);
+        if (!acc[day]) acc[day] = [];
+        acc[day].push(ex.confidence);
+        return acc;
+    }, {});
+    const trendData = trendDays.map(({ date, label }) => {
+        const vals = execByDay[date] ?? [];
+        const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+        return { date, label, avg, count: vals.length };
+    });
+    const trendAvgOverall = trendData.filter(d => d.avg !== null);
+    const trendGlobalAvg = trendAvgOverall.length
+        ? trendAvgOverall.reduce((s, d) => s + (d.avg ?? 0), 0) / trendAvgOverall.length
+        : null;
+
     const tabs: { id: ActiveTab; label: string; icon: string }[] = [
         { id: 'skills',     label: 'أداء المهارات',    icon: 'fa-brain' },
         { id: 'executions', label: 'التنفيذات الأخيرة', icon: 'fa-history' },
         { id: 'knowledge',  label: 'قاعدة المعرفة',    icon: 'fa-database' },
+        { id: 'trend',      label: 'مسار الثقة',        icon: 'fa-chart-line' },
     ];
 
     return (
@@ -320,6 +344,157 @@ export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandNa
                         )}
                     </div>
                 )}
+
+                {/* ── Trend Tab ── */}
+                {activeTab === 'trend' && (() => {
+                    const W = 560, H = 180;
+                    const pad = { top: 16, right: 12, bottom: 32, left: 38 };
+                    const plotW = W - pad.left - pad.right;
+                    const plotH = H - pad.top - pad.bottom;
+                    const n = trendData.length;
+                    const xOf = (i: number) => pad.left + (i / (n - 1)) * plotW;
+                    const yOf = (v: number) => pad.top + (1 - v) * plotH;
+                    // Build polyline segments (split at gaps)
+                    const segments: string[][] = [];
+                    let seg: string[] = [];
+                    trendData.forEach((d, i) => {
+                        if (d.avg !== null) {
+                            seg.push(`${xOf(i).toFixed(1)},${yOf(d.avg).toFixed(1)}`);
+                        } else {
+                            if (seg.length > 1) segments.push(seg);
+                            seg = [];
+                        }
+                    });
+                    if (seg.length > 1) segments.push(seg);
+                    const gridLines = [0.25, 0.5, 0.75, 1.0];
+                    const dotDays = trendData.filter((_, i) => i % 5 === 0 || i === n - 1);
+
+                    return (
+                        <div className="space-y-5">
+                            {/* Summary cards */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="surface-panel-soft rounded-2xl p-4 text-center">
+                                    <p className="text-2xl font-black text-brand-primary">
+                                        {trendGlobalAvg !== null ? `${Math.round(trendGlobalAvg * 100)}%` : '—'}
+                                    </p>
+                                    <p className="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary mt-1">متوسط الثقة (30 يوم)</p>
+                                </div>
+                                <div className="surface-panel-soft rounded-2xl p-4 text-center">
+                                    <p className="text-2xl font-black text-emerald-500">{trendAvgOverall.length}</p>
+                                    <p className="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary mt-1">أيام نشاط</p>
+                                </div>
+                                <div className="surface-panel-soft rounded-2xl p-4 text-center">
+                                    <p className="text-2xl font-black text-amber-400">{executions.length}</p>
+                                    <p className="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary mt-1">إجمالي التنفيذات</p>
+                                </div>
+                            </div>
+
+                            {/* Chart */}
+                            <div className="surface-panel-soft rounded-2xl p-4">
+                                <p className="text-sm font-bold text-light-text dark:text-dark-text mb-4">مسار ثقة الذكاء الاصطناعي — آخر 30 يوم</p>
+                                {executions.length === 0 && !loading ? (
+                                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                                        <i className="fas fa-chart-line text-4xl text-light-text-secondary/30 dark:text-dark-text-secondary/30" />
+                                        <p className="text-sm font-semibold text-light-text-secondary dark:text-dark-text-secondary">لا توجد بيانات بعد</p>
+                                        <p className="text-xs text-light-text-secondary/60 dark:text-dark-text-secondary/60">استخدم ميزات AI وسيظهر المسار هنا</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 320, maxHeight: 200 }}>
+                                            {/* Grid lines */}
+                                            {gridLines.map(v => (
+                                                <g key={v}>
+                                                    <line
+                                                        x1={pad.left} y1={yOf(v)}
+                                                        x2={pad.left + plotW} y2={yOf(v)}
+                                                        stroke="currentColor" strokeOpacity={0.08} strokeWidth={1}
+                                                    />
+                                                    <text x={pad.left - 4} y={yOf(v) + 4} textAnchor="end"
+                                                        className="fill-current text-light-text-secondary dark:text-dark-text-secondary"
+                                                        style={{ fontSize: 9, fontVariantNumeric: 'tabular-nums' }}>
+                                                        {Math.round(v * 100)}
+                                                    </text>
+                                                </g>
+                                            ))}
+                                            {/* Zero line */}
+                                            <line x1={pad.left} y1={yOf(0)} x2={pad.left + plotW} y2={yOf(0)}
+                                                stroke="currentColor" strokeOpacity={0.15} strokeWidth={1} />
+                                            {/* Global average reference line */}
+                                            {trendGlobalAvg !== null && (
+                                                <line x1={pad.left} y1={yOf(trendGlobalAvg)} x2={pad.left + plotW} y2={yOf(trendGlobalAvg)}
+                                                    stroke="#a78bfa" strokeOpacity={0.5} strokeWidth={1} strokeDasharray="4 3" />
+                                            )}
+                                            {/* Area fill under polyline */}
+                                            {segments.map((pts, si) => {
+                                                const first = pts[0].split(',');
+                                                const last = pts[pts.length - 1].split(',');
+                                                const areaPath = `M${first[0]},${yOf(0)} L${pts.join(' L')} L${last[0]},${yOf(0)} Z`;
+                                                return <path key={si} d={areaPath} fill="#7c3aed" fillOpacity={0.08} />;
+                                            })}
+                                            {/* Polyline segments */}
+                                            {segments.map((pts, si) => (
+                                                <polyline key={si} points={pts.join(' ')}
+                                                    fill="none" stroke="#7c3aed" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                                            ))}
+                                            {/* Data dots */}
+                                            {trendData.map((d, i) => d.avg !== null && (
+                                                <circle key={i} cx={xOf(i)} cy={yOf(d.avg)} r={2.5}
+                                                    fill="#7c3aed" stroke="white" strokeWidth={1.5} />
+                                            ))}
+                                            {/* X-axis labels (every 5th day) */}
+                                            {dotDays.map(d => {
+                                                const i = trendData.indexOf(d);
+                                                return (
+                                                    <text key={d.date} x={xOf(i)} y={H - 4} textAnchor="middle"
+                                                        className="fill-current text-light-text-secondary dark:text-dark-text-secondary"
+                                                        style={{ fontSize: 8 }}>
+                                                        {d.label}
+                                                    </text>
+                                                );
+                                            })}
+                                        </svg>
+                                    </div>
+                                )}
+                                {/* Legend */}
+                                {trendGlobalAvg !== null && (
+                                    <div className="flex items-center gap-4 mt-3 pt-3 border-t border-light-border dark:border-dark-border">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-4 h-0.5 bg-violet-500 rounded" />
+                                            <span className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">ثقة يومية</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-4 h-px bg-violet-400 opacity-60" style={{ borderTop: '1px dashed' }} />
+                                            <span className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">المتوسط العام {Math.round(trendGlobalAvg * 100)}%</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Daily breakdown table */}
+                            {trendAvgOverall.length > 0 && (
+                                <div className="surface-panel-soft rounded-2xl overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-light-border dark:border-dark-border">
+                                        <p className="text-sm font-bold text-light-text dark:text-dark-text">تفاصيل يومية</p>
+                                    </div>
+                                    <div className="divide-y divide-light-border dark:divide-dark-border max-h-64 overflow-y-auto">
+                                        {[...trendAvgOverall].reverse().map(d => (
+                                            <div key={d.date} className="px-4 py-2.5 flex items-center gap-3">
+                                                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary w-16 flex-shrink-0 font-mono">{d.date.slice(5)}</span>
+                                                <div className="flex-1">
+                                                    <div className="h-1.5 rounded-full bg-light-border dark:bg-dark-border overflow-hidden">
+                                                        <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${Math.round((d.avg ?? 0) * 100)}%` }} />
+                                                    </div>
+                                                </div>
+                                                <span className="text-xs font-bold tabular-nums text-violet-500 w-10 text-end">{Math.round((d.avg ?? 0) * 100)}%</span>
+                                                <span className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary w-16 text-end">{d.count} تنفيذ</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
             </PageSection>
         </PageScaffold>

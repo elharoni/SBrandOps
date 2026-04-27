@@ -6,9 +6,13 @@ const logoFor = (name: string, url?: string | null) =>
     url || `https://picsum.photos/seed/${name.toLowerCase().replace(/\s+/g, '')}/100`;
 
 const mapBrand = (row: any): Brand => ({
-    id: row.id,
-    name: row.name,
-    logoUrl: logoFor(row.name, row.logo_url),
+    id:         row.id,
+    name:       row.name,
+    logoUrl:    logoFor(row.name, row.logo_url),
+    industry:   row.industry   || undefined,
+    country:    row.country    || undefined,
+    websiteUrl: row.website_url || undefined,
+    createdAt:  row.created_at  || undefined,
 });
 
 // ── getBrands ─────────────────────────────────────────────────────────────────
@@ -16,7 +20,7 @@ const mapBrand = (row: any): Brand => ({
 export async function getBrands(): Promise<Brand[]> {
     const { data, error } = await supabase
         .from('brands')
-        .select('id, name, logo_url, industry')
+        .select('id, name, logo_url, industry, country, website_url, created_at')
         .order('created_at', { ascending: false });
 
     if (error) {

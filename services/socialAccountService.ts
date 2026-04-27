@@ -238,25 +238,34 @@ export async function connectSocialAccount(
     return mapAccountRow(account);
 }
 
-export async function getPlatformAssets(platform: SocialPlatform): Promise<SocialAsset[]> {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+/**
+ * جلب الصفحات/الحسابات المتاحة للبراند على منصة معينة.
+ * يستدعي Edge Function تقرأ التوكن المشفر من oauth_tokens وتستعلم Graph API.
+ * brandId مطلوب لفك تشفير التوكن الصحيح.
+ */
+export async function getPlatformAssets(platform: SocialPlatform, brandId: string): Promise<SocialAsset[]> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const jwt = sessionData.session?.access_token;
+    if (!jwt) throw new Error('Not authenticated');
 
-    if (platform === SocialPlatform.Facebook) {
-        return [
-            { id: 'pg-1', name: 'Confort-Tex Official',  category: 'Shopping',   followers: 12500, avatarUrl: 'https://picsum.photos/seed/cto/100' },
-            { id: 'pg-2', name: 'Confort-Tex Support',   category: 'Service',    followers: 1200,  avatarUrl: 'https://picsum.photos/seed/cts/100' },
-            { id: 'pg-3', name: 'Community Group',       category: 'Community',  followers: 5600,  avatarUrl: 'https://picsum.photos/seed/ctc/100' },
-        ];
+    const supabaseUrl    = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/get-platform-assets`, {
+        method: 'POST',
+        headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${jwt}`,
+            'apikey':        supabaseAnonKey,
+        },
+        body: JSON.stringify({ brand_id: brandId, platform }),
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({})) as Record<string, unknown>;
+        throw new Error(typeof err.error === 'string' ? err.error : `HTTP ${response.status}`);
     }
 
-    if (platform === SocialPlatform.Instagram) {
-        return [
-            { id: 'ig-1', name: 'confort.tex',        category: 'Business', followers: 45000, avatarUrl: 'https://picsum.photos/seed/ig1/100' },
-            { id: 'ig-2', name: 'confort_lifestyle',  category: 'Creator',  followers: 8000,  avatarUrl: 'https://picsum.photos/seed/ig2/100' },
-        ];
-    }
-
-    return [
-        { id: `asset-${Date.now()}`, name: `${platform} Page`, followers: 0, avatarUrl: `https://picsum.photos/seed/${platform}/100` },
-    ];
+    const result = await response.json() as { assets?: SocialAsset[]; hint?: string };
+    return result.assets ?? [];
 }

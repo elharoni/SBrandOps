@@ -1,0 +1,1085 @@
+{
+  "_meta": {
+    "version": "2.0.0",
+    "convention": "module.action.scope",
+    "scopes": {
+      "all":       "Platform-wide — only platform roles use this scope",
+      "workspace": "Entire workspace the user belongs to",
+      "brand":     "Any brand the user is assigned to in the workspace",
+      "assigned":  "Records explicitly assigned to this user (conversation, task, ticket)",
+      "own":       "Records created BY this user (content piece, design brief)"
+    },
+    "total_keys": 284
+  },
+
+  "super_admin": [
+    "super_admin.full_access"
+  ],
+
+  "platform": [
+    "platform.dashboard.view",
+
+    "platform.users.view",
+    "platform.users.create",
+    "platform.users.update",
+    "platform.users.delete",
+    "platform.users.suspend",
+    "platform.users.unsuspend",
+    "platform.users.impersonate",
+    "platform.users.force_2fa",
+    "platform.users.export",
+
+    "platform.workspaces.view",
+    "platform.workspaces.suspend",
+    "platform.workspaces.unsuspend",
+    "platform.workspaces.delete",
+    "platform.workspaces.export_data",
+
+    "platform.plans.view",
+    "platform.plans.create",
+    "platform.plans.update",
+    "platform.plans.delete",
+
+    "platform.subscriptions.view",
+    "platform.subscriptions.update",
+    "platform.subscriptions.cancel",
+    "platform.subscriptions.override_limits",
+
+    "platform.payments.view",
+    "platform.invoices.view",
+    "platform.invoices.refund",
+    "platform.invoices.void",
+
+    "platform.feature_flags.view",
+    "platform.feature_flags.update",
+
+    "platform.system_settings.view",
+    "platform.system_settings.update",
+
+    "platform.analytics.view",
+
+    "platform.support.grant_workspace_access",
+    "platform.support.revoke_workspace_access",
+    "platform.support.view_active_grants",
+
+    "platform.audit_logs.view",
+    "platform.audit_logs.export",
+
+    "platform.security_logs.view",
+    "platform.security_logs.export",
+
+    "platform.api_keys.view",
+    "platform.api_keys.create",
+    "platform.api_keys.revoke",
+    "platform.api_keys.rotate",
+
+    "platform.webhooks.view",
+    "platform.webhooks.create",
+    "platform.webhooks.update",
+    "platform.webhooks.delete",
+    "platform.webhooks.test",
+
+    "platform.integrations_health.view",
+
+    "platform.ai_monitor.view",
+    "platform.ai_keys.view",
+    "platform.ai_keys.create",
+    "platform.ai_keys.update",
+    "platform.ai_keys.delete",
+    "platform.ai_keys.rotate",
+
+    "platform.queues.view",
+    "platform.queues.retry",
+    "platform.queues.purge",
+
+    "platform.system_health.view",
+
+    "platform.maintenance_mode.enable",
+    "platform.maintenance_mode.disable",
+
+    "platform.email_templates.view",
+    "platform.email_templates.update",
+
+    "platform.announcements.view",
+    "platform.announcements.create",
+    "platform.announcements.delete"
+  ],
+
+  "workspace": [
+    "workspace.view.own",
+    "workspace.create",
+    "workspace.delete.own",
+    "workspace.transfer_ownership.own",
+
+    "workspace.settings.view.own",
+    "workspace.settings.update.own",
+
+    "workspace.subscription.view.own",
+    "workspace.subscription.manage.own",
+    "workspace.subscription.cancel.own",
+
+    "workspace.billing.view.own",
+    "workspace.billing.manage.own",
+
+    "workspace.invoices.view.own",
+    "workspace.invoices.download.own",
+
+    "workspace.usage.view.own",
+
+    "workspace.team.view.own",
+    "workspace.team.invite.own",
+    "workspace.team.remove.own",
+    "workspace.team.update_role.own",
+    "workspace.team.update_permissions.own",
+    "workspace.team.suspend_member.own",
+    "workspace.team.view_activity.own",
+
+    "workspace.roles.view.own",
+    "workspace.roles.create.own",
+    "workspace.roles.update.own",
+    "workspace.roles.delete.own",
+    "workspace.roles.clone.own",
+
+    "workspace.brand_limit.view.own",
+    "workspace.storage_limit.view.own",
+
+    "workspace.export.manage.own",
+    "workspace.export.request.own",
+
+    "workspace.api_keys.view.own",
+    "workspace.api_keys.create.own",
+    "workspace.api_keys.revoke.own",
+    "workspace.api_keys.rotate.own",
+
+    "workspace.webhooks.view.own",
+    "workspace.webhooks.manage.own",
+
+    "workspace.security_policy.view.own",
+    "workspace.security_policy.manage.own",
+
+    "workspace.audit_logs.view.own",
+    "workspace.audit_logs.export.own",
+
+    "workspace.ip_allowlist.view.own",
+    "workspace.ip_allowlist.manage.own"
+  ],
+
+  "brand": [
+    "brand.view.workspace",
+    "brand.view.assigned",
+
+    "brand.create.workspace",
+
+    "brand.update.workspace",
+    "brand.update.assigned",
+
+    "brand.delete.workspace",
+
+    "brand.archive.workspace",
+    "brand.archive.assigned",
+    "brand.restore.workspace",
+
+    "brand.transfer.workspace",
+
+    "brand.identity.view.assigned",
+    "brand.identity.update.assigned",
+
+    "brand.voice.view.assigned",
+    "brand.voice.update.assigned",
+
+    "brand.audience.view.assigned",
+    "brand.audience.update.assigned",
+
+    "brand.competitors.view.assigned",
+    "brand.competitors.create.assigned",
+    "brand.competitors.update.assigned",
+    "brand.competitors.delete.assigned",
+
+    "brand.products.view.assigned",
+    "brand.products.create.assigned",
+    "brand.products.update.assigned",
+    "brand.products.delete.assigned",
+
+    "brand.files.view.assigned",
+    "brand.files.upload.assigned",
+    "brand.files.delete.assigned",
+    "brand.files.delete.own",
+
+    "brand.ai_memory.view.assigned",
+    "brand.ai_memory.update.assigned",
+    "brand.ai_memory.reset.assigned",
+
+    "brand.approval_settings.view.assigned",
+    "brand.approval_settings.update.assigned",
+
+    "brand.color_palette.view.assigned",
+    "brand.color_palette.update.assigned",
+
+    "brand.typography.view.assigned",
+    "brand.typography.update.assigned"
+  ],
+
+  "content": [
+    "content.view.brand",
+    "content.view.assigned",
+    "content.view.own",
+
+    "content.create.brand",
+
+    "content.update.brand",
+    "content.update.assigned",
+    "content.update.own",
+
+    "content.delete.brand",
+    "content.delete.own",
+
+    "content.approve.brand",
+    "content.reject.brand",
+
+    "content.request_approval.own",
+    "content.recall_approval.own",
+
+    "content.schedule.brand",
+    "content.schedule.own",
+
+    "content.publish.brand",
+    "content.unpublish.brand",
+
+    "content.clone.brand",
+    "content.clone.own",
+
+    "content.ai_generate.brand",
+
+    "content.use_brand_memory.brand",
+
+    "content.export.brand",
+    "content.export.own",
+
+    "content.comment.brand",
+    "content.comment.own",
+    "content.comment.delete.own",
+    "content.comment.delete.brand",
+
+    "content.version_history.view.brand",
+    "content.version_history.view.own",
+    "content.restore_version.brand",
+    "content.restore_version.own",
+
+    "content.tag.brand",
+    "content.tag.own",
+
+    "content.assign.brand",
+
+    "content.calendar.view.brand",
+    "content.calendar.manage.brand",
+
+    "content.templates.view.brand",
+    "content.templates.create.brand",
+    "content.templates.update.brand",
+    "content.templates.update.own",
+    "content.templates.delete.brand",
+    "content.templates.delete.own"
+  ],
+
+  "design": [
+    "design.view.brand",
+    "design.view.own",
+
+    "design.create_brief.brand",
+
+    "design.update_brief.brand",
+    "design.update_brief.own",
+
+    "design.delete_brief.brand",
+    "design.delete_brief.own",
+
+    "design.generate_prompt.brand",
+
+    "design.approve.brand",
+    "design.reject.brand",
+
+    "design.request_approval.own",
+
+    "design.send_to_publish.brand",
+
+    "design.comment.brand",
+    "design.comment.own",
+    "design.comment.delete.own",
+    "design.comment.delete.brand",
+
+    "design.version_history.view.brand",
+    "design.version_history.view.own",
+    "design.restore_version.own",
+
+    "design.share_link.create.own",
+    "design.share_link.delete.own",
+
+    "design.template_save.brand",
+    "design.template_save.own",
+
+    "design.assets.view.brand",
+    "design.assets.upload.brand",
+    "design.assets.delete.brand",
+    "design.assets.delete.own",
+    "design.assets.tag.brand",
+
+    "design.export.brand",
+    "design.export.own",
+
+    "design.ai_tools.brand"
+  ],
+
+  "social": [
+    "social.accounts.view.brand",
+    "social.accounts.connect.brand",
+    "social.accounts.disconnect.brand",
+    "social.accounts.refresh_token.brand",
+    "social.accounts.reconnect.brand",
+
+    "social.posts.view.brand",
+    "social.posts.create.brand",
+    "social.posts.schedule.brand",
+    "social.posts.delete_scheduled.brand",
+    "social.posts.delete_scheduled.own",
+    "social.posts.publish.brand",
+    "social.posts.unpublish.brand",
+    "social.posts.boost.brand",
+    "social.posts.analytics.view.brand",
+    "social.posts.clone.brand",
+    "social.posts.clone.own",
+
+    "social.comments.view.brand",
+    "social.comments.reply.brand",
+    "social.comments.reply.assigned",
+    "social.comments.hide.brand",
+    "social.comments.delete.brand",
+    "social.comments.mark_spam.brand",
+    "social.comments.like.brand",
+
+    "social.messages.view.brand",
+    "social.messages.view.assigned",
+    "social.messages.reply.brand",
+    "social.messages.reply.assigned",
+    "social.messages.mark_read.brand",
+    "social.messages.mark_read.assigned",
+
+    "social.conversations.view.brand",
+    "social.conversations.view.assigned",
+    "social.conversations.assign.brand",
+    "social.conversations.unassign.brand",
+    "social.conversations.tag.brand",
+    "social.conversations.untag.brand",
+    "social.conversations.snooze.brand",
+    "social.conversations.snooze.assigned",
+    "social.conversations.close.brand",
+    "social.conversations.close.assigned",
+    "social.conversations.reopen.brand",
+    "social.conversations.bulk_action.brand",
+    "social.conversations.send_to_crm.brand",
+    "social.conversations.create_order.brand",
+    "social.conversations.create_lead.brand",
+
+    "social.inbox_rules.view.brand",
+    "social.inbox_rules.create.brand",
+    "social.inbox_rules.update.brand",
+    "social.inbox_rules.delete.brand",
+    "social.inbox_rules.enable.brand",
+    "social.inbox_rules.disable.brand",
+
+    "social.templates.view.brand",
+    "social.templates.manage.brand"
+  ],
+
+  "ads": [
+    "ads.accounts.connect.brand",
+    "ads.accounts.disconnect.brand",
+    "ads.accounts.view.brand",
+
+    "ads.campaigns.view.brand",
+    "ads.campaigns.create_brief.brand",
+    "ads.campaigns.update_brief.brand",
+    "ads.campaigns.update_brief.own",
+    "ads.campaigns.delete_brief.brand",
+    "ads.campaigns.delete_brief.own",
+    "ads.campaigns.launch.brand",
+    "ads.campaigns.pause.brand",
+    "ads.campaigns.duplicate.brand",
+
+    "ads.performance.view.brand",
+    "ads.performance.compare_periods.brand",
+    "ads.performance.benchmark.brand",
+
+    "ads.copy.generate.brand",
+    "ads.copy.edit.brand",
+    "ads.copy.edit.own",
+
+    "ads.audience.create.brand",
+    "ads.audience.edit.brand",
+    "ads.audience.delete.brand",
+
+    "ads.ab_test.view.brand",
+    "ads.ab_test.create.brand",
+
+    "ads.analysis.view.brand",
+    "ads.optimizations.view.brand",
+    "ads.optimizations.create.brand",
+
+    "ads.reports.view.brand",
+    "ads.reports.create.brand",
+    "ads.reports.export.brand",
+    "ads.reports.schedule.brand",
+    "ads.reports.share.brand",
+
+    "ads.budget_notes.view.brand",
+    "ads.budget_notes.create.brand",
+    "ads.budget_notes.update.brand",
+    "ads.budget_notes.delete.brand",
+
+    "ads.spend.view.brand",
+    "ads.financial_metrics.view.brand",
+    "ads.roas.view.brand",
+    "ads.cpa.view.brand",
+    "ads.ctr.view.brand"
+  ],
+
+  "seo": [
+    "seo.projects.view.brand",
+    "seo.projects.create.brand",
+    "seo.projects.update.brand",
+    "seo.projects.delete.brand",
+    "seo.projects.archive.brand",
+
+    "seo.content.create.brand",
+    "seo.content.update.brand",
+    "seo.content.update.own",
+    "seo.content.delete.brand",
+    "seo.content.delete.own",
+    "seo.content.publish.brand",
+
+    "seo.keywords.view.brand",
+    "seo.keywords.generate.brand",
+    "seo.keywords.add.brand",
+    "seo.keywords.delete.brand",
+    "seo.keywords.group.brand",
+    "seo.keywords.export.brand",
+
+    "seo.briefs.view.brand",
+    "seo.briefs.create.brand",
+    "seo.briefs.update.brand",
+    "seo.briefs.update.own",
+    "seo.briefs.delete.brand",
+    "seo.briefs.delete.own",
+    "seo.briefs.approve.brand",
+
+    "seo.rankings.view.brand",
+    "seo.rankings.export.brand",
+
+    "seo.backlinks.view.brand",
+    "seo.backlinks.export.brand",
+
+    "seo.reports.view.brand",
+    "seo.reports.create.brand",
+    "seo.reports.export.brand",
+    "seo.reports.schedule.brand",
+    "seo.reports.share.brand",
+
+    "seo.metadata.view.brand",
+    "seo.metadata.edit.brand",
+
+    "seo.recommendations.view.brand",
+    "seo.recommendations.create.brand",
+    "seo.recommendations.mark_done.brand",
+    "seo.recommendations.dismiss.brand",
+
+    "seo.search_console.connect.brand",
+    "seo.search_console.disconnect.brand",
+    "seo.search_console.view.brand",
+    "seo.search_console.sync.brand",
+
+    "seo.site_audit.run.brand",
+    "seo.site_audit.view.brand",
+    "seo.site_audit.export.brand"
+  ],
+
+  "analytics": [
+    "analytics.dashboard.view.brand",
+    "analytics.platform.view.workspace",
+    "analytics.brand.view.assigned",
+
+    "analytics.social.view.brand",
+    "analytics.social.compare_periods.brand",
+
+    "analytics.ads.view.brand",
+    "analytics.ads.compare_periods.brand",
+
+    "analytics.google.view.brand",
+    "analytics.google.compare_periods.brand",
+
+    "analytics.seo.view.brand",
+
+    "analytics.email.view.brand",
+
+    "analytics.reports.view.brand",
+    "analytics.reports.create.brand",
+    "analytics.reports.update.own",
+    "analytics.reports.delete.own",
+    "analytics.reports.delete.brand",
+    "analytics.reports.export.brand",
+    "analytics.reports.schedule.brand",
+    "analytics.reports.share.brand",
+    "analytics.reports.share_public_link.brand",
+
+    "analytics.financial_kpis.view.brand",
+    "analytics.performance_kpis.view.brand",
+    "analytics.team_productivity.view.workspace",
+    "analytics.attribution.view.brand",
+
+    "analytics.benchmarks.view.brand",
+    "analytics.benchmarks.create.brand",
+
+    "analytics.goals.view.brand",
+    "analytics.goals.create.brand",
+    "analytics.goals.update.brand",
+    "analytics.goals.delete.brand",
+
+    "analytics.alerts.view.brand",
+    "analytics.alerts.create.brand",
+    "analytics.alerts.update.brand",
+    "analytics.alerts.delete.brand"
+  ],
+
+  "inbox": [
+    "inbox.conversations.view.brand",
+    "inbox.conversations.view.assigned",
+
+    "inbox.messages.view.brand",
+    "inbox.messages.view.assigned",
+    "inbox.messages.reply.brand",
+    "inbox.messages.reply.assigned",
+    "inbox.messages.delete.brand",
+
+    "inbox.conversations.assign.brand",
+    "inbox.conversations.unassign.brand",
+    "inbox.conversations.self_assign.brand",
+
+    "inbox.conversations.status_change.brand",
+    "inbox.conversations.status_change.assigned",
+
+    "inbox.conversations.add_note.brand",
+    "inbox.conversations.add_note.assigned",
+    "inbox.conversations.edit_note.own",
+    "inbox.conversations.delete_note.own",
+    "inbox.conversations.delete_note.brand",
+
+    "inbox.conversations.tag.brand",
+    "inbox.conversations.untag.brand",
+
+    "inbox.conversations.snooze.brand",
+    "inbox.conversations.snooze.assigned",
+
+    "inbox.conversations.bulk_action.brand",
+
+    "inbox.conversations.merge.brand",
+
+    "inbox.leads.create.brand",
+    "inbox.orders.create.brand",
+    "inbox.crm.send.brand",
+
+    "inbox.customer_data.view.brand",
+    "inbox.customer_data.view.assigned",
+    "inbox.customer_data.export.brand",
+    "inbox.customer_data.delete.brand",
+
+    "inbox.sensitive_data.view.brand",
+
+    "inbox.templates.view.brand",
+    "inbox.templates.use.brand",
+    "inbox.templates.create.brand",
+    "inbox.templates.update.brand",
+    "inbox.templates.delete.brand",
+    "inbox.templates.update.own",
+    "inbox.templates.delete.own",
+
+    "inbox.rules.view.brand",
+    "inbox.rules.create.brand",
+    "inbox.rules.update.brand",
+    "inbox.rules.delete.brand",
+    "inbox.rules.enable.brand",
+    "inbox.rules.disable.brand",
+
+    "inbox.reports.view.brand",
+    "inbox.reports.export.brand"
+  ],
+
+  "crm": [
+    "crm.dashboard.view.brand",
+
+    "crm.customers.view.brand",
+    "crm.customers.view.assigned",
+    "crm.customers.create.brand",
+    "crm.customers.update.brand",
+    "crm.customers.update.assigned",
+    "crm.customers.delete.brand",
+    "crm.customers.export.brand",
+    "crm.customers.import.brand",
+    "crm.customers.merge.brand",
+    "crm.customers.blacklist.brand",
+    "crm.customers.sensitive_data.view.brand",
+    "crm.customers.sensitive_data.view.assigned",
+
+    "crm.orders.view.brand",
+    "crm.orders.view.assigned",
+    "crm.orders.create.brand",
+    "crm.orders.update.brand",
+    "crm.orders.update.assigned",
+    "crm.orders.delete.brand",
+    "crm.orders.export.brand",
+    "crm.orders.refund.brand",
+    "crm.orders.cancel.brand",
+    "crm.orders.cancel.assigned",
+
+    "crm.pipeline.view.brand",
+    "crm.pipeline.create.brand",
+    "crm.pipeline.update.brand",
+    "crm.pipeline.delete.brand",
+    "crm.pipeline.manage.brand",
+    "crm.pipeline.move_stage.brand",
+    "crm.pipeline.move_stage.assigned",
+
+    "crm.tickets.view.brand",
+    "crm.tickets.view.assigned",
+    "crm.tickets.create.brand",
+    "crm.tickets.update.brand",
+    "crm.tickets.update.assigned",
+    "crm.tickets.delete.brand",
+    "crm.tickets.assign.brand",
+    "crm.tickets.self_assign.brand",
+    "crm.tickets.close.brand",
+    "crm.tickets.close.assigned",
+    "crm.tickets.reopen.brand",
+    "crm.tickets.escalate.brand",
+    "crm.tickets.escalate.assigned",
+
+    "crm.notes.view.brand",
+    "crm.notes.view.assigned",
+    "crm.notes.create.brand",
+    "crm.notes.update.own",
+    "crm.notes.delete.own",
+    "crm.notes.delete.brand",
+
+    "crm.activities.view.brand",
+    "crm.activities.view.assigned",
+    "crm.activities.create.brand",
+
+    "crm.segments.view.brand",
+    "crm.segments.create.brand",
+    "crm.segments.update.brand",
+    "crm.segments.update.own",
+    "crm.segments.delete.brand",
+    "crm.segments.delete.own",
+    "crm.segments.export.brand",
+
+    "crm.automations.view.brand",
+    "crm.automations.create.brand",
+    "crm.automations.update.brand",
+    "crm.automations.delete.brand",
+    "crm.automations.enable.brand",
+    "crm.automations.disable.brand",
+    "crm.automations.logs.view.brand",
+
+    "crm.rfm.view.brand",
+    "crm.rfm.export.brand",
+
+    "crm.cohorts.view.brand",
+    "crm.cohorts.export.brand",
+
+    "crm.lifecycle.view.brand",
+    "crm.lifecycle.manage.brand",
+
+    "crm.roles.view.brand",
+    "crm.roles.create.brand",
+    "crm.roles.update.brand",
+    "crm.roles.delete.brand",
+
+    "crm.integrations.shopify.connect.brand",
+    "crm.integrations.shopify.disconnect.brand",
+    "crm.integrations.woo.connect.brand",
+    "crm.integrations.woo.disconnect.brand",
+
+    "crm.reports.view.brand",
+    "crm.reports.create.brand",
+    "crm.reports.export.brand"
+  ],
+
+  "workflow": [
+    "workflow.tasks.view.brand",
+    "workflow.tasks.view.assigned",
+    "workflow.tasks.view.own",
+
+    "workflow.tasks.create.brand",
+    "workflow.tasks.create.own",
+
+    "workflow.tasks.update.brand",
+    "workflow.tasks.update.assigned",
+    "workflow.tasks.update.own",
+
+    "workflow.tasks.delete.brand",
+    "workflow.tasks.delete.own",
+
+    "workflow.tasks.assign.brand",
+    "workflow.tasks.self_assign.brand",
+
+    "workflow.tasks.complete.assigned",
+    "workflow.tasks.complete.own",
+
+    "workflow.tasks.approve.brand",
+    "workflow.tasks.reject.brand",
+
+    "workflow.tasks.comment.brand",
+    "workflow.tasks.comment.own",
+
+    "workflow.tasks.checklist.manage.brand",
+    "workflow.tasks.checklist.manage.own",
+
+    "workflow.tasks.dependency.manage.brand",
+    "workflow.tasks.recurrence.manage.brand",
+    "workflow.tasks.recurrence.manage.own",
+
+    "workflow.tasks.attachment.add.brand",
+    "workflow.tasks.attachment.add.own",
+    "workflow.tasks.attachment.delete.own",
+    "workflow.tasks.attachment.delete.brand",
+
+    "workflow.team_tasks.view.workspace",
+
+    "workflow.templates.view.brand",
+    "workflow.templates.create.brand",
+    "workflow.templates.update.brand",
+    "workflow.templates.update.own",
+    "workflow.templates.delete.brand",
+    "workflow.templates.delete.own",
+
+    "workflow.automation_rules.view.brand",
+    "workflow.automation_rules.create.brand",
+    "workflow.automation_rules.update.brand",
+    "workflow.automation_rules.delete.brand",
+    "workflow.automation_rules.enable.brand",
+    "workflow.automation_rules.disable.brand"
+  ],
+
+  "automation": [
+    "automation.view.brand",
+
+    "automation.create.brand",
+
+    "automation.update.brand",
+    "automation.update.own",
+
+    "automation.delete.brand",
+    "automation.delete.own",
+
+    "automation.enable.brand",
+    "automation.disable.brand",
+    "automation.enable.own",
+    "automation.disable.own",
+
+    "automation.test.brand",
+    "automation.test.own",
+
+    "automation.logs.view.brand",
+    "automation.logs.view.own",
+    "automation.logs.export.brand",
+
+    "automation.tools.view.brand",
+    "automation.tools.connect.brand",
+    "automation.tools.disconnect.brand",
+
+    "automation.triggers.manage.brand",
+    "automation.actions.manage.brand",
+
+    "automation.webhook_data.access.brand",
+    "automation.webhook_data.access.own",
+
+    "automation.templates.view.brand",
+    "automation.templates.use.brand",
+    "automation.templates.create.brand",
+    "automation.templates.update.brand",
+    "automation.templates.delete.brand"
+  ],
+
+  "ai": [
+    "ai.content.generate.brand",
+    "ai.strategy.generate.brand",
+    "ai.reports.generate.brand",
+    "ai.design_prompts.generate.brand",
+    "ai.replies.generate.brand",
+    "ai.keywords.generate.brand",
+    "ai.ad_copy.generate.brand",
+    "ai.campaign_brief.generate.brand",
+    "ai.brand_analysis.generate.brand",
+
+    "ai.brand_memory.use.brand",
+    "ai.brand_memory.train.brand",
+
+    "ai.output.view.brand",
+    "ai.output.edit.brand",
+    "ai.output.edit.own",
+    "ai.output.approve.brand",
+    "ai.output.reject.brand",
+    "ai.output.history.view.brand",
+    "ai.output.history.view.own",
+
+    "ai.advanced_tools.access.brand",
+
+    "ai.prompt_library.view.brand",
+    "ai.prompt_library.create.brand",
+    "ai.prompt_library.update.brand",
+    "ai.prompt_library.update.own",
+    "ai.prompt_library.delete.brand",
+    "ai.prompt_library.delete.own",
+
+    "ai.model_select.brand",
+
+    "ai.credits.view.workspace",
+    "ai.credits.manage.workspace",
+    "ai.credits.usage_history.view.workspace"
+  ],
+
+  "integrations": [
+    "integrations.meta.connect.brand",
+    "integrations.meta.disconnect.brand",
+    "integrations.meta.view.brand",
+    "integrations.meta.sync.brand",
+    "integrations.meta.sync_history.view.brand",
+
+    "integrations.instagram.connect.brand",
+    "integrations.instagram.disconnect.brand",
+    "integrations.instagram.view.brand",
+    "integrations.instagram.sync.brand",
+
+    "integrations.tiktok.connect.brand",
+    "integrations.tiktok.disconnect.brand",
+    "integrations.tiktok.view.brand",
+    "integrations.tiktok.sync.brand",
+
+    "integrations.twitter.connect.brand",
+    "integrations.twitter.disconnect.brand",
+    "integrations.twitter.view.brand",
+    "integrations.twitter.sync.brand",
+
+    "integrations.linkedin.connect.brand",
+    "integrations.linkedin.disconnect.brand",
+    "integrations.linkedin.view.brand",
+    "integrations.linkedin.sync.brand",
+
+    "integrations.google_analytics.connect.brand",
+    "integrations.google_analytics.disconnect.brand",
+    "integrations.google_analytics.view.brand",
+    "integrations.google_analytics.sync.brand",
+
+    "integrations.google_ads.connect.brand",
+    "integrations.google_ads.disconnect.brand",
+    "integrations.google_ads.view.brand",
+    "integrations.google_ads.sync.brand",
+
+    "integrations.search_console.connect.brand",
+    "integrations.search_console.disconnect.brand",
+    "integrations.search_console.view.brand",
+    "integrations.search_console.sync.brand",
+
+    "integrations.crm.connect.brand",
+    "integrations.crm.disconnect.brand",
+    "integrations.crm.view.brand",
+    "integrations.crm.sync.brand",
+
+    "integrations.website.connect.brand",
+    "integrations.website.disconnect.brand",
+    "integrations.website.view.brand",
+
+    "integrations.tokens.status.view.brand",
+    "integrations.tokens.refresh.brand",
+    "integrations.tokens.value.view",
+
+    "integrations.logs.view.brand",
+    "integrations.logs.export.brand",
+
+    "integrations.health.view.brand",
+    "integrations.health.view.workspace"
+  ],
+
+  "settings": [
+    "settings.workspace.view.own",
+    "settings.workspace.update.own",
+
+    "settings.brand.view.assigned",
+    "settings.brand.update.assigned",
+
+    "settings.notifications.view.own",
+    "settings.notifications.update.own",
+
+    "settings.profile.view.own",
+    "settings.profile.update.own",
+    "settings.profile.delete.own",
+
+    "settings.security.view.own",
+    "settings.security.update.own",
+
+    "settings.2fa.enable.own",
+    "settings.2fa.disable.own",
+    "settings.2fa.backup_codes.view.own",
+
+    "settings.sessions.view.own",
+    "settings.sessions.revoke.own",
+    "settings.sessions.revoke_all.own",
+
+    "settings.api.view.own",
+    "settings.api.create_key.own",
+    "settings.api.revoke_key.own",
+
+    "settings.team.view.own",
+
+    "settings.permissions.view.own",
+    "settings.permissions.manage.own",
+
+    "settings.billing.view.own",
+    "settings.billing.manage.own",
+
+    "settings.white_label.view.own",
+    "settings.white_label.manage.own"
+  ],
+
+  "brand_brain": [
+    "brand_brain.view.assigned",
+    "brand_brain.update.assigned",
+
+    "brand_brain.knowledge.view.assigned",
+    "brand_brain.knowledge.create.assigned",
+    "brand_brain.knowledge.update.assigned",
+    "brand_brain.knowledge.delete.assigned",
+    "brand_brain.knowledge.delete.own",
+
+    "brand_brain.analysis.view.assigned",
+    "brand_brain.analysis.run.assigned",
+    "brand_brain.analysis.export.assigned",
+
+    "brand_brain.review.view.assigned",
+    "brand_brain.review.approve.assigned",
+    "brand_brain.review.reject.assigned",
+    "brand_brain.review.comment.assigned"
+  ],
+
+  "campaign_brain": [
+    "campaign_brain.briefs.view.brand",
+    "campaign_brain.briefs.view.own",
+
+    "campaign_brain.briefs.create.brand",
+
+    "campaign_brain.briefs.update.brand",
+    "campaign_brain.briefs.update.own",
+
+    "campaign_brain.briefs.delete.brand",
+    "campaign_brain.briefs.delete.own",
+
+    "campaign_brain.briefs.approve.brand",
+    "campaign_brain.briefs.reject.brand",
+
+    "campaign_brain.briefs.launch.brand",
+    "campaign_brain.briefs.pause.brand",
+    "campaign_brain.briefs.clone.brand",
+    "campaign_brain.briefs.clone.own",
+
+    "campaign_brain.briefs.export.brand",
+
+    "campaign_brain.templates.view.brand",
+    "campaign_brain.templates.manage.brand"
+  ],
+
+  "media": [
+    "media.assets.view.brand",
+    "media.assets.upload.brand",
+    "media.assets.update.brand",
+    "media.assets.update.own",
+    "media.assets.delete.brand",
+    "media.assets.delete.own",
+    "media.assets.tag.brand",
+    "media.assets.export.brand",
+    "media.assets.move.brand",
+    "media.assets.share_link.create.own",
+
+    "media.captions.view.brand",
+    "media.captions.create.brand",
+    "media.captions.update.brand",
+    "media.captions.update.own",
+    "media.captions.delete.brand",
+    "media.captions.delete.own",
+
+    "media.folders.view.brand",
+    "media.folders.create.brand",
+    "media.folders.update.brand",
+    "media.folders.delete.brand"
+  ],
+
+  "approval_requests": [
+    "approval_requests.view.brand",
+    "approval_requests.view.own",
+    "approval_requests.create.brand",
+    "approval_requests.approve.brand",
+    "approval_requests.reject.brand",
+    "approval_requests.cancel.own",
+    "approval_requests.comment.brand",
+    "approval_requests.comment.own"
+  ],
+
+  "version_history": [
+    "version_history.view.brand",
+    "version_history.view.own",
+    "version_history.restore.brand",
+    "version_history.restore.own",
+    "version_history.compare.brand",
+    "version_history.delete.brand"
+  ],
+
+  "notifications": [
+    "notifications.view.own",
+    "notifications.mark_read.own",
+    "notifications.delete.own",
+    "notifications.preferences.manage.own",
+    "notifications.send.brand",
+    "notifications.send.workspace"
+  ],
+
+  "white_label": [
+    "white_label.settings.view.own",
+    "white_label.settings.manage.own",
+    "white_label.domain.view.own",
+    "white_label.domain.manage.own",
+    "white_label.branding.view.own",
+    "white_label.branding.manage.own",
+    "white_label.client_portal.view.own",
+    "white_label.client_portal.manage.own"
+  ],
+
+  "security_policy": [
+    "security_policy.view.workspace",
+    "security_policy.manage.workspace",
+    "security_policy.2fa_require.manage.workspace",
+    "security_policy.session_timeout.manage.workspace",
+    "security_policy.ip_allowlist.manage.workspace",
+    "security_policy.password_policy.manage.workspace"
+  ],
+
+  "support_access": [
+    "support_access.grant.workspace",
+    "support_access.revoke.workspace",
+    "support_access.view_active.workspace",
+    "support_access.view_history.workspace"
+  ],
+
+  "data_retention": [
+    "data_retention.policy.view.workspace",
+    "data_retention.policy.manage.workspace",
+    "data_retention.purge.workspace",
+    "data_retention.export_all.workspace",
+    "data_retention.right_to_erasure.workspace"
+  ]
+}

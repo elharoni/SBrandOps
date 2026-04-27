@@ -40,12 +40,17 @@ ALTER TABLE social_accounts
 -- ── RLS Policies ──────────────────────────────────────────────────────────────
 ALTER TABLE analytics_snapshots ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "analytics_snapshots_brand_access" ON analytics_snapshots
-    FOR ALL USING (
-        brand_id IN (
-            SELECT id FROM brands WHERE user_id = auth.uid()
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'analytics_snapshots' AND policyname = 'analytics_snapshots_brand_access') THEN
+        CREATE POLICY "analytics_snapshots_brand_access" ON analytics_snapshots
+            FOR ALL USING (
+                brand_id IN (
+                    SELECT id FROM brands WHERE user_id = auth.uid()
+                )
+            );
+    END IF;
+END $$;
 
 -- ── pg_cron Jobs ──────────────────────────────────────────────────────────────
 -- Requires pg_cron extension + pg_net extension

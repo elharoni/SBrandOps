@@ -1,20 +1,180 @@
 import React, { useMemo, useState } from 'react';
-import { AccountStatus, AssetPurpose, NotificationType, PLATFORM_ASSETS, SocialAccount, SocialAsset, SocialPlatform } from '../../types';
-import { fetchAvailableAssets, initiateSocialLogin, connectSelectedAssets } from '../../services/socialAuthService';
+import { AccountStatus, AssetPurpose, Brand, NotificationType, PLATFORM_ASSETS, SocialAccount, SocialAsset, SocialPlatform } from '../../types';
+import { fetchAvailableAssets, initiateSocialLogin, connectSelectedAssets, saveMatchScore } from '../../services/socialAuthService';
 import { disconnectSocialAccount, updateAccountStatus } from '../../services/socialAccountService';
 import { AssetSelectionModal } from '../AssetSelectionModal';
 import { useLanguage } from '../../context/LanguageContext';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
 import { SetupGuideModal, needsSetupGuide } from '../shared/SetupGuideModal';
 import { IntegrationHealthPanel } from '../IntegrationHealthPanel';
+import { ImportDataModal } from './ImportDataModal';
 
 interface AccountsPageProps {
     brandId: string;
+    brand?: Brand;
     accounts: SocialAccount[];
     onConnect: (platform: SocialPlatform, username: string) => void;
     onRefresh: () => void;
     addNotification: (type: NotificationType, message: string) => void;
 }
+
+// ── Page–Brand Match Modal ────────────────────────────────────────────────────
+
+function calcNameScore(brandName: string, pageName: string): number {
+    const bn = brandName.toLowerCase().trim();
+    const pn = pageName.toLowerCase().trim();
+    if (!bn || !pn) return 0;
+    if (bn === pn) return 60;
+    if (pn.includes(bn) || bn.includes(pn)) return 45;
+    const bnWords = bn.split(/\s+/).filter(w => w.length > 2);
+    const pnWords = pn.split(/\s+/);
+    const matches = bnWords.filter(w => pnWords.some(pw => pw.includes(w) || w.includes(pw)));
+    if (matches.length >= 2) return 30;
+    if (matches.length === 1) return 15;
+    return 0;
+}
+
+function calcCategoryScore(industry: string, category: string): number {
+    if (!industry || !category) return 0;
+    const ind = industry.toLowerCase();
+    const cat = category.toLowerCase();
+    const keywords = ind.split(/[\s,/]+/).filter(k => k.length > 3);
+    if (keywords.some(k => cat.includes(k))) return 30;
+    return 0;
+}
+
+function computeMatchScore(brand: Brand | undefined, asset: SocialAsset): number {
+    if (!brand) return 50;
+    const nameScore = calcNameScore(brand.name, asset.name);
+    const catScore = calcCategoryScore(brand.industry ?? '', asset.category ?? '');
+    return Math.min(100, nameScore + catScore + 10); // 10 = base confidence (user chose this)
+}
+
+interface MatchRow {
+    asset: SocialAsset;
+    score: number;
+    nameScore: number;
+    catScore: number;
+}
+
+const ScoreRing: React.FC<{ score: number }> = ({ score }) => {
+    const color = score >= 70 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
+    const r = 20;
+    const circ = 2 * Math.PI * r;
+    const dash = (score / 100) * circ;
+    return (
+        <svg width="52" height="52" viewBox="0 0 52 52" className="shrink-0">
+            <circle cx="26" cy="26" r={r} fill="none" stroke="currentColor" strokeWidth="4" className="text-light-border dark:text-dark-border" />
+            <circle cx="26" cy="26" r={r} fill="none" stroke={color} strokeWidth="4"
+                strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ * 0.25}
+                strokeLinecap="round" transform="rotate(-90 26 26)" />
+            <text x="26" y="30" textAnchor="middle" fill={color} fontSize="11" fontWeight="bold">{score}%</text>
+        </svg>
+    );
+};
+
+const PageBrandMatchModal: React.FC<{
+    rows: MatchRow[];
+    brand: Brand | undefined;
+    platform: SocialPlatform;
+    onConfirm: () => void;
+    onCancel: () => void;
+    confirming: boolean;
+}> = ({ rows, brand, platform, onConfirm, onCancel, confirming }) => {
+    const { language } = useLanguage();
+    const ar = language === 'ar';
+
+    const avgScore = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.score, 0) / rows.length) : 0;
+    const allGood = rows.every(r => r.score >= 70);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+            <div className="surface-panel w-full max-w-lg rounded-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-start gap-3">
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${allGood ? 'bg-emerald-500/10' : 'bg-amber-500/10'}`}>
+                        <i className={`fas ${allGood ? 'fa-circle-check text-emerald-500' : 'fa-shield-halved text-amber-500'} text-lg`} />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-light-text dark:text-dark-text">
+                            {ar ? 'تأكيد ربط الصفحة بالبراند' : 'Confirm Page–Brand Match'}
+                        </h3>
+                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                            {brand
+                                ? (ar ? `البراند: ${brand.name}  ·  المنصة: ${platform}` : `Brand: ${brand.name}  ·  Platform: ${platform}`)
+                                : platform}
+                        </p>
+                    </div>
+                    <div className="ms-auto">
+                        <ScoreRing score={avgScore} />
+                    </div>
+                </div>
+
+                {/* Match rows */}
+                <div className="space-y-3 max-h-72 overflow-y-auto">
+                    {rows.map(({ asset, score, nameScore, catScore }) => (
+                        <div key={asset.id} className="flex items-center gap-3 rounded-xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg p-3">
+                            <img
+                                src={asset.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(asset.name)}&background=2563eb&color=fff`}
+                                alt={asset.name}
+                                className="h-10 w-10 shrink-0 rounded-full object-cover"
+                            />
+                            <div className="flex-1 min-w-0">
+                                <p className="truncate text-sm font-semibold text-light-text dark:text-dark-text">{asset.name}</p>
+                                {asset.category && (
+                                    <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">{asset.category}</p>
+                                )}
+                                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px]">
+                                    <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold ${nameScore > 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-light-border/50 text-light-text-secondary dark:text-dark-text-secondary'}`}>
+                                        <i className={`fas ${nameScore > 0 ? 'fa-check' : 'fa-minus'}`} />
+                                        {ar ? 'الاسم' : 'Name'} +{nameScore}
+                                    </span>
+                                    <span className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 font-semibold ${catScore > 0 ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-light-border/50 text-light-text-secondary dark:text-dark-text-secondary'}`}>
+                                        <i className={`fas ${catScore > 0 ? 'fa-check' : 'fa-minus'}`} />
+                                        {ar ? 'الفئة' : 'Category'} +{catScore}
+                                    </span>
+                                </div>
+                            </div>
+                            <ScoreRing score={score} />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Confidence message */}
+                {!allGood && (
+                    <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+                        <i className="fas fa-triangle-exclamation mt-0.5 shrink-0" />
+                        <span>
+                            {ar
+                                ? 'بعض الصفحات لا تطابق بيانات البراند تماماً. تأكد أنها الصفحات الصحيحة قبل المتابعة.'
+                                : 'Some pages don\'t strongly match the brand. Verify these are the correct pages before continuing.'}
+                        </span>
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-1">
+                    <button
+                        onClick={onConfirm}
+                        disabled={confirming}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                        {confirming && <i className="fas fa-circle-notch fa-spin text-xs" />}
+                        <i className="fas fa-link text-xs" />
+                        {ar ? 'تأكيد الربط' : 'Confirm Connection'}
+                    </button>
+                    <button
+                        onClick={onCancel}
+                        disabled={confirming}
+                        className="rounded-xl border border-light-border px-4 py-2.5 text-sm font-medium text-light-text-secondary hover:text-light-text dark:border-dark-border dark:text-dark-text-secondary dark:hover:text-dark-text disabled:opacity-50"
+                    >
+                        {ar ? 'إلغاء' : 'Cancel'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 interface PlatformCardProps {
     platform: SocialPlatform;
@@ -263,7 +423,7 @@ const AccountsStatsBar: React.FC<{ accounts: SocialAccount[] }> = ({ accounts })
     );
 };
 
-export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, onConnect, onRefresh, addNotification }) => {
+export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, brand, accounts, onConnect, onRefresh, addNotification }) => {
     const { t, language } = useLanguage();
     const ar = language === 'ar';
     const [loadingPlatform, setLoadingPlatform] = useState<SocialPlatform | null>(null);
@@ -274,6 +434,18 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, o
     const [pendingDisconnectId, setPendingDisconnectId] = useState<string | null>(null);
     const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
     const [setupPlatform, setSetupPlatform] = useState<SocialPlatform | null>(null);
+
+    // Match modal state
+    const [matchRows, setMatchRows] = useState<MatchRow[]>([]);
+    const [matchPurposes, setMatchPurposes] = useState<AssetPurpose[]>([]);
+    const [matchMarket, setMatchMarket] = useState<string | undefined>();
+    const [isMatchOpen, setIsMatchOpen] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+
+    // Import Historical Data modal state
+    const [importModalOpen, setImportModalOpen] = useState(false);
+    const [importPageName, setImportPageName]   = useState('');
+    const [importPlatform, setImportPlatform]   = useState('');
 
     const notifyConnectionError = () => {
         addNotification(NotificationType.Error, t.errors.connectionFailed);
@@ -315,23 +487,50 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, o
         }
     };
 
-    const handleAssetsConfirmed = async (selectedAssets: SocialAsset[], purposes: AssetPurpose[], market?: string) => {
+    const handleAssetsConfirmed = (selectedAssets: SocialAsset[], purposes: AssetPurpose[], market?: string) => {
+        if (!currentPlatform) return;
+        // Build match rows and show confirmation modal
+        const rows: MatchRow[] = selectedAssets.map(asset => {
+            const nameScore = calcNameScore(brand?.name ?? '', asset.name);
+            const catScore = calcCategoryScore(brand?.industry ?? '', asset.category ?? '');
+            return { asset, score: Math.min(100, nameScore + catScore + 10), nameScore, catScore };
+        });
+        setMatchRows(rows);
+        setMatchPurposes(purposes);
+        setMatchMarket(market);
+        setIsModalOpen(false);
+        setIsMatchOpen(true);
+    };
+
+    const handleMatchConfirm = async () => {
         if (!currentPlatform || !currentToken) return;
-        setLoadingPlatform(currentPlatform);
+        setConfirming(true);
         try {
-            await connectSelectedAssets(brandId, selectedAssets, currentPlatform, currentToken, { defaultPurposes: purposes, market });
+            await connectSelectedAssets(brandId, matchRows.map(r => r.asset), currentPlatform, currentToken, { defaultPurposes: matchPurposes, market: matchMarket });
+            // Save match scores in background
+            matchRows.forEach(r => {
+                saveMatchScore(brandId, currentPlatform, r.asset.id, r.score).catch(() => {});
+            });
             addNotification(
                 NotificationType.Success,
                 ar
-                    ? `تم ربط ${selectedAssets.length} ${selectedAssets.length === 1 ? 'حساب' : 'حسابات'} من ${currentPlatform} بنجاح.`
-                    : `${selectedAssets.length} ${currentPlatform} account${selectedAssets.length !== 1 ? 's' : ''} connected successfully.`,
+                    ? `تم ربط ${matchRows.length} ${matchRows.length === 1 ? 'حساب' : 'حسابات'} من ${currentPlatform} بنجاح.`
+                    : `${matchRows.length} ${currentPlatform} account${matchRows.length !== 1 ? 's' : ''} connected successfully.`,
             );
-            setIsModalOpen(false);
+            setIsMatchOpen(false);
+            // Offer to import historical data from the connected page(s)
+            if (matchRows.length > 0 && (currentPlatform === SocialPlatform.Facebook || currentPlatform === SocialPlatform.Instagram)) {
+                setImportPageName(matchRows[0].asset.name);
+                setImportPlatform(currentPlatform);
+                setImportModalOpen(true);
+            }
+            setMatchRows([]);
             onRefresh();
         } catch (error) {
             console.error('Failed to connect assets:', error);
             notifyConnectionError();
         } finally {
+            setConfirming(false);
             setLoadingPlatform(null);
         }
     };
@@ -467,11 +666,33 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, accounts, o
                 onConfirm={handleDisconnectConfirm}
             />
 
+            {isMatchOpen && currentPlatform && (
+                <PageBrandMatchModal
+                    rows={matchRows}
+                    brand={brand}
+                    platform={currentPlatform}
+                    onConfirm={handleMatchConfirm}
+                    onCancel={() => { setIsMatchOpen(false); setMatchRows([]); }}
+                    confirming={confirming}
+                />
+            )}
+
             {setupPlatform && (
                 <SetupGuideModal
                     platform={setupPlatform}
                     onClose={() => setSetupPlatform(null)}
                     ar={ar}
+                />
+            )}
+
+            {importModalOpen && brand && (
+                <ImportDataModal
+                    brandId={brandId}
+                    brandName={brand.name}
+                    pageName={importPageName}
+                    platform={importPlatform}
+                    addNotification={addNotification}
+                    onClose={() => setImportModalOpen(false)}
                 />
             )}
         </PageScaffold>

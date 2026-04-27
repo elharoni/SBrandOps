@@ -25,17 +25,23 @@ CREATE INDEX IF NOT EXISTS idx_support_sessions_status ON support_chat_sessions 
 ALTER TABLE support_chat_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Users see only their own sessions; admins/support see all
-CREATE POLICY support_sessions_user_access ON support_chat_sessions
-    FOR ALL USING (user_id = auth.uid());
-
-CREATE POLICY support_sessions_admin_access ON support_chat_sessions
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM auth.users
-            WHERE auth.users.id = auth.uid()
-              AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_chat_sessions' AND policyname = 'support_sessions_user_access') THEN
+        CREATE POLICY support_sessions_user_access ON support_chat_sessions
+            FOR ALL USING (user_id = auth.uid());
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_chat_sessions' AND policyname = 'support_sessions_admin_access') THEN
+        CREATE POLICY support_sessions_admin_access ON support_chat_sessions
+            FOR SELECT USING (
+                EXISTS (
+                    SELECT 1 FROM auth.users
+                    WHERE auth.users.id = auth.uid()
+                      AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
+                )
+            );
+    END IF;
+END $$;
 
 -- ── support_chat_messages ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS support_chat_messages (
@@ -52,19 +58,24 @@ CREATE INDEX IF NOT EXISTS idx_support_messages_session ON support_chat_messages
 
 ALTER TABLE support_chat_messages ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY support_messages_access ON support_chat_messages
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM support_chat_sessions s
-            WHERE s.id = support_chat_messages.session_id
-              AND s.user_id = auth.uid()
-        )
-        OR EXISTS (
-            SELECT 1 FROM auth.users
-            WHERE auth.users.id = auth.uid()
-              AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_chat_messages' AND policyname = 'support_messages_access') THEN
+        CREATE POLICY support_messages_access ON support_chat_messages
+            FOR ALL USING (
+                EXISTS (
+                    SELECT 1 FROM support_chat_sessions s
+                    WHERE s.id = support_chat_messages.session_id
+                      AND s.user_id = auth.uid()
+                )
+                OR EXISTS (
+                    SELECT 1 FROM auth.users
+                    WHERE auth.users.id = auth.uid()
+                      AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
+                )
+            );
+    END IF;
+END $$;
 
 -- ── support_tickets ───────────────────────────────────────────────────────────
 CREATE SEQUENCE IF NOT EXISTS support_ticket_number_seq START 1000;
@@ -98,18 +109,23 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_brand  ON support_tickets (brand_
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 
 -- Users see their own tickets
-CREATE POLICY support_tickets_user_access ON support_tickets
-    FOR ALL USING (user_id = auth.uid());
-
--- Admin/support_agent see all tickets
-CREATE POLICY support_tickets_admin_access ON support_tickets
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM auth.users
-            WHERE auth.users.id = auth.uid()
-              AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_tickets' AND policyname = 'support_tickets_user_access') THEN
+        CREATE POLICY support_tickets_user_access ON support_tickets
+            FOR ALL USING (user_id = auth.uid());
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_tickets' AND policyname = 'support_tickets_admin_access') THEN
+        CREATE POLICY support_tickets_admin_access ON support_tickets
+            FOR ALL USING (
+                EXISTS (
+                    SELECT 1 FROM auth.users
+                    WHERE auth.users.id = auth.uid()
+                      AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
+                )
+            );
+    END IF;
+END $$;
 
 -- ── support_ticket_replies ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS support_ticket_replies (
@@ -126,37 +142,41 @@ CREATE INDEX IF NOT EXISTS idx_ticket_replies_ticket ON support_ticket_replies (
 
 ALTER TABLE support_ticket_replies ENABLE ROW LEVEL SECURITY;
 
--- Users see non-internal replies on their own tickets
-CREATE POLICY ticket_replies_user_access ON support_ticket_replies
-    FOR SELECT USING (
-        is_internal = false
-        AND EXISTS (
-            SELECT 1 FROM support_tickets t
-            WHERE t.id = support_ticket_replies.ticket_id
-              AND t.user_id = auth.uid()
-        )
-    );
-
--- Users can insert replies on their own tickets
-CREATE POLICY ticket_replies_user_insert ON support_ticket_replies
-    FOR INSERT WITH CHECK (
-        sender_id = auth.uid()
-        AND EXISTS (
-            SELECT 1 FROM support_tickets t
-            WHERE t.id = support_ticket_replies.ticket_id
-              AND t.user_id = auth.uid()
-        )
-    );
-
--- Admin/support_agent see + write all replies
-CREATE POLICY ticket_replies_admin_access ON support_ticket_replies
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM auth.users
-            WHERE auth.users.id = auth.uid()
-              AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_ticket_replies' AND policyname = 'ticket_replies_user_access') THEN
+        CREATE POLICY ticket_replies_user_access ON support_ticket_replies
+            FOR SELECT USING (
+                is_internal = false
+                AND EXISTS (
+                    SELECT 1 FROM support_tickets t
+                    WHERE t.id = support_ticket_replies.ticket_id
+                      AND t.user_id = auth.uid()
+                )
+            );
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_ticket_replies' AND policyname = 'ticket_replies_user_insert') THEN
+        CREATE POLICY ticket_replies_user_insert ON support_ticket_replies
+            FOR INSERT WITH CHECK (
+                sender_id = auth.uid()
+                AND EXISTS (
+                    SELECT 1 FROM support_tickets t
+                    WHERE t.id = support_ticket_replies.ticket_id
+                      AND t.user_id = auth.uid()
+                )
+            );
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'support_ticket_replies' AND policyname = 'ticket_replies_admin_access') THEN
+        CREATE POLICY ticket_replies_admin_access ON support_ticket_replies
+            FOR ALL USING (
+                EXISTS (
+                    SELECT 1 FROM auth.users
+                    WHERE auth.users.id = auth.uid()
+                      AND (auth.users.raw_user_meta_data->>'role' IN ('admin', 'support_agent'))
+                )
+            );
+    END IF;
+END $$;
 
 COMMENT ON TABLE support_chat_sessions    IS 'Support chat sessions per user';
 COMMENT ON TABLE support_chat_messages    IS 'Messages within a support chat session';

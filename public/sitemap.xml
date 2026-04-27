@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+>
+
+  <!-- Home -->
+  <url>
+    <loc>https://sbrandops.com/</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/" />
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Features -->
+  <url>
+    <loc>https://sbrandops.com/features</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/features" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/features" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/features" />
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- For Agencies -->
+  <url>
+    <loc>https://sbrandops.com/for-agencies</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/for-agencies" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/for-agencies" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/for-agencies" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- For E-commerce -->
+  <url>
+    <loc>https://sbrandops.com/for-ecommerce</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/for-ecommerce" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/for-ecommerce" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/for-ecommerce" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Demo -->
+  <url>
+    <loc>https://sbrandops.com/demo</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/demo" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/demo" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/demo" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- About -->
+  <url>
+    <loc>https://sbrandops.com/about</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/about" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/about" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Pricing -->
+  <url>
+    <loc>https://sbrandops.com/pricing</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/pricing" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/pricing" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/pricing" />
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Contact -->
+  <url>
+    <loc>https://sbrandops.com/contact</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/contact" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/contact" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/contact" />
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Security -->
+  <url>
+    <loc>https://sbrandops.com/security</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/security" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/security" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/security" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- Terms -->
+  <url>
+    <loc>https://sbrandops.com/terms</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/terms" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/terms" />
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- Privacy -->
+  <url>
+    <loc>https://sbrandops.com/privacy</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/privacy" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/privacy" />
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- DPA -->
+  <url>
+    <loc>https://sbrandops.com/dpa</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/dpa" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/dpa" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/dpa" />
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Refunds -->
+  <url>
+    <loc>https://sbrandops.com/refunds</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/refunds" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/refunds" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/refunds" />
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Cookies -->
+  <url>
+    <loc>https://sbrandops.com/cookies</loc>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://sbrandops.com/cookies" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://sbrandops.com/cookies" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sbrandops.com/cookies" />
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+</urlset>

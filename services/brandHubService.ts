@@ -1,6 +1,14 @@
 import { BrandHubProfile, BrandVoice, BrandAudience, BusinessModel, BrandGoal, BrandLanguage } from '../types';
 import { supabase } from './supabaseClient';
 
+// ── Profile cache (5-minute TTL) ──────────────────────────────────────────────
+const PROFILE_TTL = 5 * 60_000;
+const profileCache = new Map<string, { profile: BrandHubProfile; ts: number }>();
+
+export function invalidateProfileCache(brandId: string): void {
+    profileCache.delete(brandId);
+}
+
 // --- Helper: Build empty profile ---
 const getEmptyBrandProfile = (brandName: string): BrandHubProfile => ({
     brandName,
@@ -55,6 +63,9 @@ function mapToProfile(data: any, brandName: string): BrandHubProfile {
 // --- Main Service Functions ---
 
 export async function getBrandHubProfile(brandId: string, brandName: string): Promise<BrandHubProfile> {
+    const cached = profileCache.get(brandId);
+    if (cached && Date.now() - cached.ts < PROFILE_TTL) return cached.profile;
+
     try {
         // Fetch brand profile and brand metadata (country, website) in parallel
         const [profileResult, brandResult] = await Promise.all([
@@ -72,6 +83,7 @@ export async function getBrandHubProfile(brandId: string, brandName: string): Pr
             profile.website = brandResult.data.website_url ?? undefined;
         }
 
+        profileCache.set(brandId, { profile, ts: Date.now() });
         return profile;
     } catch (error) {
         console.warn('⚠️ Brand hub profile fetch failed:', error);
@@ -80,6 +92,7 @@ export async function getBrandHubProfile(brandId: string, brandName: string): Pr
 }
 
 export async function updateBrandProfile(brandId: string, profile: Partial<BrandHubProfile>): Promise<BrandHubProfile> {
+    invalidateProfileCache(brandId);
     const upsertData: any = {
         brand_id: brandId,
         updated_at: new Date().toISOString(),

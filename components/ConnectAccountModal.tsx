@@ -5,11 +5,12 @@ import { getPlatformAssets } from '../services/socialAccountService';
 import { useModalClose } from '../hooks/useModalClose';
 
 interface ConnectAccountModalProps {
+    brandId: string;
     onClose: () => void;
     onConnect: (platform: SocialPlatform, username: string) => Promise<void>;
 }
 
-export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ onClose, onConnect }) => {
+export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandId, onClose, onConnect }) => {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | null>(null);
     const [fetchedAssets, setFetchedAssets] = useState<SocialAsset[]>([]);
@@ -29,7 +30,7 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ onClos
         setError(null);
         try {
             // Simulate the OAuth popup window flow
-            const assets = await getPlatformAssets(selectedPlatform);
+            const assets = await getPlatformAssets(selectedPlatform, brandId);
             setFetchedAssets(assets);
             if (assets.length > 0) {
                 setSelectedAsset(assets[0]); // Auto select first

@@ -50,8 +50,14 @@ CREATE TRIGGER set_seo_articles_updated_at
 ALTER TABLE seo_keywords ENABLE ROW LEVEL SECURITY;
 ALTER TABLE seo_articles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users access own brand SEO keywords"
-    ON seo_keywords FOR ALL USING (brand_id = ANY(crm_user_brand_ids()));
-
-CREATE POLICY "Users access own brand SEO articles"
-    ON seo_articles FOR ALL USING (brand_id = ANY(crm_user_brand_ids()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'seo_keywords' AND policyname = 'Users access own brand SEO keywords') THEN
+        CREATE POLICY "Users access own brand SEO keywords"
+            ON seo_keywords FOR ALL USING (brand_id = ANY(crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'seo_articles' AND policyname = 'Users access own brand SEO articles') THEN
+        CREATE POLICY "Users access own brand SEO articles"
+            ON seo_articles FOR ALL USING (brand_id = ANY(crm_user_brand_ids()));
+    END IF;
+END $$;

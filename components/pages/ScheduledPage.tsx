@@ -3,6 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { ScheduledPost, PostStatus, PLATFORM_ASSETS } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { EmptyScheduled } from '../shared/EmptyState';
+import { supabase } from '../../services/supabaseClient';
+import { SocialPlatform, PLATFORM_ASSETS as PA } from '../../types';
 
 // ── Confirmation Modal ───────────────────────────────────────────────────────
 const ConfirmationModal: React.FC<{
@@ -64,7 +66,9 @@ const ScheduledPostItem: React.FC<{
     onToggleSelect: () => void;
     onEdit: (post: ScheduledPost) => void;
     onDelete: () => void;
-}> = ({ post, isSelected, onToggleSelect, onEdit, onDelete }) => {
+    onRetry?: () => void;
+    retrying?: boolean;
+}> = ({ post, isSelected, onToggleSelect, onEdit, onDelete, onRetry, retrying }) => {
     const { t, language } = useLanguage();
     const isActionable = post.status === PostStatus.Draft || post.status === PostStatus.Scheduled;
     const locale = language === 'ar' ? 'ar-EG' : 'en-US';
@@ -143,6 +147,16 @@ const ScheduledPostItem: React.FC<{
 
             {/* Actions */}
             <div className="col-span-12 md:col-span-1 flex justify-end items-center gap-2">
+                {post.status === PostStatus.Failed && onRetry && (
+                    <button
+                        onClick={onRetry}
+                        disabled={retrying}
+                        title="إعادة جدولة"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-amber-400/70 hover:bg-amber-500/10 hover:text-amber-400 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-40"
+                    >
+                        <i className={`fas ${retrying ? 'fa-spinner fa-spin' : 'fa-rotate-right'} text-xs`}></i>
+                    </button>
+                )}
                 {isActionable && (
                     <button
                         onClick={() => onEdit(post)}
@@ -170,20 +184,25 @@ interface ScheduledPageProps {
     onEditPost: (post: ScheduledPost) => void;
     onDeletePost: (id: string) => void;
     onNavigateToPublisher?: () => void;
+    onRefreshPosts?: () => void;
 }
 
 type SortKey = 'status' | 'platform' | 'scheduledAt';
 type FilterStatus = 'all' | PostStatus;
+type SchedView = 'posts' | 'best-time' | 'status-overview' | 'timeline';
 
-export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost, onDeletePost, onNavigateToPublisher }) => {
+export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost, onDeletePost, onNavigateToPublisher, onRefreshPosts }) => {
     const { t, language } = useLanguage();
+    const ar = language === 'ar';
     const [postToDelete, setPostToDelete] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'scheduledAt', direction: 'asc' });
     const [search, setSearch] = useState('');
-    const [schedView, setSchedView] = useState<'posts' | 'best-time' | 'status-overview'>('posts');
+    const [schedView, setSchedView] = useState<SchedView>('posts');
     const [page, setPage] = useState(1);
+    const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+    const [platformFilter, setPlatformFilter] = useState<SocialPlatform | 'all'>('all');
     const PAGE_SIZE = 15;
 
     // Stats
@@ -194,6 +213,22 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
         published:  posts.filter(p => p.status === PostStatus.Published).length,
         failed:     posts.filter(p => p.status === PostStatus.Failed).length,
     }), [posts]);
+
+    // ── Retry failed post ─────────────────────────────────────────────────────
+    const handleRetryPost = async (id: string) => {
+        setRetryingIds(prev => new Set([...prev, id]));
+        try {
+            await supabase
+                .from('scheduled_posts')
+                .update({ status: 'Scheduled' })
+                .eq('id', id);
+            onRefreshPosts?.();
+        } catch {
+            // silent — status badge will remain Failed
+        } finally {
+            setRetryingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+        }
+    };
 
     const filteredAndSorted = useMemo(() => {
         let result = [...posts];
@@ -206,6 +241,11 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
         // Status filter
         if (filterStatus !== 'all') {
             result = result.filter(p => p.status === filterStatus);
+        }
+
+        // Platform filter
+        if (platformFilter !== 'all') {
+            result = result.filter(p => p.platforms.includes(platformFilter as SocialPlatform));
         }
 
         // Sort
@@ -229,6 +269,34 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
 
     const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / PAGE_SIZE));
     const pagedPosts = filteredAndSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+    // ── Timeline grouping ─────────────────────────────────────────────────────
+    const timelineGroups = useMemo(() => {
+        const now = new Date();
+        const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+        const week     = new Date(today); week.setDate(today.getDate() + 7);
+        const labels = [
+            { key: 'failed',  label: ar ? 'فشل النشر' : 'Failed',           color: 'text-rose-400',  icon: 'fa-times-circle' },
+            { key: 'today',   label: ar ? 'اليوم'      : 'Today',            color: 'text-brand-primary', icon: 'fa-calendar-day' },
+            { key: 'tomorrow',label: ar ? 'غداً'        : 'Tomorrow',         color: 'text-blue-400',  icon: 'fa-sun' },
+            { key: 'week',    label: ar ? 'هذا الأسبوع': 'This Week',         color: 'text-violet-400',icon: 'fa-calendar-week' },
+            { key: 'later',   label: ar ? 'لاحقاً'     : 'Later',            color: 'text-amber-400', icon: 'fa-hourglass-half' },
+            { key: 'draft',   label: ar ? 'مسودات'     : 'Drafts / No date', color: 'text-gray-400',  icon: 'fa-file-alt' },
+        ] as const;
+        const buckets: Record<string, ScheduledPost[]> = { failed: [], today: [], tomorrow: [], week: [], later: [], draft: [] };
+        for (const post of filteredAndSorted) {
+            if (post.status === PostStatus.Failed)  { buckets.failed.push(post);   continue; }
+            if (!post.scheduledAt || post.status === PostStatus.Draft) { buckets.draft.push(post); continue; }
+            const d   = new Date(post.scheduledAt);
+            const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            if (day.getTime() === today.getTime())    { buckets.today.push(post);    continue; }
+            if (day.getTime() === tomorrow.getTime()) { buckets.tomorrow.push(post); continue; }
+            if (day < week)                           { buckets.week.push(post);     continue; }
+            buckets.later.push(post);
+        }
+        return labels.map(l => ({ ...l, posts: buckets[l.key] })).filter(g => g.posts.length > 0);
+    }, [filteredAndSorted, ar]);
 
     const toggleSelect = (id: string) => {
         setSelectedIds(prev => {
@@ -331,15 +399,19 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
             </div>
 
             {/* SOC view tabs */}
-            <div className="flex gap-2 border-b border-light-border dark:border-dark-border">
+            <div className="flex gap-2 border-b border-light-border dark:border-dark-border overflow-x-auto">
                 {[
-                    { id: 'posts',           label: 'المنشورات',       icon: 'fa-list' },
-                    { id: 'best-time',       label: 'أفضل الأوقات',   icon: 'fa-clock' },
-                    { id: 'status-overview', label: 'حالة مفصّلة',    icon: 'fa-chart-pie' },
+                    { id: 'posts',           label: ar ? 'المنشورات'     : 'Posts',           icon: 'fa-list' },
+                    { id: 'timeline',        label: ar ? 'التسلسل الزمني': 'Timeline',         icon: 'fa-timeline' },
+                    { id: 'best-time',       label: ar ? 'أفضل الأوقات'  : 'Best Times',       icon: 'fa-clock' },
+                    { id: 'status-overview', label: ar ? 'حالة مفصّلة'   : 'Status Overview',  icon: 'fa-chart-pie' },
                 ].map(v => (
-                    <button key={v.id} onClick={() => setSchedView(v.id as typeof schedView)}
+                    <button key={v.id} onClick={() => setSchedView(v.id as SchedView)}
                         className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 whitespace-nowrap transition-colors ${schedView === v.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text'}`}>
                         <i className={`fas ${v.icon} text-xs`} />{v.label}
+                        {v.id === 'timeline' && stats.failed > 0 && (
+                            <span className="ms-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white">{stats.failed}</span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -432,7 +504,67 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
                 </div>
             )}
 
+            {/* ── Timeline View ── */}
+            {schedView === 'timeline' && (
+                <div className="space-y-6">
+                    {timelineGroups.length === 0 ? (
+                        <div className="py-16 text-center">
+                            <EmptyScheduled onCreatePost={onNavigateToPublisher ?? (() => {})} />
+                        </div>
+                    ) : timelineGroups.map(group => (
+                        <div key={group.key}>
+                            <div className="flex items-center gap-2 mb-3">
+                                <i className={`fas ${group.icon} text-sm ${group.color}`} />
+                                <h3 className={`text-sm font-bold ${group.color}`}>{group.label}</h3>
+                                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">({group.posts.length})</span>
+                                {group.key === 'failed' && (
+                                    <button
+                                        onClick={() => group.posts.forEach(p => handleRetryPost(p.id))}
+                                        className="ms-auto flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-400 hover:bg-amber-500/20 transition-colors"
+                                    >
+                                        <i className="fas fa-rotate-right text-[10px]" />
+                                        {ar ? 'إعادة الكل' : 'Retry all'}
+                                    </button>
+                                )}
+                            </div>
+                            <div className={`ms-6 border-s-2 ps-4 space-y-2 ${group.key === 'failed' ? 'border-rose-500/30' : 'border-brand-primary/20'}`}>
+                                {group.posts.map(post => (
+                                    <div key={post.id} className="px-1">
+                                        <ScheduledPostItem
+                                            post={post}
+                                            isSelected={selectedIds.has(post.id)}
+                                            onToggleSelect={() => toggleSelect(post.id)}
+                                            onEdit={onEditPost}
+                                            onDelete={() => setPostToDelete(post.id)}
+                                            onRetry={post.status === PostStatus.Failed ? () => handleRetryPost(post.id) : undefined}
+                                            retrying={retryingIds.has(post.id)}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {schedView === 'posts' && (<>
+            {/* Platform filter pills */}
+            <div className="flex items-center gap-2 flex-wrap">
+                {(['all', SocialPlatform.Facebook, SocialPlatform.Instagram, SocialPlatform.X, SocialPlatform.TikTok, SocialPlatform.LinkedIn] as const).map(p => {
+                    const isAll = p === 'all';
+                    const asset = isAll ? null : PA[p];
+                    const active = platformFilter === p;
+                    return (
+                        <button key={p} onClick={() => setPlatformFilter(p)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${active ? 'bg-brand-primary text-white border-brand-primary' : 'border-light-border dark:border-dark-border text-light-text-secondary dark:text-dark-text-secondary hover:border-brand-primary/50'}`}>
+                            {isAll
+                                ? <><i className="fas fa-globe text-[10px]" />{ar ? 'الكل' : 'All'}</>
+                                : <><i className={`${asset!.icon} text-[11px]`} style={{ color: active ? 'white' : asset!.hexColor }} />{p}</>
+                            }
+                        </button>
+                    );
+                })}
+            </div>
             {/* Search + Filters */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
@@ -494,6 +626,8 @@ export const ScheduledPage: React.FC<ScheduledPageProps> = ({ posts, onEditPost,
                                     onToggleSelect={() => toggleSelect(post.id)}
                                     onEdit={onEditPost}
                                     onDelete={() => setPostToDelete(post.id)}
+                                    onRetry={post.status === PostStatus.Failed ? () => handleRetryPost(post.id) : undefined}
+                                    retrying={retryingIds.has(post.id)}
                                 />
                             </div>
                         ))}

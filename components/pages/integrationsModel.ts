@@ -20,6 +20,7 @@ const CONNECTION_SECTION_BY_PROVIDER: Record<Provider, IntegrationSectionId> = {
     ga4: 'analytics',
     search_console: 'analytics',
     google_ads: 'ads',
+    meta_ads: 'ads',
     woocommerce: 'commerce',
     shopify: 'commerce',
     wordpress: 'commerce',

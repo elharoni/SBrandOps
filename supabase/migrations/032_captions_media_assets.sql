@@ -33,10 +33,15 @@ CREATE INDEX IF NOT EXISTS idx_captions_selected ON captions (content_item_id, p
 
 ALTER TABLE captions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY captions_brand_access ON captions
-    FOR ALL USING (EXISTS (
-        SELECT 1 FROM brands WHERE brands.id = captions.brand_id AND brands.user_id = auth.uid()
-    ));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'captions' AND policyname = 'captions_brand_access') THEN
+        CREATE POLICY captions_brand_access ON captions
+            FOR ALL USING (EXISTS (
+                SELECT 1 FROM brands WHERE brands.id = captions.brand_id AND brands.user_id = auth.uid()
+            ));
+    END IF;
+END $$;
 
 -- ── media_assets ──────────────────────────────────────────────────────────────
 -- Canonical store for all generated or uploaded media used in content items
@@ -69,10 +74,15 @@ CREATE INDEX IF NOT EXISTS idx_media_assets_selected ON media_assets (content_it
 
 ALTER TABLE media_assets ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY media_assets_brand_access ON media_assets
-    FOR ALL USING (EXISTS (
-        SELECT 1 FROM brands WHERE brands.id = media_assets.brand_id AND brands.user_id = auth.uid()
-    ));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'media_assets' AND policyname = 'media_assets_brand_access') THEN
+        CREATE POLICY media_assets_brand_access ON media_assets
+            FOR ALL USING (EXISTS (
+                SELECT 1 FROM brands WHERE brands.id = media_assets.brand_id AND brands.user_id = auth.uid()
+            ));
+    END IF;
+END $$;
 
 COMMENT ON TABLE captions     IS 'Versioned caption records per content item + platform';
 COMMENT ON TABLE media_assets IS 'All AI-generated and uploaded media assets for content items';

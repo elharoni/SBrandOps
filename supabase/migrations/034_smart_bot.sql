@@ -24,14 +24,19 @@ CREATE TABLE IF NOT EXISTS bot_personas (
 
 ALTER TABLE bot_personas ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY bot_personas_brand_access ON bot_personas
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM brands
-      WHERE brands.id = bot_personas.brand_id
-        AND brands.user_id = auth.uid()
-    )
-  );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bot_personas' AND policyname = 'bot_personas_brand_access') THEN
+        CREATE POLICY bot_personas_brand_access ON bot_personas
+          FOR ALL USING (
+            EXISTS (
+              SELECT 1 FROM brands
+              WHERE brands.id = bot_personas.brand_id
+                AND brands.user_id = auth.uid()
+            )
+          );
+    END IF;
+END $$;
 
 -- Bot conversations (each conversation a bot had with a customer)
 
@@ -50,14 +55,19 @@ CREATE TABLE IF NOT EXISTS bot_conversations (
 
 ALTER TABLE bot_conversations ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY bot_conversations_brand_access ON bot_conversations
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM brands
-      WHERE brands.id = bot_conversations.brand_id
-        AND brands.user_id = auth.uid()
-    )
-  );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bot_conversations' AND policyname = 'bot_conversations_brand_access') THEN
+        CREATE POLICY bot_conversations_brand_access ON bot_conversations
+          FOR ALL USING (
+            EXISTS (
+              SELECT 1 FROM brands
+              WHERE brands.id = bot_conversations.brand_id
+                AND brands.user_id = auth.uid()
+            )
+          );
+    END IF;
+END $$;
 
 -- Indexes for fast lookups per brand
 CREATE INDEX IF NOT EXISTS bot_personas_brand_id_idx ON bot_personas(brand_id);

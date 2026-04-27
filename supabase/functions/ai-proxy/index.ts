@@ -50,6 +50,9 @@ const ALLOWED_OPENAI_IMAGE_MODELS = new Set([
 // Override per-deployment with AI_DAILY_TOKEN_LIMIT env var.
 const DAILY_TOKEN_LIMIT = Number(Deno.env.get('AI_DAILY_TOKEN_LIMIT') ?? 100_000);
 
+// Default daily cap per brand: 30,000 tokens. Override with AI_BRAND_DAILY_TOKEN_LIMIT env var.
+const BRAND_DAILY_TOKEN_LIMIT = Number(Deno.env.get('AI_BRAND_DAILY_TOKEN_LIMIT') ?? 30_000);
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function jsonError(msg: string, status: number, correlationId: string, corsHeaders: Record<string, string>): Response {
@@ -94,6 +97,26 @@ async function checkDailySpendCap(userId: string): Promise<{ exceeded: boolean; 
   );
 
   return { exceeded: used >= DAILY_TOKEN_LIMIT, used };
+}
+
+async function checkBrandDailySpendCap(brandId: string): Promise<{ exceeded: boolean; used: number }> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('ai_usage_logs')
+    .select('input_tokens, output_tokens')
+    .eq('brand_id', brandId)
+    .gte('created_at', todayStart.toISOString());
+
+  if (error) return { exceeded: false, used: 0 };
+
+  const used = (data ?? []).reduce(
+    (sum, row) => sum + (row.input_tokens ?? 0) + (row.output_tokens ?? 0),
+    0,
+  );
+
+  return { exceeded: used >= BRAND_DAILY_TOKEN_LIMIT, used };
 }
 
 // Looks up service-specific key first (e.g. 'gemini-design'), falls back to generic 'gemini'
@@ -354,6 +377,27 @@ Deno.serve(async (req: Request) => {
         correlationId,
         corsHeaders,
       );
+    }
+
+    // ── Per-brand daily spend cap ─────────────────────────────────────────
+    if (brand_id) {
+      const brandCap = await checkBrandDailySpendCap(brand_id);
+      if (brandCap.exceeded) {
+        console.warn(JSON.stringify({
+          correlationId,
+          event: 'ai-brand-spend-cap-exceeded',
+          userId: userOrError.id,
+          brandId: brand_id,
+          tokensUsedToday: brandCap.used,
+          limit: BRAND_DAILY_TOKEN_LIMIT,
+        }));
+        return jsonError(
+          `Brand daily AI limit reached (${brandCap.used.toLocaleString()} / ${BRAND_DAILY_TOKEN_LIMIT.toLocaleString()} tokens). Try again tomorrow.`,
+          429,
+          correlationId,
+          corsHeaders,
+        );
+      }
     }
 
     if (mode === 'openai-image') {

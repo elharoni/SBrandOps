@@ -182,6 +182,7 @@ interface SidebarProps {
     isMobileOpen: boolean;
     closeMobile: () => void;
     completionSteps?: CompletionStep[];
+    hasExpiringTokens?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = React.memo(({
@@ -192,6 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     isMobileOpen,
     closeMobile,
     completionSteps,
+    hasExpiringTokens = false,
 }) => {
     const { t, language } = useLanguage();
     const { user } = useAuth();
@@ -323,10 +325,18 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                     title={isCollapsed && !nested ? item.label : undefined}
                     aria-label={isCollapsed && !nested ? item.label : undefined}
                 >
-                    <i className={`fas ${item.icon} w-4 shrink-0 text-center ${isActive ? 'text-white' : ''}`} />
+                    <span className="relative shrink-0 w-4 flex items-center justify-center">
+                        <i className={`fas ${item.icon} text-center ${isActive ? 'text-white' : ''}`} />
+                        {item.id === 'integrations' && hasExpiringTokens && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        )}
+                    </span>
                     {!isCollapsed && (
                         <>
                             <span className="flex-1 truncate font-medium">{item.label}</span>
+                            {item.id === 'integrations' && hasExpiringTokens && (
+                                <span className="shrink-0 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                            )}
                             {hasChildren && (
                                 <i className={`fas fa-chevron-down text-[11px] transition-transform ${isMenuOpen ? 'rotate-180' : ''} ${isActive ? 'text-white/80' : 'text-light-text-secondary dark:text-dark-text-secondary'}`} />
                             )}

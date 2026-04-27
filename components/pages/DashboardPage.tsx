@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ContextualAIChip } from '../shared/ContextualAIChip';
 import {
     AnalyticsData,
@@ -12,6 +12,9 @@ import {
 } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
 import { LightweightLineChart } from '../shared/LightweightCharts';
+import { OnboardingChecklist } from '../shared/OnboardingChecklist';
+import { getIntegrationHealth } from '../../services/socialAccountService';
+import { IntegrationHealth } from '../../types';
 
 interface DashboardPageProps {
     analyticsData: AnalyticsData;
@@ -331,6 +334,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     hasBrandProfile,
     hasLinkedAds,
     brandProfile,
+    brandId,
     onSyncAnalytics,
 }) => {
     const { language } = useLanguage();
@@ -338,6 +342,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const locale = ar ? 'ar-EG' : 'en-US';
     const [timePeriod, setTimePeriod] = useState<'7d' | '30d' | '90d'>('30d');
     const [isSyncing, setIsSyncing] = useState(false);
+
+    // Token expiry warning banner (P1-03)
+    const [expiringTokens, setExpiringTokens] = useState<IntegrationHealth[]>([]);
+    const [tokenBannerDismissed, setTokenBannerDismissed] = useState(false);
+
+    useEffect(() => {
+        if (!brandId) return;
+        getIntegrationHealth(brandId).then(assets => {
+            setExpiringTokens(assets.filter(a => a.tokenExpiringSoon));
+        }).catch(() => {});
+    }, [brandId]);
 
     const handleSyncAnalytics = async () => {
         if (!onSyncAnalytics || isSyncing) return;
@@ -375,18 +390,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }, [scheduledPosts]);
 
     const hasFirstPost = scheduledPosts.length > 0;
-
-    // ── Onboarding ───────────────────────────────────────────────────────────
-    const onboardingSteps = [
-        { id: 'brand',   done: hasBrandProfile,     action: () => onNavigate('brand-hub'),              icon: 'fa-brain',       label: ar ? 'إعداد هوية البراند'  : 'Set up brand identity'  },
-        { id: 'connect', done: hasConnectedAccount,  action: () => onNavigate('social-ops/accounts'),    icon: 'fa-link',        label: ar ? 'ربط قنوات النشر'     : 'Connect channels'        },
-        { id: 'post',    done: hasFirstPost,         action: () => onNavigate('social-ops/publisher'),   icon: 'fa-paper-plane', label: ar ? 'إنشاء أول منشور'     : 'Create first post'       },
-        { id: 'ads',     done: hasLinkedAds,         action: () => onNavigate('integrations'),           icon: 'fa-bullhorn',    label: ar ? 'ربط الإعلانات'       : 'Connect ads'             },
-    ];
-    const onboardingDone = onboardingSteps.filter((s) => s.done).length;
-    const showOnboarding = onboardingDone < onboardingSteps.length;
-    const onboardingProgress = Math.round((onboardingDone / onboardingSteps.length) * 100);
-    const nextOnboardingStep = onboardingSteps.find((s) => !s.done);
+    const hasVoiceSet = (brandProfile?.brandVoice?.toneDescription?.length ?? 0) > 0;
+    const hasProductOrContent = (brandProfile?.keySellingPoints?.length ?? 0) > 0;
 
     // ── Section A — ماذا يحدث الآن ──────────────────────────────────────────
     const nowItems: NowItem[] = [
@@ -712,6 +717,41 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     return (
         <div className="animate-fade-in space-y-8">
 
+            {/* ── Token Expiry Warning Banner (P1-03) ───────────────────────── */}
+            {!tokenBannerDismissed && expiringTokens.length > 0 && (
+                <div className="relative flex items-start gap-4 rounded-2xl border border-orange-500/30 bg-orange-500/8 px-5 py-4">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/20 text-orange-500">
+                        <i className="fas fa-key text-sm animate-pulse" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-light-text dark:text-dark-text">
+                            {ar
+                                ? `${expiringTokens.length > 1 ? `${expiringTokens.length} توكنات تنتهي قريباً` : `توكن ${expiringTokens[0].assetName} سينتهي قريباً`}`
+                                : `${expiringTokens.length > 1 ? `${expiringTokens.length} tokens expiring soon` : `${expiringTokens[0].assetName} token expiring soon`}`}
+                        </p>
+                        <p className="mt-0.5 text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                            {ar
+                                ? 'انتهاء التوكن يوقف المزامنة والرسائل والتحليلات. جدّد الربط الآن لتجنب الانقطاع.'
+                                : 'An expired token stops sync, messages, and analytics. Reconnect now to avoid disruption.'}
+                        </p>
+                        <button
+                            onClick={() => onNavigate('integrations')}
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600 transition-colors"
+                        >
+                            <i className="fas fa-rotate-right text-[10px]" />
+                            {ar ? 'جدّد الربط' : 'Reconnect now'}
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => setTokenBannerDismissed(true)}
+                        className="shrink-0 text-light-text-secondary hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text transition-colors"
+                        aria-label={ar ? 'إغلاق' : 'Dismiss'}
+                    >
+                        <i className="fas fa-xmark text-sm" />
+                    </button>
+                </div>
+            )}
+
             {/* ── Hero greeting ─────────────────────────────────────────────── */}
             <div className="surface-panel rounded-[2rem] bg-gradient-to-br from-brand-primary/5 via-transparent to-brand-secondary/5 p-6 shadow-[var(--shadow-primary)] !border-0">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -740,55 +780,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
 
             {/* ── Onboarding checklist ──────────────────────────────────────── */}
-            {showOnboarding && (
-                <div className="surface-panel rounded-[1.75rem] border-0 bg-gradient-to-r from-brand-primary/10 to-transparent p-6 shadow-[var(--shadow-ambient)]">
-                    <div className="mb-4 flex items-center justify-between gap-4">
-                        <div>
-                            <h2 className="flex items-center gap-2 text-base font-bold text-light-text dark:text-dark-text">
-                                <i className="fas fa-rocket text-brand-primary" />
-                                {ar ? 'ابدأ تشغيل البراند داخل SBrandOps' : 'Start operating your brand in SBrandOps'}
-                            </h2>
-                            <p className="mt-0.5 text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                                {ar ? `${onboardingDone} من ${onboardingSteps.length} خطوات مكتملة` : `${onboardingDone} of ${onboardingSteps.length} steps done`}
-                            </p>
-                        </div>
-                        <span className="text-2xl font-bold text-brand-primary">{onboardingProgress}%</span>
-                    </div>
-                    <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-light-bg dark:bg-dark-bg">
-                        <div className="h-full rounded-full bg-gradient-to-r from-brand-primary to-brand-secondary transition-all duration-500" style={{ width: `${onboardingProgress}%` }} />
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        {onboardingSteps.map((step) => (
-                            <button
-                                key={step.id}
-                                onClick={step.done ? undefined : step.action}
-                                className={`flex items-center gap-3 rounded-2xl border p-3 text-start transition-all ${step.done ? 'cursor-default border-emerald-500/30 bg-emerald-500/5' : 'cursor-pointer border-light-border hover:border-brand-primary hover:bg-brand-primary/5 dark:border-dark-border'}`}
-                            >
-                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${step.done ? 'bg-emerald-500 text-white' : 'bg-light-bg text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary'}`}>
-                                    <i className={`fas ${step.done ? 'fa-check' : step.icon} text-xs`} />
-                                </div>
-                                <p className={`text-xs font-semibold leading-snug ${step.done ? 'text-emerald-600 line-through dark:text-emerald-400' : 'text-light-text dark:text-dark-text'}`}>
-                                    {step.label}
-                                </p>
-                            </button>
-                        ))}
-                    </div>
-                    {nextOnboardingStep && (
-                        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-brand-primary/15 bg-white/70 p-4 dark:bg-slate-950/40 md:flex-row md:items-center md:justify-between">
-                            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                                {ar ? 'أكمل الأساسيات مرة واحدة، ثم يتحول النظام إلى مساحة تشغيل يومية واضحة.' : 'Complete the foundation once, then the app becomes a reliable daily operating space.'}
-                            </p>
-                            <button
-                                onClick={nextOnboardingStep.action}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white shadow-primary-glow whitespace-nowrap"
-                            >
-                                <i className={`fas ${nextOnboardingStep.icon || 'fa-arrow-right'}`} />
-                                <span>{ar ? 'الخطوة التالية:' : 'Next step:'} {nextOnboardingStep.label}</span>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
+            <OnboardingChecklist
+                brandId={brandId}
+                hasBrandProfile={hasBrandProfile}
+                hasConnectedAccount={hasConnectedAccount}
+                hasProductOrContent={hasProductOrContent}
+                hasFirstPost={hasFirstPost}
+                hasVoiceSet={hasVoiceSet}
+                onNavigate={onNavigate}
+            />
 
             {/* ══ SECTION A: ماذا يحدث الآن ════════════════════════════════════ */}
             <div>
@@ -918,7 +918,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricTile title={ar ? 'إجمالي المتابعين' : 'Total followers'} value={formatter.format(analyticsData.overallStats.totalFollowers)} icon="fa-users" positive />
-                <MetricTile title={ar ? 'الوصول' : 'Reach'} value={formatter.format(analyticsData.overallStats.impressions)} icon="fa-eye" positive />
+                <MetricTile title={ar ? 'الوصول' : 'Reach'} value={formatter.format(analyticsData.overallStats.reach || analyticsData.overallStats.impressions)} icon="fa-eye" positive />
                 <MetricTile title={ar ? 'التفاعل' : 'Engagement'} value={formatter.format(analyticsData.overallStats.engagement)} icon="fa-heart" positive={false} />
                 <MetricTile title={ar ? 'المنشورات' : 'Posts published'} value={formatter.format(analyticsData.overallStats.postsPublished)} icon="fa-paper-plane" />
             </div>

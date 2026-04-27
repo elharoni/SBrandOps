@@ -1,18 +1,43 @@
-import React from 'react';
-import { AnalyticsData } from '../../../types';
+import React, { useEffect, useState } from 'react';
+import { AnalyticsData, SEOBreakdown } from '../../../types';
 import { useLanguage } from '../../../context/LanguageContext';
-import { EmptyConnectState, DataSourceBadge } from './analyticsHelpers';
+import { EmptyConnectState, DataSourceBadge, SyncStatusBar } from './analyticsHelpers';
+import { getSEOBreakdown } from '../../../services/analyticsService';
 
 interface SEOTabProps {
     data: AnalyticsData;
+    brandId: string;
+    period: string;
     onNavigate?: (page: string) => void;
 }
 
-export const SEOTab: React.FC<SEOTabProps> = ({ data, onNavigate }) => {
+function shortenUrl(url: string): string {
+    try {
+        const u = new URL(url);
+        const path = u.pathname === '/' ? '/' : u.pathname.replace(/\/$/, '');
+        return path.length > 50 ? path.slice(0, 48) + '…' : path;
+    } catch {
+        return url.length > 50 ? url.slice(0, 48) + '…' : url;
+    }
+}
+
+export const SEOTab: React.FC<SEOTabProps> = ({ data, brandId, period, onNavigate }) => {
     const { language } = useLanguage();
     const locale = language === 'ar' ? 'ar-EG' : 'en-US';
 
     const seo = data.connectedSources?.searchConsole;
+
+    const [breakdown, setBreakdown] = useState<SEOBreakdown | null>(null);
+    const [breakdownLoading, setBreakdownLoading] = useState(false);
+
+    useEffect(() => {
+        if (!seo) return;
+        setBreakdownLoading(true);
+        getSEOBreakdown(brandId, period)
+            .then(setBreakdown)
+            .catch(() => setBreakdown({ topQueries: [], topPages: [] }))
+            .finally(() => setBreakdownLoading(false));
+    }, [brandId, period, seo]);
 
     if (!seo) {
         return (
@@ -31,7 +56,6 @@ export const SEOTab: React.FC<SEOTabProps> = ({ data, onNavigate }) => {
 
     const ctrPercent = (seo.ctr * 100).toFixed(2);
 
-    // Position quality classification
     const positionLabel = seo.avgPosition <= 3
         ? { text: 'ممتاز (Top 3)', color: 'text-emerald-500' }
         : seo.avgPosition <= 10
@@ -47,50 +71,18 @@ export const SEOTab: React.FC<SEOTabProps> = ({ data, onNavigate }) => {
             : { text: 'منخفض (أقل من 2%)', color: 'text-red-500' };
 
     const metrics = [
-        {
-            label: 'Clicks',
-            value: seo.clicks.toLocaleString(locale),
-            sub: 'نقرات من نتائج البحث',
-            icon: 'fa-arrow-pointer',
-            accent: 'text-blue-500',
-            bg: 'bg-blue-500/10',
-        },
-        {
-            label: 'Impressions',
-            value: seo.impressions.toLocaleString(locale),
-            sub: 'ظهور في نتائج البحث',
-            icon: 'fa-eye',
-            accent: 'text-cyan-500',
-            bg: 'bg-cyan-500/10',
-        },
-        {
-            label: 'CTR',
-            value: `${ctrPercent}%`,
-            sub: ctrQuality.text,
-            icon: 'fa-percent',
-            accent: ctrQuality.color,
-            bg: 'bg-light-surface dark:bg-dark-surface',
-        },
-        {
-            label: 'Average Position',
-            value: seo.avgPosition.toFixed(1),
-            sub: positionLabel.text,
-            icon: 'fa-ranking-star',
-            accent: positionLabel.color,
-            bg: 'bg-light-surface dark:bg-dark-surface',
-        },
-        {
-            label: 'Indexed Pages',
-            value: seo.indexedPages.toLocaleString(locale),
-            sub: 'صفحات مفهرسة من Search Console',
-            icon: 'fa-file-lines',
-            accent: 'text-violet-500',
-            bg: 'bg-violet-500/10',
-        },
+        { label: 'Clicks', value: seo.clicks.toLocaleString(locale), sub: 'نقرات من نتائج البحث', icon: 'fa-arrow-pointer', accent: 'text-blue-500', bg: 'bg-blue-500/10' },
+        { label: 'Impressions', value: seo.impressions.toLocaleString(locale), sub: 'ظهور في نتائج البحث', icon: 'fa-eye', accent: 'text-cyan-500', bg: 'bg-cyan-500/10' },
+        { label: 'CTR', value: `${ctrPercent}%`, sub: ctrQuality.text, icon: 'fa-percent', accent: ctrQuality.color, bg: 'bg-light-surface dark:bg-dark-surface' },
+        { label: 'Average Position', value: seo.avgPosition.toFixed(1), sub: positionLabel.text, icon: 'fa-ranking-star', accent: positionLabel.color, bg: 'bg-light-surface dark:bg-dark-surface' },
+        { label: 'Indexed Pages', value: seo.indexedPages.toLocaleString(locale), sub: 'صفحات مفهرسة', icon: 'fa-file-lines', accent: 'text-violet-500', bg: 'bg-violet-500/10' },
     ];
 
     return (
         <div className="space-y-6">
+
+            {/* Sync status */}
+            <SyncStatusBar brandId={brandId} providers={['search_console']} />
 
             {/* Site context */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface px-4 py-3">
@@ -174,6 +166,118 @@ export const SEOTab: React.FC<SEOTabProps> = ({ data, onNavigate }) => {
                 )}
             </div>
 
+            {/* ── Top Queries ── */}
+            <div className="rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-5">
+                <p className="mb-4 flex items-center gap-2 text-sm font-bold text-light-text dark:text-dark-text">
+                    <i className="fas fa-magnifying-glass text-green-500" />
+                    أفضل 10 كلمات مفتاحية
+                </p>
+                {breakdownLoading ? (
+                    <div className="space-y-2">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="h-9 animate-pulse rounded-lg bg-light-bg dark:bg-dark-bg" />
+                        ))}
+                    </div>
+                ) : !breakdown || breakdown.topQueries.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                        لا توجد بيانات بعد — ستظهر بعد أول مزامنة
+                    </p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="border-b border-light-border dark:border-dark-border text-left text-light-text-secondary dark:text-dark-text-secondary">
+                                    <th className="pb-2 font-semibold">#</th>
+                                    <th className="pb-2 font-semibold">الكلمة المفتاحية</th>
+                                    <th className="pb-2 text-right font-semibold">Clicks</th>
+                                    <th className="pb-2 text-right font-semibold">Impr.</th>
+                                    <th className="pb-2 text-right font-semibold">CTR</th>
+                                    <th className="pb-2 text-right font-semibold">Position</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-light-border/60 dark:divide-dark-border/60">
+                                {breakdown.topQueries.map((row, i) => (
+                                    <tr key={row.query} className="hover:bg-light-bg/60 dark:hover:bg-dark-bg/60">
+                                        <td className="py-2 pr-2 text-light-text-secondary dark:text-dark-text-secondary">{i + 1}</td>
+                                        <td className="py-2 max-w-[200px] truncate font-medium text-light-text dark:text-dark-text" title={row.query}>
+                                            {row.query}
+                                        </td>
+                                        <td className="py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
+                                            {row.clicks.toLocaleString(locale)}
+                                        </td>
+                                        <td className="py-2 text-right text-light-text-secondary dark:text-dark-text-secondary">
+                                            {row.impressions.toLocaleString(locale)}
+                                        </td>
+                                        <td className="py-2 text-right text-light-text-secondary dark:text-dark-text-secondary">
+                                            {(row.ctr * 100).toFixed(1)}%
+                                        </td>
+                                        <td className={`py-2 text-right font-semibold ${row.avgPosition <= 10 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                            {row.avgPosition.toFixed(1)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Top Pages ── */}
+            <div className="rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-5">
+                <p className="mb-4 flex items-center gap-2 text-sm font-bold text-light-text dark:text-dark-text">
+                    <i className="fas fa-file-lines text-violet-500" />
+                    أفضل 10 صفحات
+                </p>
+                {breakdownLoading ? (
+                    <div className="space-y-2">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="h-9 animate-pulse rounded-lg bg-light-bg dark:bg-dark-bg" />
+                        ))}
+                    </div>
+                ) : !breakdown || breakdown.topPages.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-light-text-secondary dark:text-dark-text-secondary">
+                        لا توجد بيانات بعد — ستظهر بعد أول مزامنة
+                    </p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="border-b border-light-border dark:border-dark-border text-left text-light-text-secondary dark:text-dark-text-secondary">
+                                    <th className="pb-2 font-semibold">#</th>
+                                    <th className="pb-2 font-semibold">الصفحة</th>
+                                    <th className="pb-2 text-right font-semibold">Clicks</th>
+                                    <th className="pb-2 text-right font-semibold">Impr.</th>
+                                    <th className="pb-2 text-right font-semibold">CTR</th>
+                                    <th className="pb-2 text-right font-semibold">Position</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-light-border/60 dark:divide-dark-border/60">
+                                {breakdown.topPages.map((row, i) => (
+                                    <tr key={row.pageUrl} className="hover:bg-light-bg/60 dark:hover:bg-dark-bg/60">
+                                        <td className="py-2 pr-2 text-light-text-secondary dark:text-dark-text-secondary">{i + 1}</td>
+                                        <td className="py-2 max-w-[220px] truncate font-medium text-light-text dark:text-dark-text" title={row.pageUrl}>
+                                            {shortenUrl(row.pageUrl)}
+                                        </td>
+                                        <td className="py-2 text-right font-semibold text-blue-600 dark:text-blue-400">
+                                            {row.clicks.toLocaleString(locale)}
+                                        </td>
+                                        <td className="py-2 text-right text-light-text-secondary dark:text-dark-text-secondary">
+                                            {row.impressions.toLocaleString(locale)}
+                                        </td>
+                                        <td className="py-2 text-right text-light-text-secondary dark:text-dark-text-secondary">
+                                            {(row.ctr * 100).toFixed(1)}%
+                                        </td>
+                                        <td className={`py-2 text-right font-semibold ${row.avgPosition <= 10 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                            {row.avgPosition.toFixed(1)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
             {/* Formula definitions */}
             <div className="rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card p-5">
                 <p className="mb-3 text-xs font-bold uppercase tracking-widest text-light-text-secondary dark:text-dark-text-secondary">
@@ -194,7 +298,6 @@ export const SEOTab: React.FC<SEOTabProps> = ({ data, onNavigate }) => {
                 </div>
             </div>
 
-            {/* Separation note */}
             <div className="rounded-xl border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface px-4 py-3">
                 <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
                     <i className="fas fa-circle-info me-1.5 text-[10px] text-brand-primary" />

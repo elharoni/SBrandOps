@@ -1,14 +1,15 @@
 import React from 'react';
 import { AnalyticsData } from '../../../types';
 import { useLanguage } from '../../../context/LanguageContext';
-import { EmptyConnectState, DataSourceBadge } from './analyticsHelpers';
+import { EmptyConnectState, DataSourceBadge, SyncStatusBar } from './analyticsHelpers';
 
 interface WebsiteTabProps {
     data: AnalyticsData;
+    brandId: string;
     onNavigate?: (page: string) => void;
 }
 
-export const WebsiteTab: React.FC<WebsiteTabProps> = ({ data, onNavigate }) => {
+export const WebsiteTab: React.FC<WebsiteTabProps> = ({ data, brandId, onNavigate }) => {
     const { language } = useLanguage();
     const locale = language === 'ar' ? 'ar-EG' : 'en-US';
 
@@ -92,6 +93,9 @@ export const WebsiteTab: React.FC<WebsiteTabProps> = ({ data, onNavigate }) => {
 
     return (
         <div className="space-y-6">
+
+            {/* Sync status */}
+            <SyncStatusBar brandId={brandId} providers={['ga4']} />
 
             {/* Property context */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface px-4 py-3">

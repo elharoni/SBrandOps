@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { publicPageToPath } from '../../config/routes';
@@ -17,24 +17,33 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
     const { language, setLanguage } = useLanguage();
     const isArabic = language === 'ar';
     const navigate = useNavigate();
+    const [waitlistEmail, setWaitlistEmail] = useState('');
+    const [waitlistDone, setWaitlistDone] = useState(false);
+
+    const handleWaitlist = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!waitlistEmail.trim()) return;
+        setWaitlistDone(true);
+    };
 
     const productLinks = [
-        { label: 'Brand Hub',         href: `${publicPageToPath('home')}#product` },
-        { label: 'Content Ops',       href: `${publicPageToPath('home')}#product` },
-        { label: 'Social Publishing', href: `${publicPageToPath('home')}#product` },
-        { label: 'Ads Analytics',     href: `${publicPageToPath('home')}#product` },
-        { label: 'SEO Ops',           href: `${publicPageToPath('home')}#product` },
-        { label: 'Inbox Ops',         href: `${publicPageToPath('home')}#product` },
-        { label: 'Workflow',          href: `${publicPageToPath('home')}#workflow` },
-        { label: 'Analytics Hub',     href: `${publicPageToPath('home')}#product` },
+        { label: isArabic ? 'كل المميزات'   : 'All Features',    href: publicPageToPath('features')      },
+        { label: 'Brand Hub',                                      href: `${publicPageToPath('home')}#product` },
+        { label: 'Content Ops',                                    href: `${publicPageToPath('home')}#product` },
+        { label: 'Social Publishing',                              href: `${publicPageToPath('home')}#product` },
+        { label: 'Ads Analytics',                                  href: `${publicPageToPath('home')}#product` },
+        { label: 'SEO Ops',                                        href: `${publicPageToPath('home')}#product` },
+        { label: 'Inbox Ops',                                      href: `${publicPageToPath('home')}#product` },
+        { label: 'Analytics Hub',                                  href: `${publicPageToPath('home')}#product` },
     ];
 
     const companyLinks = [
-        { label: isArabic ? 'من نحن'     : 'About',        href: publicPageToPath('about')   },
-        { label: isArabic ? 'تواصل معنا' : 'Contact',      href: publicPageToPath('contact') },
-        { label: isArabic ? 'الاسعار'    : 'Pricing',      href: publicPageToPath('pricing') },
-        { label: isArabic ? 'طلب ديمو'   : 'Book Demo',    href: publicPageToPath('contact') },
-        { label: isArabic ? 'الشراكات'   : 'Partnerships', href: publicPageToPath('contact') },
+        { label: isArabic ? 'من نحن'               : 'About',        href: publicPageToPath('about')        },
+        { label: isArabic ? 'للوكالات'             : 'For Agencies', href: publicPageToPath('for-agencies') },
+        { label: isArabic ? 'للتجارة الإلكترونية' : 'For E-commerce', href: publicPageToPath('for-ecommerce') },
+        { label: isArabic ? 'تواصل معنا'           : 'Contact',      href: publicPageToPath('contact')      },
+        { label: isArabic ? 'الاسعار'              : 'Pricing',      href: publicPageToPath('pricing')      },
+        { label: isArabic ? 'طلب ديمو'             : 'Book Demo',    href: publicPageToPath('demo')         },
     ];
 
     const resourceLinks = [
@@ -158,6 +167,29 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
                         <p className="text-xs font-semibold uppercase tracking-widest text-sbo-cyan">
                             One System. Smarter Growth.
                         </p>
+                        <div className="mt-5">
+                            <p className="mb-2 text-xs font-semibold text-white/40">
+                                {isArabic ? 'أول بالجديد' : 'Stay in the loop'}
+                            </p>
+                            {waitlistDone ? (
+                                <p className="text-xs text-sbo-cyan">
+                                    {isArabic ? '✓ تم التسجيل' : '✓ You\'re on the list'}
+                                </p>
+                            ) : (
+                                <form onSubmit={handleWaitlist} className="flex gap-1.5">
+                                    <input
+                                        type="email"
+                                        value={waitlistEmail}
+                                        onChange={e => setWaitlistEmail(e.target.value)}
+                                        placeholder={isArabic ? 'بريدك الإلكتروني' : 'your@email.com'}
+                                        className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/25 outline-none focus:border-sbo-cyan/40"
+                                    />
+                                    <button type="submit" className="rounded-xl bg-sbo-cyan/15 px-3 py-2 text-xs font-semibold text-sbo-cyan transition-colors hover:bg-sbo-cyan/25">
+                                        {isArabic ? 'سجّل' : 'Join'}
+                                    </button>
+                                </form>
+                            )}
+                        </div>
                     </div>
 
                     {/* Link columns */}
@@ -216,6 +248,25 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
                             </a>
                         ))}
                     </div>
+                </div>
+
+                {/* ── Trust Badges ─────────────────────────────────────────────────── */}
+                <div
+                    className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t py-4"
+                    style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+                >
+                    {[
+                        { icon: 'fa-lock',         text: 'SSL Secured'     },
+                        { icon: 'fa-shield-halved', text: 'Data Encrypted'  },
+                        { icon: 'fa-user-shield',  text: 'GDPR Compliant'  },
+                        { icon: 'fa-circle-check', text: '99.9% Uptime'    },
+                        { icon: 'fa-language',     text: 'Arabic-First'    },
+                    ].map(badge => (
+                        <div key={badge.text} className="flex items-center gap-1.5">
+                            <i className={`fas ${badge.icon} text-[10px] text-sbo-cyan`} />
+                            <span className="text-xs text-sbo-gray">{badge.text}</span>
+                        </div>
+                    ))}
                 </div>
 
                 {/* ── Bottom bar ───────────────────────────────────────────────────── */}

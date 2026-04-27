@@ -18,8 +18,13 @@ CREATE INDEX IF NOT EXISTS idx_crm_conv_links_customer ON crm_conversation_links
 CREATE INDEX IF NOT EXISTS idx_crm_conv_links_brand    ON crm_conversation_links (brand_id);
 
 ALTER TABLE crm_conversation_links ENABLE ROW LEVEL SECURITY;
-CREATE POLICY crm_conv_links_brand_access ON crm_conversation_links
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_conversation_links' AND policyname = 'crm_conv_links_brand_access') THEN
+        CREATE POLICY crm_conv_links_brand_access ON crm_conversation_links
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+END $$;
 
 -- ── crm_roles ────────────────────────────────────────────────────────────────
 -- CRM-specific role definitions per brand
@@ -52,10 +57,17 @@ CREATE INDEX IF NOT EXISTS idx_crm_user_roles_brand_user ON crm_user_roles (bran
 ALTER TABLE crm_roles      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE crm_user_roles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY crm_roles_brand_access ON crm_roles
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
-CREATE POLICY crm_user_roles_brand_access ON crm_user_roles
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_roles' AND policyname = 'crm_roles_brand_access') THEN
+        CREATE POLICY crm_roles_brand_access ON crm_roles
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_user_roles' AND policyname = 'crm_user_roles_brand_access') THEN
+        CREATE POLICY crm_user_roles_brand_access ON crm_user_roles
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+END $$;
 
 -- ── crm_rfm_scores ────────────────────────────────────────────────────────────
 -- Pre-computed RFM scores refreshed periodically
@@ -79,8 +91,13 @@ CREATE INDEX IF NOT EXISTS idx_crm_rfm_brand   ON crm_rfm_scores (brand_id, rfm_
 CREATE INDEX IF NOT EXISTS idx_crm_rfm_score   ON crm_rfm_scores (brand_id, rfm_score DESC);
 
 ALTER TABLE crm_rfm_scores ENABLE ROW LEVEL SECURITY;
-CREATE POLICY crm_rfm_brand_access ON crm_rfm_scores
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_rfm_scores' AND policyname = 'crm_rfm_brand_access') THEN
+        CREATE POLICY crm_rfm_brand_access ON crm_rfm_scores
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+END $$;
 
 -- ── crm_retention_cohorts ─────────────────────────────────────────────────────
 -- Monthly retention cohort snapshots
@@ -99,8 +116,13 @@ CREATE TABLE IF NOT EXISTS crm_retention_cohorts (
 CREATE INDEX IF NOT EXISTS idx_crm_cohorts_brand ON crm_retention_cohorts (brand_id, cohort_month);
 
 ALTER TABLE crm_retention_cohorts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY crm_cohorts_brand_access ON crm_retention_cohorts
-    FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'crm_retention_cohorts' AND policyname = 'crm_cohorts_brand_access') THEN
+        CREATE POLICY crm_cohorts_brand_access ON crm_retention_cohorts
+            FOR ALL USING (brand_id IN (SELECT crm_user_brand_ids()));
+    END IF;
+END $$;
 
 COMMENT ON TABLE crm_conversation_links IS 'Links inbox conversations to CRM customers via email/phone/order_id resolution';
 COMMENT ON TABLE crm_roles              IS 'CRM-specific role definitions with granular permissions per brand';

@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# Block internal app routes from indexing
+Disallow: /app/
+Disallow: /admin/
+Disallow: /auth/
+
+# Allow marketing pages
+Allow: /$
+Allow: /about
+Allow: /pricing
+Allow: /contact
+Allow: /security
+Allow: /terms
+Allow: /privacy
+Allow: /dpa
+Allow: /refunds
+Allow: /cookies
+
+Sitemap: https://sbrandops.com/sitemap.xml

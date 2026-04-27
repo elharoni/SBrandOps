@@ -1,32 +1,87 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { ConnectedAsset, AssetPurpose, SyncStatus } from '../types';
+import { AssetPurpose, ConnectedAsset, SocialPlatform, SyncStatus } from '../types';
 import { fetchConnectedAssets, updateAssetPurposes } from '../services/socialAuthService';
 import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
     brandId: string;
+    onReauth?: (assetId: string, platform: SocialPlatform) => void;
 }
 
 const SYNC_STATUS_META: Record<SyncStatus, { icon: string; color: string; labelAr: string; labelEn: string }> = {
-    [SyncStatus.Active]:          { icon: 'fa-circle-check',   color: 'text-green-500',  labelAr: 'نشط',             labelEn: 'Active' },
-    [SyncStatus.NeedsReconnect]:  { icon: 'fa-rotate',         color: 'text-amber-500',  labelAr: 'يحتاج إعادة ربط', labelEn: 'Needs Reconnect' },
-    [SyncStatus.TokenExpired]:    { icon: 'fa-clock',          color: 'text-red-500',    labelAr: 'انتهى التوكن',    labelEn: 'Token Expired' },
-    [SyncStatus.ScopeMissing]:    { icon: 'fa-shield-halved',  color: 'text-orange-500', labelAr: 'صلاحيات ناقصة',  labelEn: 'Scope Missing' },
-    [SyncStatus.WebhookInactive]: { icon: 'fa-plug-circle-xmark', color: 'text-orange-400', labelAr: 'ويب هوك معطل', labelEn: 'Webhook Inactive' },
-    [SyncStatus.PartialSync]:     { icon: 'fa-circle-half-stroke', color: 'text-yellow-500', labelAr: 'مزامنة جزئية', labelEn: 'Partial Sync' },
-    [SyncStatus.SyncDelayed]:     { icon: 'fa-hourglass-half', color: 'text-yellow-400', labelAr: 'مزامنة متأخرة',  labelEn: 'Sync Delayed' },
-    [SyncStatus.Disconnected]:    { icon: 'fa-circle-xmark',   color: 'text-gray-400',   labelAr: 'غير متصل',       labelEn: 'Disconnected' },
+    [SyncStatus.Active]:          { icon: 'fa-circle-check',      color: 'text-green-500',  labelAr: 'نشط',              labelEn: 'Active' },
+    [SyncStatus.NeedsReconnect]:  { icon: 'fa-rotate',            color: 'text-amber-500',  labelAr: 'يحتاج إعادة ربط',  labelEn: 'Needs Reconnect' },
+    [SyncStatus.TokenExpired]:    { icon: 'fa-clock',             color: 'text-red-500',    labelAr: 'انتهى التوكن',     labelEn: 'Token Expired' },
+    [SyncStatus.ScopeMissing]:    { icon: 'fa-shield-halved',     color: 'text-orange-500', labelAr: 'صلاحيات ناقصة',   labelEn: 'Scope Missing' },
+    [SyncStatus.WebhookInactive]: { icon: 'fa-plug-circle-xmark', color: 'text-orange-400', labelAr: 'ويب هوك معطل',     labelEn: 'Webhook Inactive' },
+    [SyncStatus.PartialSync]:     { icon: 'fa-circle-half-stroke',color: 'text-yellow-500', labelAr: 'مزامنة جزئية',     labelEn: 'Partial Sync' },
+    [SyncStatus.SyncDelayed]:     { icon: 'fa-hourglass-half',    color: 'text-yellow-400', labelAr: 'مزامنة متأخرة',    labelEn: 'Sync Delayed' },
+    [SyncStatus.Disconnected]:    { icon: 'fa-circle-xmark',      color: 'text-gray-400',   labelAr: 'غير متصل',         labelEn: 'Disconnected' },
 };
 
 const PURPOSE_LABELS: Record<AssetPurpose, { ar: string; en: string; icon: string }> = {
-    [AssetPurpose.Publishing]: { ar: 'نشر', en: 'Publishing', icon: 'fa-paper-plane' },
-    [AssetPurpose.Inbox]:      { ar: 'وارد', en: 'Inbox',     icon: 'fa-comments' },
-    [AssetPurpose.Analytics]:  { ar: 'تحليلات', en: 'Analytics', icon: 'fa-chart-bar' },
-    [AssetPurpose.Ads]:        { ar: 'إعلانات', en: 'Ads',    icon: 'fa-bullhorn' },
-    [AssetPurpose.Commerce]:   { ar: 'تجارة', en: 'Commerce', icon: 'fa-bag-shopping' },
-    [AssetPurpose.Seo]:        { ar: 'سيو', en: 'SEO',        icon: 'fa-magnifying-glass' },
+    [AssetPurpose.Publishing]: { ar: 'نشر',     en: 'Publishing', icon: 'fa-paper-plane' },
+    [AssetPurpose.Inbox]:      { ar: 'وارد',    en: 'Inbox',      icon: 'fa-comments' },
+    [AssetPurpose.Analytics]:  { ar: 'تحليلات', en: 'Analytics',  icon: 'fa-chart-bar' },
+    [AssetPurpose.Ads]:        { ar: 'إعلانات', en: 'Ads',        icon: 'fa-bullhorn' },
+    [AssetPurpose.Commerce]:   { ar: 'تجارة',   en: 'Commerce',   icon: 'fa-bag-shopping' },
+    [AssetPurpose.Seo]:        { ar: 'سيو',     en: 'SEO',        icon: 'fa-magnifying-glass' },
 };
+
+// ── Scope definitions per platform per purpose ────────────────────────────────
+type ScopeEntry = { scopes: string[]; labelAr: string; labelEn: string };
+
+const REQUIRED_SCOPES: Partial<Record<SocialPlatform, Partial<Record<AssetPurpose, ScopeEntry>>>> = {
+    [SocialPlatform.Facebook]: {
+        [AssetPurpose.Publishing]: { scopes: ['pages_manage_posts', 'pages_read_engagement'], labelAr: 'نشر',     labelEn: 'Publishing' },
+        [AssetPurpose.Inbox]:      { scopes: ['pages_messaging', 'pages_messaging_subscriptions'], labelAr: 'رسائل', labelEn: 'Inbox' },
+        [AssetPurpose.Analytics]:  { scopes: ['read_insights'],                                    labelAr: 'تحليلات', labelEn: 'Analytics' },
+        [AssetPurpose.Ads]:        { scopes: ['ads_read'],                                         labelAr: 'إعلانات', labelEn: 'Ads' },
+    },
+    [SocialPlatform.Instagram]: {
+        [AssetPurpose.Publishing]: { scopes: ['instagram_content_publish'],    labelAr: 'نشر',     labelEn: 'Publishing' },
+        [AssetPurpose.Inbox]:      { scopes: ['instagram_manage_messages'],    labelAr: 'رسائل',   labelEn: 'Inbox' },
+        [AssetPurpose.Analytics]:  { scopes: ['instagram_manage_insights'],    labelAr: 'تحليلات', labelEn: 'Analytics' },
+        [AssetPurpose.Ads]:        { scopes: ['ads_read'],                     labelAr: 'إعلانات', labelEn: 'Ads' },
+    },
+};
+
+interface ScopeCheckRow {
+    purpose: AssetPurpose;
+    labelAr: string;
+    labelEn: string;
+    granted: boolean;
+    missing: string[];
+}
+
+function getScopeChecks(
+    platform: SocialPlatform,
+    purposes: AssetPurpose[],
+    scopesGranted: string[],
+): ScopeCheckRow[] {
+    const platformMap = REQUIRED_SCOPES[platform];
+    if (!platformMap) return [];
+
+    const grantedSet = new Set(scopesGranted.map(s => s.toLowerCase()));
+
+    return purposes
+        .map(purpose => {
+            const entry = platformMap[purpose];
+            if (!entry) return null;
+            const missing = entry.scopes.filter(s => !grantedSet.has(s.toLowerCase()));
+            return {
+                purpose,
+                labelAr: entry.labelAr,
+                labelEn: entry.labelEn,
+                granted: missing.length === 0,
+                missing,
+            };
+        })
+        .filter((r): r is ScopeCheckRow => r !== null);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const ALL_PURPOSES = Object.values(AssetPurpose);
 
@@ -34,15 +89,17 @@ function timeAgo(iso?: string, ar = false): string {
     if (!iso) return ar ? 'لم تتم بعد' : 'Never';
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1)   return ar ? 'الآن'        : 'Just now';
-    if (mins < 60)  return ar ? `منذ ${mins} د` : `${mins}m ago`;
+    if (mins < 1)  return ar ? 'الآن'        : 'Just now';
+    if (mins < 60) return ar ? `منذ ${mins} د` : `${mins}m ago`;
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24)   return ar ? `منذ ${hrs} س` : `${hrs}h ago`;
+    if (hrs < 24)  return ar ? `منذ ${hrs} س`  : `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     return ar ? `منذ ${days} يوم` : `${days}d ago`;
 }
 
-export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export const IntegrationHealthCenter: React.FC<Props> = ({ brandId, onReauth }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
 
@@ -52,6 +109,7 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [draftPurposes, setDraftPurposes] = useState<AssetPurpose[]>([]);
     const [saving, setSaving] = useState(false);
+    const [expandedScopes, setExpandedScopes] = useState<Set<string>>(new Set());
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -82,9 +140,7 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
         setSaving(true);
         try {
             await updateAssetPurposes(assetId, draftPurposes);
-            setAssets(prev =>
-                prev.map(a => a.id === assetId ? { ...a, purposes: draftPurposes } : a),
-            );
+            setAssets(prev => prev.map(a => a.id === assetId ? { ...a, purposes: draftPurposes } : a));
             setEditingId(null);
         } catch (e: any) {
             alert(e.message);
@@ -93,11 +149,17 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
         }
     };
 
-    // Summary counts
-    const total     = assets.length;
-    const healthy   = assets.filter(a => a.sync_status === SyncStatus.Active).length;
-    const warnings  = assets.filter(a => [SyncStatus.PartialSync, SyncStatus.SyncDelayed, SyncStatus.WebhookInactive].includes(a.sync_status)).length;
-    const critical  = assets.filter(a => [SyncStatus.NeedsReconnect, SyncStatus.TokenExpired, SyncStatus.ScopeMissing, SyncStatus.Disconnected].includes(a.sync_status)).length;
+    const toggleScopeExpand = (id: string) =>
+        setExpandedScopes(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+
+    const total    = assets.length;
+    const healthy  = assets.filter(a => a.sync_status === SyncStatus.Active).length;
+    const warnings = assets.filter(a => [SyncStatus.PartialSync, SyncStatus.SyncDelayed, SyncStatus.WebhookInactive].includes(a.sync_status)).length;
+    const critical = assets.filter(a => [SyncStatus.NeedsReconnect, SyncStatus.TokenExpired, SyncStatus.ScopeMissing, SyncStatus.Disconnected].includes(a.sync_status)).length;
 
     if (loading) {
         return (
@@ -150,6 +212,13 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
                     {assets.map(asset => {
                         const statusMeta = SYNC_STATUS_META[asset.sync_status] ?? SYNC_STATUS_META[SyncStatus.Active];
                         const isEditing = editingId === asset.id;
+                        const scopeChecks = getScopeChecks(
+                            asset.platform,
+                            asset.purposes,
+                            asset.scopes_granted ?? [],
+                        );
+                        const hasMissingScopes = scopeChecks.some(c => !c.granted);
+                        const scopeExpanded = expandedScopes.has(asset.id);
 
                         return (
                             <div
@@ -182,6 +251,12 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
                                             {asset.is_primary && (
                                                 <span className="rounded bg-brand-primary/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-primary">
                                                     {ar ? 'رئيسي' : 'Primary'}
+                                                </span>
+                                            )}
+                                            {hasMissingScopes && (
+                                                <span className="rounded bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-bold text-orange-500">
+                                                    <i className="fas fa-shield-halved me-1 text-[9px]" />
+                                                    {ar ? 'صلاحيات ناقصة' : 'Scope Missing'}
                                                 </span>
                                             )}
                                         </div>
@@ -272,9 +347,19 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
                                             {asset.purposes.map(p => {
                                                 const meta = PURPOSE_LABELS[p as AssetPurpose];
                                                 if (!meta) return null;
+                                                const scopeRow = scopeChecks.find(c => c.purpose === p);
+                                                const isMissing = scopeRow && !scopeRow.granted;
                                                 return (
-                                                    <span key={p} className="flex items-center gap-1 rounded-lg bg-light-bg px-2 py-0.5 text-[11px] font-medium text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary">
-                                                        <i className={`fas ${meta.icon} text-[9px]`} />
+                                                    <span
+                                                        key={p}
+                                                        title={isMissing ? (ar ? `صلاحيات ناقصة: ${scopeRow.missing.join(', ')}` : `Missing: ${scopeRow.missing.join(', ')}`) : undefined}
+                                                        className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium ${
+                                                            isMissing
+                                                                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                                                                : 'bg-light-bg text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary'
+                                                        }`}
+                                                    >
+                                                        <i className={`fas ${isMissing ? 'fa-triangle-exclamation' : meta.icon} text-[9px]`} />
                                                         {ar ? meta.ar : meta.en}
                                                     </span>
                                                 );
@@ -289,6 +374,69 @@ export const IntegrationHealthCenter: React.FC<Props> = ({ brandId }) => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Scope validation section */}
+                                {scopeChecks.length > 0 && (
+                                    <div className="mt-3">
+                                        <button
+                                            onClick={() => toggleScopeExpand(asset.id)}
+                                            className="flex w-full items-center gap-2 rounded-lg border border-light-border/60 bg-light-bg/50 px-3 py-2 text-[11px] text-light-text-secondary transition-colors hover:bg-light-bg dark:border-dark-border/60 dark:bg-dark-bg/50 dark:text-dark-text-secondary dark:hover:bg-dark-bg"
+                                        >
+                                            <i className="fas fa-shield-halved text-[10px]" />
+                                            <span className="font-semibold">
+                                                {ar ? 'الصلاحيات الممنوحة' : 'Permissions'}
+                                            </span>
+                                            {hasMissingScopes && (
+                                                <span className="rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[9px] font-bold text-orange-500">
+                                                    {scopeChecks.filter(c => !c.granted).length} {ar ? 'ناقصة' : 'missing'}
+                                                </span>
+                                            )}
+                                            <i className={`fas fa-chevron-${scopeExpanded ? 'up' : 'down'} ms-auto text-[9px]`} />
+                                        </button>
+
+                                        {scopeExpanded && (
+                                            <div className="mt-2 space-y-1.5 rounded-lg border border-light-border/40 bg-light-bg/30 p-3 dark:border-dark-border/40 dark:bg-dark-bg/30">
+                                                {scopeChecks.map(row => (
+                                                    <div key={row.purpose} className="flex items-start gap-2 text-xs">
+                                                        <i className={`fas mt-0.5 shrink-0 text-[11px] ${row.granted ? 'fa-check-circle text-emerald-500' : 'fa-times-circle text-red-500'}`} />
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className={`font-semibold ${row.granted ? 'text-light-text dark:text-dark-text' : 'text-red-600 dark:text-red-400'}`}>
+                                                                {ar ? row.labelAr : row.labelEn}
+                                                            </span>
+                                                            {!row.granted && (
+                                                                <p className="mt-0.5 text-[10px] text-light-text-secondary dark:text-dark-text-secondary">
+                                                                    {ar ? 'يحتاج: ' : 'Needs: '}
+                                                                    <span className="font-mono">{row.missing.join(', ')}</span>
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                {hasMissingScopes && (
+                                                    <div className="mt-3 border-t border-light-border/40 pt-3 dark:border-dark-border/40">
+                                                        {onReauth ? (
+                                                            <button
+                                                                onClick={() => onReauth(asset.id, asset.platform)}
+                                                                className="flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600"
+                                                            >
+                                                                <i className="fas fa-shield-plus text-[10px]" />
+                                                                {ar ? 'منح الصلاحيات الناقصة' : 'Grant Missing Permissions'}
+                                                            </button>
+                                                        ) : (
+                                                            <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">
+                                                                <i className="fas fa-info-circle me-1" />
+                                                                {ar
+                                                                    ? 'افصل المنصة وأعد ربطها من الأعلى لمنح الصلاحيات الناقصة.'
+                                                                    : 'Disconnect and reconnect this platform from above to grant missing permissions.'}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Error message */}
                                 {asset.sync_error && (

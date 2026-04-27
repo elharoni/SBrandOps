@@ -1,10 +1,14 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { fetchTodaySummary, TodaySummary, TodayPriority } from '../../services/todaySummaryService';
+
+interface BrandOption { id: string; name: string }
 
 interface Props {
     brandId: string;
     brandName: string;
+    brands?: BrandOption[];
+    onSwitchBrand?: (id: string) => void;
     onNavigate: (page: string) => void;
 }
 
@@ -117,13 +121,27 @@ const Skeleton: React.FC = () => (
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const MobileHomePage: React.FC<Props> = ({ brandId, brandName, onNavigate }) => {
+export const MobileHomePage: React.FC<Props> = ({ brandId, brandName, brands, onSwitchBrand, onNavigate }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
 
-    const [summary, setSummary] = useState<TodaySummary | null>(null);
-    const [loading, setLoading]  = useState(true);
-    const [error, setError]      = useState<string | null>(null);
+    const [summary, setSummary]           = useState<TodaySummary | null>(null);
+    const [loading, setLoading]           = useState(true);
+    const [error, setError]               = useState<string | null>(null);
+    const [showBrandMenu, setShowBrandMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!showBrandMenu) return;
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setShowBrandMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [showBrandMenu]);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -199,12 +217,45 @@ export const MobileHomePage: React.FC<Props> = ({ brandId, brandName, onNavigate
                             )}
                         </div>
                     </div>
-                    <button
-                        onClick={load}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-light-card/80 dark:bg-dark-card/80 text-light-text-secondary dark:text-dark-text-secondary transition-all active:scale-90"
-                    >
-                        <i className="fas fa-sync-alt text-sm" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Brand switcher (P3-07) */}
+                        {brands && brands.length > 1 && onSwitchBrand && (
+                            <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setShowBrandMenu(v => !v)}
+                                    className="flex h-9 items-center gap-1.5 rounded-xl bg-light-card/80 dark:bg-dark-card/80 px-3 text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary transition-all active:scale-90"
+                                >
+                                    <i className="fas fa-layer-group text-xs" />
+                                    {ar ? 'تبديل' : 'Switch'}
+                                    <i className={`fas fa-chevron-down text-[9px] transition-transform ${showBrandMenu ? 'rotate-180' : ''}`} />
+                                </button>
+                                {showBrandMenu && (
+                                    <div className="absolute end-0 top-11 z-50 w-48 rounded-2xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card shadow-xl overflow-hidden">
+                                        {brands.map(b => (
+                                            <button
+                                                key={b.id}
+                                                onClick={() => { onSwitchBrand(b.id); setShowBrandMenu(false); }}
+                                                className={`w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors text-start ${
+                                                    b.id === brandId
+                                                        ? 'bg-brand-primary/10 text-brand-primary font-bold'
+                                                        : 'text-light-text dark:text-dark-text hover:bg-light-bg dark:hover:bg-dark-bg'
+                                                }`}
+                                            >
+                                                {b.id === brandId && <i className="fas fa-check text-[10px] text-brand-primary" />}
+                                                <span className="truncate">{b.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <button
+                            onClick={load}
+                            className="flex h-9 w-9 items-center justify-center rounded-xl bg-light-card/80 dark:bg-dark-card/80 text-light-text-secondary dark:text-dark-text-secondary transition-all active:scale-90"
+                        >
+                            <i className="fas fa-sync-alt text-sm" />
+                        </button>
+                    </div>
                 </div>
             </div>
 

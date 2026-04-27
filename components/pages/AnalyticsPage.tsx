@@ -670,19 +670,19 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
             case 'ads':
                 return (
                     <Suspense fallback={<TabFallback />}>
-                        <AdsTab data={liveData} onNavigate={onNavigate} />
+                        <AdsTab data={liveData} brandId={brandId} onNavigate={onNavigate} />
                     </Suspense>
                 );
             case 'website':
                 return (
                     <Suspense fallback={<TabFallback />}>
-                        <WebsiteTab data={liveData} onNavigate={onNavigate} />
+                        <WebsiteTab data={liveData} brandId={brandId} onNavigate={onNavigate} />
                     </Suspense>
                 );
             case 'seo':
                 return (
                     <Suspense fallback={<TabFallback />}>
-                        <SEOTab data={liveData} onNavigate={onNavigate} />
+                        <SEOTab data={liveData} brandId={brandId} period={period} onNavigate={onNavigate} />
                     </Suspense>
                 );
             case 'content':

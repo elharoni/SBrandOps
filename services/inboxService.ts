@@ -599,17 +599,17 @@ export async function createOrderFromInboxConversation(
             .eq('brand_id', brandId);
 
         // 6. Add internal note
-        await supabase
-            .from('inbox_conversation_notes')
-            .insert([{
-                conversation_id: conversationId,
-                brand_id: brandId,
-                author: 'System',
-                text: `✅ تم إنشاء طلب رقم ${externalId} بقيمة ${total.toFixed(2)} ر.س`,
-            }])
-            .throwOnError()
-            .then(() => null)
-            .catch(() => null); // non-blocking
+        // non-blocking internal note — ignore failures
+        try {
+            await supabase
+                .from('inbox_conversation_notes')
+                .insert([{
+                    conversation_id: conversationId,
+                    brand_id: brandId,
+                    author: 'System',
+                    text: `✅ تم إنشاء طلب رقم ${externalId} بقيمة ${total.toFixed(2)} ر.س`,
+                }]);
+        } catch { /* ignore */ }
 
         return { orderId: order.id, customerId };
     } catch (err) {
@@ -639,5 +639,397 @@ export async function bulkUpdateStatus(
         .from('inbox_conversations')
         .update({ status })
         .in('id', conversationIds)
+        .eq('brand_id', brandId);
+}
+
+// ── Social Messages → InboxConversation ──────────────────────────────────────
+// Reads from social_messages (written by inbox-aggregator Edge Function).
+// Groups by (provider, external_thread_id) to form thread-level conversations.
+
+const PROVIDER_TO_PLATFORM: Record<string, SocialPlatform> = {
+    facebook:  SocialPlatform.Facebook,
+    instagram: SocialPlatform.Instagram,
+    youtube:   SocialPlatform.LinkedIn,   // YouTube maps to LinkedIn as closest fallback
+    tiktok:    SocialPlatform.TikTok,
+    x:         SocialPlatform.X,
+    twitter:   SocialPlatform.X,
+    linkedin:  SocialPlatform.LinkedIn,
+    pinterest: SocialPlatform.Pinterest,
+};
+
+const MESSAGE_TYPE_TO_CONV_TYPE: Record<string, ConversationType> = {
+    message: ConversationType.Message,
+    comment: ConversationType.Comment,
+    mention: ConversationType.Mention,
+    reply:   ConversationType.Comment,
+    review:  ConversationType.Comment,
+};
+
+const INTENT_MAP: Record<string, ConversationIntent> = {
+    buying_intent:      ConversationIntent.PurchaseInquiry,
+    inquiry:            ConversationIntent.GeneralQuestion,
+    complaint:          ConversationIntent.Complaint,
+    spam:               ConversationIntent.Spam,
+    positive_feedback:  ConversationIntent.Feedback,
+};
+
+function priorityFromScore(score: number): ConversationPriority {
+    if (score >= 80) return 'urgent';
+    if (score >= 60) return 'high';
+    if (score >= 30) return 'medium';
+    return 'low';
+}
+
+export async function getSocialMessagesAsConversations(brandId: string): Promise<InboxConversation[]> {
+    const { data, error } = await supabase
+        .from('social_messages')
+        .select('id, provider, message_type, external_thread_id, external_message_id, sender_name, sender_external_id, sender_avatar_url, content, is_read, is_replied, sentiment, intent, priority_score, crm_customer_id, received_at')
+        .eq('brand_id', brandId)
+        .order('received_at', { ascending: false })
+        .limit(500);
+
+    if (error) {
+        console.error('getSocialMessagesAsConversations error:', error);
+        return [];
+    }
+
+    // Group by (provider, external_thread_id)
+    const threads = new Map<string, typeof data>();
+    for (const row of (data ?? [])) {
+        const key = `${row.provider}::${row.external_thread_id}`;
+        if (!threads.has(key)) threads.set(key, []);
+        threads.get(key)!.push(row);
+    }
+
+    const conversations: InboxConversation[] = [];
+
+    for (const [, msgs] of threads) {
+        // msgs already ordered newest-first; reverse for chronological display
+        const chronological = [...msgs].reverse();
+        const latest = msgs[0];   // newest message for metadata
+        const first  = chronological[0]; // first message for sender identity
+
+        const platform = PROVIDER_TO_PLATFORM[latest.provider] ?? SocialPlatform.Facebook;
+        const convType = MESSAGE_TYPE_TO_CONV_TYPE[latest.message_type] ?? ConversationType.Message;
+        const intent = INTENT_MAP[latest.intent ?? ''] ?? ConversationIntent.Unknown;
+        const allRead = msgs.every(m => m.is_read);
+
+        conversations.push({
+            id: `sm::${latest.provider}::${latest.external_thread_id}`,
+            platform,
+            type: convType,
+            user: {
+                name:      first.sender_name || 'Unknown',
+                handle:    first.sender_external_id || '',
+                avatarUrl: first.sender_avatar_url || `https://picsum.photos/seed/${first.sender_external_id || first.id}/100`,
+            },
+            messages: chronological.map(m => ({
+                id:        m.id,
+                sender:    'user' as const,
+                text:      m.content || '',
+                timestamp: new Date(m.received_at),
+            })),
+            lastMessageTimestamp: new Date(latest.received_at),
+            isRead:    allRead,
+            assignee:  'Unassigned',
+            intent,
+            sentiment: (latest.sentiment as ConversationSentiment | null) ?? undefined,
+            status:    'open' as ConversationStatus,
+            priority:  priorityFromScore(Number(latest.priority_score ?? 0)),
+            tags:      [],
+            crmCustomerId: latest.crm_customer_id ?? null,
+            accountName: null,
+            accountId: null,
+        });
+    }
+
+    // Sort by newest message first
+    conversations.sort((a, b) => b.lastMessageTimestamp.getTime() - a.lastMessageTimestamp.getTime());
+    return conversations;
+}
+
+export async function markSocialMessageRead(brandId: string, threadId: string, provider: string): Promise<void> {
+    await supabase
+        .from('social_messages')
+        .update({ is_read: true })
+        .eq('brand_id', brandId)
+        .eq('provider', provider)
+        .eq('external_thread_id', threadId);
+}
+
+// ── Lead Score (client-side) ──────────────────────────────────────────────────
+
+const PRICE_KEYWORDS   = ['سعر', 'بكام', 'كام', 'بكم', 'تكلفة', 'price', 'cost', 'how much', 'كمية', 'موجود'];
+const ORDER_KEYWORDS   = ['عايز', 'أبي', 'أريد', 'محتاج', 'طلب', 'اطلب', 'want', 'order', 'buy', 'شراء', 'هشتري'];
+const URGENT_KEYWORDS  = ['عاجل', 'ضروري', 'اليوم', 'دلوقتي', 'urgent', 'asap', 'now', 'today'];
+const INTENT_SCORES: Partial<Record<string, number>> = {
+    purchase_inquiry: 35,
+    price_inquiry:    25,
+    order_intent:     40,
+    complaint:        -15,
+    spam:             -50,
+};
+const TAG_SCORES: Record<string, number> = {
+    'hot-lead':       25,
+    'order-intent':   35,
+    'price-inquiry':  20,
+    'complaint':      -15,
+    'support':        -5,
+};
+
+export function calculateLeadScore(conv: {
+    intent?: string;
+    tags?: string[];
+    messages?: { text: string; sender: string }[];
+    sentiment?: string;
+    adCampaignId?: string | null;
+}): number {
+    let score = 20; // baseline
+
+    // Intent
+    const intentKey = (conv.intent ?? '').toLowerCase().replace(/ /g, '_');
+    score += INTENT_SCORES[intentKey] ?? 0;
+
+    // Tags
+    for (const tag of conv.tags ?? []) {
+        score += TAG_SCORES[tag] ?? 0;
+    }
+
+    // Message keywords (scan last 5 user messages)
+    const userMsgs = (conv.messages ?? [])
+        .filter(m => m.sender === 'user')
+        .slice(-5)
+        .map(m => m.text.toLowerCase());
+
+    for (const text of userMsgs) {
+        if (PRICE_KEYWORDS.some(k => text.includes(k)))  score += 15;
+        if (ORDER_KEYWORDS.some(k => text.includes(k)))  score += 20;
+        if (URGENT_KEYWORDS.some(k => text.includes(k))) score += 10;
+    }
+
+    // Sentiment
+    if (conv.sentiment === 'positive') score += 10;
+    if (conv.sentiment === 'negative') score -= 10;
+
+    // Ad comment boost
+    if (conv.adCampaignId) score += 15;
+
+    return Math.max(0, Math.min(100, score));
+}
+
+export function detectItemType(conv: {
+    type?: string;
+    platform?: string;
+    adCampaignId?: string | null;
+    id?: string;
+}): import('../types').InboxItemType {
+    const type = (conv.type ?? '').toLowerCase();
+    const platform = (conv.platform ?? '').toLowerCase();
+
+    if (type === 'mention') return 'mention';
+    if (conv.adCampaignId) return 'ad_comment';
+    if (type === 'comment' && platform === 'facebook')  return 'facebook_comment';
+    if (type === 'comment' && platform === 'instagram') return 'instagram_comment';
+    if (type === 'comment') return 'facebook_comment';
+    return 'dm';
+}
+
+// ── Commercial Intelligence (DB) ──────────────────────────────────────────────
+
+export interface CommercialIntelligence {
+    conversationId: string;
+    leadScore: number;
+    commercialIntent: string | null;
+    productInterest: string | null;
+    estimatedValue: number;
+    closeProbability: number;
+    nextBestAction: string | null;
+    lossRisk: string | null;
+    itemType: string;
+}
+
+export async function getCommercialIntelligence(
+    brandId: string,
+    conversationId: string,
+): Promise<CommercialIntelligence | null> {
+    const { data } = await supabase
+        .from('inbox_commercial_intelligence')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('conversation_id', conversationId)
+        .maybeSingle();
+
+    if (!data) return null;
+    return {
+        conversationId: data.conversation_id,
+        leadScore:        data.lead_score,
+        commercialIntent: data.commercial_intent,
+        productInterest:  data.product_interest,
+        estimatedValue:   Number(data.estimated_value),
+        closeProbability: data.close_probability,
+        nextBestAction:   data.next_best_action,
+        lossRisk:         data.loss_risk,
+        itemType:         data.item_type,
+    };
+}
+
+export async function upsertCommercialIntelligence(
+    brandId: string,
+    payload: Partial<CommercialIntelligence> & { conversationId: string },
+): Promise<void> {
+    await supabase.from('inbox_commercial_intelligence').upsert({
+        brand_id:          brandId,
+        conversation_id:   payload.conversationId,
+        lead_score:        payload.leadScore,
+        commercial_intent: payload.commercialIntent,
+        product_interest:  payload.productInterest,
+        estimated_value:   payload.estimatedValue,
+        close_probability: payload.closeProbability,
+        next_best_action:  payload.nextBestAction,
+        loss_risk:         payload.lossRisk,
+        item_type:         payload.itemType,
+        updated_at:        new Date().toISOString(),
+    }, { onConflict: 'brand_id,conversation_id' });
+}
+
+// ── Opportunity Pipeline (DB) ─────────────────────────────────────────────────
+
+import type { InboxOpportunity, OpportunityStage } from '../types';
+
+export async function getOpportunity(
+    brandId: string,
+    conversationId: string,
+): Promise<InboxOpportunity | null> {
+    const { data } = await supabase
+        .from('inbox_opportunities')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('conversation_id', conversationId)
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (!data) return null;
+    return {
+        id:          data.id,
+        stage:       data.stage as OpportunityStage,
+        value:       Number(data.value),
+        probability: data.probability,
+        title:       data.title,
+        status:      data.status as InboxOpportunity['status'],
+    };
+}
+
+export async function upsertOpportunity(
+    brandId: string,
+    conversationId: string,
+    payload: Partial<InboxOpportunity> & { title?: string },
+): Promise<InboxOpportunity | null> {
+    const existing = await getOpportunity(brandId, conversationId);
+
+    if (existing) {
+        const { data } = await supabase
+            .from('inbox_opportunities')
+            .update({
+                stage:       payload.stage,
+                value:       payload.value,
+                probability: payload.probability,
+                title:       payload.title,
+                status:      payload.status,
+                updated_at:  new Date().toISOString(),
+            })
+            .eq('id', existing.id)
+            .select()
+            .single();
+        if (!data) return null;
+        return { ...existing, ...payload, id: existing.id };
+    }
+
+    const { data } = await supabase
+        .from('inbox_opportunities')
+        .insert({
+            brand_id:        brandId,
+            conversation_id: conversationId,
+            stage:           payload.stage ?? 'new_inquiry',
+            value:           payload.value ?? 0,
+            probability:     payload.probability ?? 50,
+            title:           payload.title ?? 'فرصة بيع',
+            status:          payload.status ?? 'open',
+        })
+        .select()
+        .single();
+
+    if (!data) return null;
+    return {
+        id:          data.id,
+        stage:       data.stage as OpportunityStage,
+        value:       Number(data.value),
+        probability: data.probability,
+        title:       data.title,
+        status:      data.status,
+    };
+}
+
+// ── Follow-ups (DB) ───────────────────────────────────────────────────────────
+
+import type { InboxFollowup } from '../types';
+
+export async function getFollowups(
+    brandId: string,
+    conversationId: string,
+): Promise<InboxFollowup[]> {
+    const { data } = await supabase
+        .from('inbox_followups')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('conversation_id', conversationId)
+        .in('status', ['pending', 'overdue'])
+        .order('due_at', { ascending: true });
+
+    return (data ?? []).map(r => ({
+        id:              r.id,
+        dueAt:           new Date(r.due_at),
+        type:            r.followup_type,
+        status:          r.status as InboxFollowup['status'],
+        messageTemplate: r.message_template ?? undefined,
+    }));
+}
+
+export async function createFollowup(
+    brandId: string,
+    conversationId: string,
+    dueAt: Date,
+    type = 'manual',
+    messageTemplate?: string,
+): Promise<InboxFollowup | null> {
+    const { data } = await supabase
+        .from('inbox_followups')
+        .insert({
+            brand_id:         brandId,
+            conversation_id:  conversationId,
+            followup_type:    type,
+            due_at:           dueAt.toISOString(),
+            message_template: messageTemplate ?? null,
+            status:           'pending',
+        })
+        .select()
+        .single();
+
+    if (!data) return null;
+    return {
+        id:              data.id,
+        dueAt:           new Date(data.due_at),
+        type:            data.followup_type,
+        status:          data.status,
+        messageTemplate: data.message_template ?? undefined,
+    };
+}
+
+export async function completeFollowup(brandId: string, followupId: string): Promise<void> {
+    await supabase
+        .from('inbox_followups')
+        .update({ status: 'done', completed_at: new Date().toISOString() })
+        .eq('id', followupId)
         .eq('brand_id', brandId);
 }
