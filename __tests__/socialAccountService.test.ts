@@ -3,7 +3,7 @@ import { AccountStatus, SocialPlatform } from '../types';
 
 vi.mock('../services/supabaseClient', () => ({
     supabase: {
-        rpc: vi.fn(),
+        from: vi.fn(),
         functions: {
             invoke: vi.fn(),
         },
@@ -18,13 +18,19 @@ import {
     updateAccountStatus,
 } from '../services/socialAccountService';
 
+const makeQuery = (resolvedValue: { data?: any; error?: any }) => ({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockResolvedValue(resolvedValue),
+});
+
 describe('socialAccountService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('reads public accounts via RPC', async () => {
-        (supabase.rpc as any).mockResolvedValueOnce({
+    it('reads public accounts from the social_accounts table', async () => {
+        const query = makeQuery({
             data: [{
                 id: 'acc-1',
                 platform: 'Instagram',
@@ -32,15 +38,41 @@ describe('socialAccountService', () => {
                 avatar_url: null,
                 followers_count: 5000,
                 status: 'Connected',
+                asset_type: null,
+                purposes: null,
+                market: null,
+                is_primary: true,
+                sync_status: null,
+                last_synced_at: null,
+                sync_error: null,
+                webhook_active: null,
+                scopes_granted: null,
             }],
             error: null,
         });
+        (supabase.from as any).mockReturnValueOnce(query);
 
         const result = await getSocialAccounts('brand-1');
 
-        expect(supabase.rpc).toHaveBeenCalledWith('get_social_accounts_public', { p_brand_id: 'brand-1' });
+        expect(supabase.from).toHaveBeenCalledWith('social_accounts');
+        expect(query.eq).toHaveBeenCalledWith('brand_id', 'brand-1');
+        expect(query.order).toHaveBeenCalledWith('is_primary', { ascending: false });
         expect(result).toHaveLength(1);
         expect(result[0].platform).toBe(SocialPlatform.Instagram);
+        expect(result[0].followers).toBe(5000);
+        expect(result[0].avatarUrl).toContain('https://picsum.photos/seed/mypage/100');
+    });
+
+    it('returns an empty array when the table query fails', async () => {
+        const query = makeQuery({
+            data: null,
+            error: { message: 'boom' },
+        });
+        (supabase.from as any).mockReturnValueOnce(query);
+
+        const result = await getSocialAccounts('brand-1');
+
+        expect(result).toEqual([]);
     });
 
     it('disconnects through Edge', async () => {
@@ -73,6 +105,15 @@ describe('socialAccountService', () => {
                     avatar_url: null,
                     followers_count: 120,
                     status: 'Connected',
+                    asset_type: null,
+                    purposes: null,
+                    market: null,
+                    is_primary: false,
+                    sync_status: null,
+                    last_synced_at: null,
+                    sync_error: null,
+                    webhook_active: null,
+                    scopes_granted: null,
                 }],
             },
             error: null,

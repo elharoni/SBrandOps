@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'C:\\Users\\aboda\\Downloads\\sbrandops---v1.0541\\supabase\\functions';
-const ALLOWED_DIRECT_WRITE_FILE = 'C:\\Users\\aboda\\Downloads\\sbrandops---v1.0541\\supabase\\functions\\_shared\\postAnalytics.ts';
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(TEST_DIR, '..');
+const ROOT = join(REPO_ROOT, 'supabase', 'functions');
+const ALLOWED_DIRECT_WRITE_FILE = join(ROOT, '_shared', 'postAnalytics.ts');
 const DIRECT_WRITE_PATTERNS = [
     ".from('post_analytics')",
-    '.from(\"post_analytics\")',
+    '.from("post_analytics")',
 ];
 
 function walk(dir: string): string[] {

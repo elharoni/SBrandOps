@@ -25,6 +25,13 @@ const makeChain = (overrides: Record<string, any> = {}) => ({
     eq: vi.fn().mockReturnThis(),
     order: vi.fn().mockResolvedValue({ data: [], error: null }),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    then: (onFulfilled: any, onRejected: any) =>
+        Promise.resolve({ data: null, error: null }).then(onFulfilled, onRejected),
+    catch: (onRejected: any) =>
+        Promise.resolve({ data: null, error: null }).catch(onRejected),
+    finally: (onFinally: any) =>
+        Promise.resolve({ data: null, error: null }).finally(onFinally),
     ...overrides,
 });
 
@@ -84,34 +91,53 @@ describe('brandService', () => {
                 name: 'New Brand',
                 logo_url: null,
             };
-            const chain = makeChain({
+            const tenantLookupChain = makeChain({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            });
+            const insertChain = makeChain({
                 single: vi.fn().mockResolvedValue({ data: mockRow, error: null }),
             });
-            (supabase.from as any).mockReturnValue(chain);
+            const tenantUpdateChain = makeChain();
+
+            (supabase.from as any)
+                .mockReturnValueOnce(tenantLookupChain)
+                .mockReturnValueOnce(insertChain)
+                .mockReturnValueOnce(tenantUpdateChain);
 
             const result = await addBrand('New Brand', 'E-commerce');
 
             expect(result.name).toBe('New Brand');
-            expect(chain.insert).toHaveBeenCalledWith([{
+            expect(insertChain.insert).toHaveBeenCalledWith([{
                 name: 'New Brand',
                 user_id: 'user-1',
                 industry: 'E-commerce',
             }]);
+            expect(tenantUpdateChain.update).toHaveBeenCalledWith({ brands_count: 1 });
         });
 
         it('throws when the user is not authenticated', async () => {
             mockAuthUser(null);
 
-            await expect(addBrand('Demo Brand')).rejects.toThrow('يجب تسجيل الدخول أولاً لإضافة براند');
+            await expect(addBrand('Demo Brand')).rejects.toThrow(
+                '\u064a\u062c\u0628 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0623\u0648\u0644\u0627\u064b \u0644\u0625\u0636\u0627\u0641\u0629 \u0628\u0631\u0627\u0646\u062f'
+            );
         });
 
         it('throws when DB insert fails', async () => {
-            const chain = makeChain({
+            const tenantLookupChain = makeChain({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            });
+            const insertChain = makeChain({
                 single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Constraint violation' } }),
             });
-            (supabase.from as any).mockReturnValue(chain);
 
-            await expect(addBrand('Demo Brand')).rejects.toThrow('فشل إنشاء البراند: Constraint violation');
+            (supabase.from as any)
+                .mockReturnValueOnce(tenantLookupChain)
+                .mockReturnValueOnce(insertChain);
+
+            await expect(addBrand('Demo Brand')).rejects.toThrow(
+                '\u0641\u0634\u0644 \u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u0628\u0631\u0627\u0646\u062f: Constraint violation'
+            );
         });
     });
 });

@@ -24,12 +24,23 @@ const makeQuery = (resolvedValue: { data?: any; error?: any; count?: number | nu
         not: vi.fn().mockReturnThis(),
         overlaps: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
+        lt: vi.fn().mockReturnThis(),
         then: (onFulfilled: any, onRejected: any) => Promise.resolve(resolvedValue).then(onFulfilled, onRejected),
         catch: (onRejected: any) => Promise.resolve(resolvedValue).catch(onRejected),
         finally: (onFinally: any) => Promise.resolve(resolvedValue).finally(onFinally),
     };
 
     return query;
+};
+
+const queueFromQueries = (tableQueues: Record<string, any[]>) => {
+    (supa.supabase.from as any).mockImplementation((table: string) => {
+        const next = tableQueues[table]?.shift();
+        if (!next) {
+            throw new Error(`Unexpected supabase.from call for table: ${table}`);
+        }
+        return next;
+    });
 };
 
 describe('analyticsService rollups', () => {
@@ -62,12 +73,7 @@ describe('analyticsService rollups', () => {
             ],
             error: null,
         });
-
-        const publishedPostsQuery = makeQuery({
-            count: 3,
-            error: null,
-        });
-
+        const publishedPostsQuery = makeQuery({ count: 3, error: null });
         const followerHistoryQuery = makeQuery({
             data: [
                 { recorded_at: '2026-03-01T00:00:00.000Z', followers_count: 1000, platform: 'Facebook' },
@@ -75,7 +81,6 @@ describe('analyticsService rollups', () => {
             ],
             error: null,
         });
-
         const sentimentQuery = makeQuery({
             data: [
                 { sentiment: 'positive', platform: 'Instagram' },
@@ -85,12 +90,20 @@ describe('analyticsService rollups', () => {
             ],
             error: null,
         });
+        const snapshotsQuery = makeQuery({ data: [], error: null });
+        const prevPostAnalyticsQuery = makeQuery({ data: [], error: null });
+        const prevSnapshotsQuery = makeQuery({ data: [], error: null });
+        const prevPublishedPostsQuery = makeQuery({ count: 0, error: null });
+        const ga4SummaryQuery = makeQuery({ data: [], error: null });
+        const gscSummaryQuery = makeQuery({ data: [], error: null });
 
-        (supa.supabase.from as any)
-            .mockReturnValueOnce(postAnalyticsQuery)
-            .mockReturnValueOnce(publishedPostsQuery)
-            .mockReturnValueOnce(followerHistoryQuery)
-            .mockReturnValueOnce(sentimentQuery);
+        queueFromQueries({
+            post_analytics: [postAnalyticsQuery, prevPostAnalyticsQuery],
+            scheduled_posts: [publishedPostsQuery, prevPublishedPostsQuery],
+            follower_history: [followerHistoryQuery],
+            inbox_conversations: [sentimentQuery],
+            analytics_snapshots: [snapshotsQuery, prevSnapshotsQuery, ga4SummaryQuery, gscSummaryQuery],
+        });
 
         const result = await getAnalyticsData('brand-1', { period: '30d', platforms: [] });
 
@@ -120,12 +133,20 @@ describe('analyticsService rollups', () => {
         const publishedPostsQuery = makeQuery({ count: 0, error: null });
         const followerHistoryQuery = makeQuery({ data: [], error: null });
         const sentimentQuery = makeQuery({ data: [], error: null });
+        const snapshotsQuery = makeQuery({ data: [], error: null });
+        const prevPostAnalyticsQuery = makeQuery({ data: [], error: null });
+        const prevSnapshotsQuery = makeQuery({ data: [], error: null });
+        const prevPublishedPostsQuery = makeQuery({ count: 0, error: null });
+        const ga4SummaryQuery = makeQuery({ data: [], error: null });
+        const gscSummaryQuery = makeQuery({ data: [], error: null });
 
-        (supa.supabase.from as any)
-            .mockReturnValueOnce(postAnalyticsQuery)
-            .mockReturnValueOnce(publishedPostsQuery)
-            .mockReturnValueOnce(followerHistoryQuery)
-            .mockReturnValueOnce(sentimentQuery);
+        queueFromQueries({
+            post_analytics: [postAnalyticsQuery, prevPostAnalyticsQuery],
+            scheduled_posts: [publishedPostsQuery, prevPublishedPostsQuery],
+            follower_history: [followerHistoryQuery],
+            inbox_conversations: [sentimentQuery],
+            analytics_snapshots: [snapshotsQuery, prevSnapshotsQuery, ga4SummaryQuery, gscSummaryQuery],
+        });
 
         await getAnalyticsData('brand-1', { period: '30d', platforms: ['Facebook' as any] });
 
@@ -133,6 +154,9 @@ describe('analyticsService rollups', () => {
         expect(publishedPostsQuery.overlaps).toHaveBeenCalledWith('platforms', ['Facebook']);
         expect(followerHistoryQuery.in).toHaveBeenCalledWith('platform', ['Facebook']);
         expect(sentimentQuery.in).toHaveBeenCalledWith('platform', ['Facebook']);
+        expect(snapshotsQuery.in).toHaveBeenCalledWith('platform', ['Facebook']);
+        expect(prevPostAnalyticsQuery.in).toHaveBeenCalledWith('platform', ['Facebook']);
+        expect(prevSnapshotsQuery.in).toHaveBeenCalledWith('platform', ['Facebook']);
     });
 
     it('maps brief performance rollups from RPC rows', async () => {
