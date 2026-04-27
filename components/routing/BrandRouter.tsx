@@ -1,5 +1,7 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { usePermissions } from '../../context/PermissionContext';
+import { AccessDenied } from '../shared/AccessDenied';
 import {
     Brand, SocialAccount, ScheduledPost, NotificationType,
     ContentPiece, PostStatus, ContentStatus, SocialPlatform, MediaItem,
@@ -48,6 +50,7 @@ const BrandAnalysisPage  = lazy(() => import('../pages/BrandAnalysisPage').then(
 const BrandBrainPage     = lazy(() => import('../pages/BrandBrainPage').then(m => ({ default: m.BrandBrainPage })));
 const BrandKnowledgePage = lazy(() => import('../pages/BrandKnowledgePage').then(m => ({ default: m.BrandKnowledgePage })));
 const IntegrationOSPage  = lazy(() => import('../pages/IntegrationOSPage').then(m => ({ default: m.IntegrationOSPage })));
+const OAuthCallbackPage  = lazy(() => import('../pages/OAuthCallbackPage').then(m => ({ default: m.OAuthCallbackPage })));
 const TeamManagementPage = lazy(() => import('../pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
 const UserBillingPage    = lazy(() => import('../pages/UserBillingPage').then(m => ({ default: m.UserBillingPage })));
 const CrmDashboardPage   = lazy(() => import('../pages/crm/CrmDashboardPage').then(m => ({ default: m.CrmDashboardPage })));
@@ -119,6 +122,7 @@ export interface BrandRouterProps {
     onAddBrand: () => void;
     onDeleteBrand: (id: string) => void | Promise<void>;
     onRenameBrand: (id: string, name: string) => void | Promise<void>;
+    onBrandsRefresh?: () => void;
     onRefreshBrand: () => void | Promise<void>;
     onRefreshDesign: () => void;
     addNotification: (type: NotificationType, message: string) => void;
@@ -135,9 +139,12 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
     designAssets, designWorkflows, recentJobs,
     addAssetLocally, addJobLocally, updateJobLocally, removeAssetLocally,
     onNavigate, onSwitchBrand, onAddBrand, onDeleteBrand, onRenameBrand,
-    onRefreshBrand, onRefreshDesign,
+    onBrandsRefresh, onRefreshBrand, onRefreshDesign,
     addNotification, ar,
 }) => {
+    // Permission checks — must be before any early returns (React rules of hooks)
+    const { hasPermission, hasPlanFeature } = usePermissions();
+
     // Publisher flow state lives here — only used within brand page rendering
     const [postToEdit, setPostToEdit] = useState<ScheduledPost | null>(null);
     const [publisherBrief, setPublisherBrief] = useState<PublisherBrief | null>(null);
@@ -318,6 +325,48 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
         return <NoBrandState onCreateBrand={onAddBrand} />;
     }
 
+    // ── Route permission + plan guards ────────────────────────────────────────
+    type RouteGuard = { permission?: string; planFeature?: string; requiredPlan?: string; featureName?: string };
+    const ROUTE_GUARDS: Record<string, RouteGuard> = {
+        'billing':             { permission: 'workspace.billing.view.own' },
+        'team-management':     { permission: 'workspace.team.view.own' },
+        'system':              { permission: 'workspace.team.view.own' },
+        'integrations':        { permission: 'integrations.health.view.brand' },
+        'integration-os':      { permission: 'integrations.health.view.brand' },
+        'ads-ops':             { permission: 'ads.campaigns.view.brand', planFeature: 'ads_enabled', requiredPlan: 'Starter', featureName: 'Ads Manager' },
+        'seo-ops':             { permission: 'seo.projects.view.brand', planFeature: 'seo_module_enabled', requiredPlan: 'Pro', featureName: 'SEO Module' },
+        'crm/dashboard':       { permission: 'crm.dashboard.view.brand', planFeature: 'crm_enabled', requiredPlan: 'Pro', featureName: 'CRM' },
+        'crm/customers':       { permission: 'crm.contacts.view.brand',  planFeature: 'crm_enabled', requiredPlan: 'Pro', featureName: 'CRM' },
+        'crm/pipeline':        { permission: 'crm.pipeline.view.brand',  planFeature: 'crm_enabled', requiredPlan: 'Pro', featureName: 'CRM' },
+        'crm/tickets':         { permission: 'crm.pipeline.view.brand',  planFeature: 'crm_enabled', requiredPlan: 'Pro', featureName: 'CRM' },
+        'analytics':           { permission: 'analytics.dashboard.view.brand' },
+        'inbox':               { permission: 'inbox.conversations.view.brand', planFeature: 'inbox_enabled', requiredPlan: 'Starter', featureName: 'Inbox' },
+        'automation':          { permission: 'automation.view.brand', planFeature: 'automation_enabled', requiredPlan: 'Pro', featureName: 'Automation' },
+    };
+
+    const guard = ROUTE_GUARDS[activePage];
+    if (guard) {
+        if (guard.planFeature && !hasPlanFeature(guard.planFeature)) {
+            return (
+                <AccessDenied
+                    reason="plan_locked"
+                    requiredPlan={guard.requiredPlan}
+                    featureName={guard.featureName}
+                    onNavigateBack={() => onNavigate('dashboard')}
+                    onUpgrade={() => onNavigate('billing')}
+                />
+            );
+        }
+        if (guard.permission && !hasPermission(guard.permission)) {
+            return (
+                <AccessDenied
+                    reason="no_permission"
+                    onNavigateBack={() => onNavigate('dashboard')}
+                />
+            );
+        }
+    }
+
     // ── Brand page router ─────────────────────────────────────────────────────
     switch (activePage) {
         case 'mobile-home':
@@ -325,6 +374,8 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                 <MobileHomePage
                     brandId={activeBrand.id}
                     brandName={activeBrand.name}
+                    brands={brands.map(b => ({ id: b.id, name: b.name }))}
+                    onSwitchBrand={onSwitchBrand}
                     onNavigate={onNavigate}
                 />
             );
@@ -380,6 +431,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             return (
                 <AccountsPage
                     brandId={activeBrand.id}
+                    brand={activeBrand}
                     accounts={socialAccounts}
                     onConnect={handleConnectAccount}
                     onRefresh={onRefreshBrand}
@@ -584,6 +636,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     brandProfile={resolvedBrandProfile}
                     conversations={conversations}
                     onAddTask={handleAddTask}
+                    onNavigate={onNavigate}
                 />
             );
 
@@ -614,7 +667,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
         case 'brand-knowledge':
             return (
                 <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
-                    <BrandKnowledgePage brandId={activeBrand.id} addNotification={addNotification} />
+                    <BrandKnowledgePage brandId={activeBrand.id} brand={activeBrand} addNotification={addNotification} />
                 </Suspense>
             );
 
@@ -664,6 +717,15 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
         case 'integration-os':
             return <IntegrationOSPage brandId={activeBrand.id} addNotification={addNotification} />;
 
+        case 'oauth/callback':
+            return (
+                <OAuthCallbackPage
+                    brandId={activeBrand.id}
+                    onNavigate={onNavigate}
+                    addNotification={addNotification}
+                />
+            );
+
         case 'error-center':
             return <ErrorCenterPage addNotification={addNotification} errors={errors} />;
 
@@ -709,6 +771,8 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     onSwitchBrand={onSwitchBrand}
                     onDeleteBrand={async (id) => { await Promise.resolve(onDeleteBrand(id)); }}
                     onRenameBrand={async (id, name) => { await Promise.resolve(onRenameBrand(id, name)); }}
+                    onBrandsRefresh={onBrandsRefresh}
+                    onNavigate={onNavigate}
                 />
             );
 

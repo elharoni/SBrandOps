@@ -1,5 +1,8 @@
 import React, { lazy } from 'react';
 import { NotificationType } from '../../types';
+import { usePermissions } from '../../context/PermissionContext';
+import { AccessDenied } from '../shared/AccessDenied';
+import { SkeletonPageLoader } from '../shared/Skeleton';
 
 const AdminDashboardPage    = lazy(() => import('../admin/pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
 const AdminUsersPage        = lazy(() => import('../admin/pages/AdminUsersPage').then(m => ({ default: m.AdminUsersPage })));
@@ -36,6 +39,21 @@ export interface AdminRouterProps {
     onRefresh: () => Promise<void>;
 }
 
+// ── Required platform permission per admin page ───────────────────────────────
+const ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
+    'admin-dashboard':       'platform.dashboard.view',
+    'admin-users':           'platform.users.view',
+    'admin-tenants':         'platform.workspaces.view',
+    'admin-billing':         'platform.subscriptions.view',
+    'admin-ai-monitor':      'platform.ai_monitor.view',
+    'admin-queues':          'platform.queues.view',
+    'admin-system-health':   'platform.system_health.view',
+    'admin-settings':        'platform.system_settings.view',
+    'admin-ai-keys':         'platform.ai_keys.view',
+    'admin-logs':            'platform.audit_logs.view',
+    'admin-data-analytics':  'platform.analytics.view',
+};
+
 export const AdminRouter: React.FC<AdminRouterProps> = ({
     activePage,
     adminStats, adminUsers, tenants, subscriptionPlans,
@@ -44,6 +62,17 @@ export const AdminRouter: React.FC<AdminRouterProps> = ({
     adminPermissions, generalSettings, securitySettings,
     isLoading, addNotification, onRefresh,
 }) => {
+    const { hasPermission, isLoading: permissionsLoading } = usePermissions();
+
+    if (permissionsLoading) {
+        return <SkeletonPageLoader label="جارٍ التحقق من الصلاحيات..." />;
+    }
+
+    const requiredPermission = ADMIN_ROUTE_PERMISSIONS[activePage];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+        return <AccessDenied reason="no_permission" />;
+    }
+
     switch (activePage) {
         case 'admin-dashboard':
             return <AdminDashboardPage stats={adminStats} activityLogs={activityLogs} />;

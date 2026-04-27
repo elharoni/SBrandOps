@@ -40,7 +40,9 @@ import { hasLiveProviderConnection } from './pages/integrationsModel';
 import { loadFacebookSDK } from '../services/facebookSDK';
 import { setSentryUser, setSentryBrandContext } from '../services/sentryService';
 import { getGeneralSettings } from '../services/adminService';
+import { getIntegrationHealth } from '../services/socialAccountService';
 
+import { PermissionProvider } from '../context/PermissionContext';
 import { NotificationType, Brand } from '../types';
 import { SystemData } from '../services/systemService';
 import { AnalyticsData } from '../types';
@@ -49,6 +51,7 @@ import { BrandHubProfile } from '../types';
 
 const CommandPalette = lazy(() => import('./admin/shared/ui/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const MarketingSite  = lazy(() => import('./marketing/MarketingSite'));
+const CookieConsentBanner = lazy(() => import('./marketing/CookieConsentBanner').then(m => ({ default: m.CookieConsentBanner })));
 
 // ── Fallback data builders ────────────────────────────────────────────────────
 
@@ -127,13 +130,13 @@ const AppShell: React.FC = () => {
     const [announcementDismissed, setAnnouncementDismissed] = useState(false);
     const isPublicRoute = isPublicPath(location.pathname);
 
-    const isAdmin = !!(
-        user?.user_metadata?.is_admin ||
-        user?.app_metadata?.role === 'admin' ||
-        user?.app_metadata?.role === 'super_admin' ||
-        user?.user_metadata?.role === 'ADMIN' ||
-        user?.user_metadata?.role === 'SUPER_ADMIN'
-    );
+    // Platform role is set exclusively via service-role key (app_metadata is not user-editable)
+    const platformRole = user?.app_metadata?.platform_role as string | undefined;
+    const PLATFORM_ADMIN_ROLES = [
+        'SUPER_ADMIN', 'PLATFORM_ADMIN', 'SUPPORT_ADMIN',
+        'BILLING_ADMIN', 'TECHNICAL_ADMIN', 'SECURITY_ADMIN',
+    ];
+    const isAdmin = !!(platformRole && PLATFORM_ADMIN_ROLES.includes(platformRole));
 
     const currentPublicPage = pathToPublicPage(location.pathname) as
         | 'home' | 'about' | 'pricing' | 'billing' | 'contact'
@@ -234,6 +237,15 @@ const AppShell: React.FC = () => {
         }
     }, [activeBrand, fetchDataForBrand, fetchDesignData]);
 
+    // ── Token expiry indicator for Sidebar red dot (P1-03) ───────────────────
+    const [hasExpiringTokens, setHasExpiringTokens] = useState(false);
+    useEffect(() => {
+        if (!activeBrand?.id) return;
+        getIntegrationHealth(activeBrand.id).then(assets => {
+            setHasExpiringTokens(assets.some(a => a.tokenExpiringSoon));
+        }).catch(() => {});
+    }, [activeBrand?.id]);
+
     useEffect(() => {
         if (viewMode === 'admin' && isAuthenticated) fetchAdminData();
     }, [viewMode, isAuthenticated, fetchAdminData]);
@@ -273,9 +285,27 @@ const AppShell: React.FC = () => {
     // ── Auth Guards ───────────────────────────────────────────────────────────
     if (isPublicRoute) {
         return (
-            <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل الموقع...' : 'Loading site...'} />}>
-                <MarketingSite pageId={currentPublicPage} isAuthenticated={isAuthenticated} />
-            </Suspense>
+            <ErrorBoundary fallback={
+                <div className="min-h-screen flex items-center justify-center" style={{ background: '#070B1F' }}>
+                    <div className="text-center px-6">
+                        <i className="fas fa-triangle-exclamation text-4xl text-cyan-400 mb-4" />
+                        <p className="text-white text-lg font-semibold mb-2">
+                            {ar ? 'حدث خطأ في تحميل الموقع' : 'Something went wrong loading the site'}
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="mt-4 rounded-[14px] bg-cyan-500 px-6 py-2 text-sm font-semibold text-white hover:bg-cyan-400 transition-colors"
+                        >
+                            {ar ? 'إعادة التحميل' : 'Reload'}
+                        </button>
+                    </div>
+                </div>
+            }>
+                <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل الموقع...' : 'Loading site...'} />}>
+                    <MarketingSite pageId={currentPublicPage} isAuthenticated={isAuthenticated} />
+                    <CookieConsentBanner />
+                </Suspense>
+            </ErrorBoundary>
         );
     }
 
@@ -483,6 +513,7 @@ const AppShell: React.FC = () => {
                         toggleCollapse={toggleSidebar}
                         isMobileOpen={isMobileSidebarOpen}
                         closeMobile={() => setMobileSidebarOpen(false)}
+                        hasExpiringTokens={hasExpiringTokens}
                         completionSteps={[
                             { id: 'email', label: 'تفعيل البريد الإلكتروني', done: emailConfirmed, icon: 'fa-envelope', navigateTo: '' },
                             { id: 'brand', label: 'إنشاء أول براند', done: brands.length > 0, icon: 'fa-layer-group', navigateTo: 'brands' },
@@ -537,6 +568,7 @@ const AppShell: React.FC = () => {
                                         onAddBrand={() => setShowAddBrandModal(true)}
                                         onDeleteBrand={handleDeleteBrand}
                                         onRenameBrand={handleRenameBrand}
+                                        onBrandsRefresh={fetchBrands}
                                         onRefreshBrand={() => activeBrand && fetchDataForBrand(activeBrand)}
                                         onRefreshDesign={() => activeBrand && fetchDesignData(activeBrand.id)}
                                         addNotification={addNotification}
@@ -647,7 +679,9 @@ const App: React.FC = () => (
     <ErrorBoundary>
         <LanguageProvider>
             <AuthProvider>
-                <AppShell />
+                <PermissionProvider>
+                    <AppShell />
+                </PermissionProvider>
             </AuthProvider>
         </LanguageProvider>
     </ErrorBoundary>

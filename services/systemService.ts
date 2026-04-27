@@ -107,10 +107,50 @@ export async function getSystemData(brandId: string): Promise<SystemData> {
 
 // ── Team Management ───────────────────────────────────────────────────────────
 
+// ── Role hierarchy (lower number = fewer privileges) ─────────────────────────
+const ROLE_HIERARCHY: Record<string, number> = {
+    Client: 1, Analyst: 2, Editor: 3, Admin: 4, Owner: 5,
+    // lowercase aliases from DB default
+    client: 1, analyst: 2, editor: 3, admin: 4, owner: 5, viewer: 1,
+};
+
 export async function inviteUser(brandId: string, email: string, role: UserRole): Promise<User> {
-    // ── Seat quota check ──────────────────────────────────────────────────────
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    if (!user) throw new Error('غير مصرح: يجب تسجيل الدخول');
+
+    // ── Permission check: caller must be Owner or Admin of this brand ─────────
+    const { data: brandRow } = await supabase
+        .from('brands')
+        .select('user_id')
+        .eq('id', brandId)
+        .maybeSingle();
+
+    const isOwner = brandRow?.user_id === user.id;
+
+    if (!isOwner) {
+        const { data: callerMember } = await supabase
+            .from('team_members')
+            .select('role, status')
+            .eq('brand_id', brandId)
+            .or(`user_id.eq.${user.id},invited_email.eq.${user.email ?? ''}`)
+            .eq('status', 'active')
+            .maybeSingle();
+
+        const callerRole = callerMember?.role ?? '';
+        if (!['Owner', 'Admin', 'owner', 'admin'].includes(callerRole)) {
+            throw new Error('ليس لديك صلاحية دعوة أعضاء جدد. يجب أن تكون Owner أو Admin.');
+        }
+
+        // ── Role escalation guard: cannot grant a role higher than own ────────
+        const callerLevel = ROLE_HIERARCHY[callerRole] ?? 0;
+        const newRoleLevel = ROLE_HIERARCHY[role] ?? 0;
+        if (newRoleLevel > callerLevel) {
+            throw new Error(`لا يمكنك منح دور أعلى من دورك الحالي (${callerRole}).`);
+        }
+    }
+
+    // ── Seat quota check ──────────────────────────────────────────────────────
+    {
         const { data: tenantRow } = await supabase
             .from('tenants')
             .select('subscription_plans(max_users)')
@@ -157,6 +197,40 @@ export async function inviteUser(brandId: string, email: string, role: UserRole)
 }
 
 export async function updateUserRole(brandId: string, userId: string, newRole: UserRole): Promise<User> {
+    const { data: { user: caller } } = await supabase.auth.getUser();
+    if (!caller) throw new Error('غير مصرح: يجب تسجيل الدخول');
+
+    // ── Permission check: caller must be Owner or Admin ───────────────────────
+    const { data: brandRow } = await supabase
+        .from('brands')
+        .select('user_id')
+        .eq('id', brandId)
+        .maybeSingle();
+
+    const isOwner = brandRow?.user_id === caller.id;
+
+    if (!isOwner) {
+        const { data: callerMember } = await supabase
+            .from('team_members')
+            .select('role, status')
+            .eq('brand_id', brandId)
+            .or(`user_id.eq.${caller.id},invited_email.eq.${caller.email ?? ''}`)
+            .eq('status', 'active')
+            .maybeSingle();
+
+        const callerRole = callerMember?.role ?? '';
+        if (!['Owner', 'Admin', 'owner', 'admin'].includes(callerRole)) {
+            throw new Error('ليس لديك صلاحية تغيير أدوار الأعضاء.');
+        }
+
+        // Cannot promote someone to a role higher than your own
+        const callerLevel = ROLE_HIERARCHY[callerRole] ?? 0;
+        const newRoleLevel = ROLE_HIERARCHY[newRole] ?? 0;
+        if (newRoleLevel > callerLevel) {
+            throw new Error(`لا يمكنك منح دور أعلى من دورك الحالي (${callerRole}).`);
+        }
+    }
+
     const { data, error } = await supabase
         .from('team_members')
         .update({ role: newRole })
