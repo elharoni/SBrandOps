@@ -802,13 +802,23 @@ function normalizeBrandImportData(raw: BrandImportData): BrandImportData {
 }
 
 /**
- * Extracts brand data from a binary file (PDF, DOCX, etc.) by sending it
- * directly to Gemini as inline_data. Gemini natively reads PDF and DOCX.
+ * Extracts brand data from a supported binary file by sending it directly to
+ * Gemini as inline_data. In this app, the binary path is reserved for PDF.
  */
 export async function extractBrandFromFileData(
     base64Data: string,
     mimeType: string,
+    additionalContext?: string,
 ): Promise<BrandImportData> {
+    const promptText = additionalContext?.trim()
+        ? `${BRAND_EXTRACTION_INSTRUCTION}
+
+استخدم أيضاً هذا السياق النصي الإضافي كمصدر داعم عند الحاجة، مع دمجه مع الملف المرفق دون تكرار أو افتراض:
+"""
+${additionalContext.slice(0, 20000)}
+"""`
+        : BRAND_EXTRACTION_INSTRUCTION;
+
     const contents = [
         {
             role: 'user',
@@ -819,7 +829,7 @@ export async function extractBrandFromFileData(
                         data: base64Data,
                     },
                 },
-                { text: BRAND_EXTRACTION_INSTRUCTION },
+                { text: promptText },
             ],
         },
     ];
@@ -879,7 +889,7 @@ export async function generateAdCreative(
     brandProfile: BrandHubProfile,
     targetAudience: string
 ): Promise<Pick<AdCreative, 'headline' | 'primaryText'>[]> {
-    let platformInstructions = "";
+    let platformInstructions: string;
 
     if (platform === AdPlatform.TikTok) {
         platformInstructions = `

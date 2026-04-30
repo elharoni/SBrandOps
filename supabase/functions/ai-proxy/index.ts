@@ -6,7 +6,7 @@
  * Security:
  * - Requires valid Supabase JWT (Authorization: Bearer <token>)
  * - CORS restricted to FRONTEND_ORIGIN
- * - Request body limited to 256 KB
+ * - Request body limited to 8 MB
  * - Model allowlist enforced
  */
 
@@ -331,13 +331,19 @@ Deno.serve(async (req: Request) => {
     return jsonError('Method Not Allowed', 405, correlationId, corsHeaders);
   }
 
+  // Fast-reject via header before reading the body (well-behaved clients).
   const contentLength = Number(req.headers.get('content-length') ?? 0);
   if (contentLength > MAX_BODY_BYTES) {
     return jsonError('Request body too large', 413, correlationId, corsHeaders);
   }
 
   try {
-    const body = await req.json();
+    // Byte-level enforcement — catches clients that omit or lie about content-length.
+    const rawBody = await req.arrayBuffer();
+    if (rawBody.byteLength > MAX_BODY_BYTES) {
+      return jsonError('Request body too large', 413, correlationId, corsHeaders);
+    }
+    const body = JSON.parse(new TextDecoder().decode(rawBody));
     const {
       mode = 'text',        // 'text' | 'image'
       model,

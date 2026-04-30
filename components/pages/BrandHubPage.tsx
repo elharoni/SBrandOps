@@ -61,6 +61,7 @@ const INDUSTRY_OPTIONS = ['تجزئة وتسوق', 'عقارات', 'مطاعم �
 const BINARY_EXTS: Record<string, string> = {
     pdf: 'application/pdf',
 };
+const INLINE_PDF_MAX_BYTES = 5 * 1024 * 1024;
 const UNSUPPORTED_EXTS = new Set(['docx', 'doc', 'pptx', 'xlsx']);
 
 function getExt(name: string) { return name.split('.').pop()?.toLowerCase() ?? ''; }
@@ -109,14 +110,14 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
         setFileExtractMsg(null);
         try {
             // Build contents array:
-            // - PDF ≤ 170 KB → inline_data (fast path)
-            // - PDF > 170 KB → extract text client-side via PDF.js (avoids body limit)
+            // - PDF ≤ 5 MB → inline_data (preserves the original file for Gemini)
+            // - PDF > 5 MB → extract text client-side via PDF.js (avoids base64 body overflow)
             // - TXT / MD     → send as plain text
             let contents: unknown[];
             const PROMPT = 'استخرج من هذه الوثيقة: الصناعة، وصف النشاط التجاري، الجمهور المستهدف، الفئة العمرية، نبرة الصوت، والمنصات المناسبة. أرجع JSON فقط.';
 
             if (ext === 'pdf') {
-                if (file.size > 170 * 1024) {
+                if (file.size > INLINE_PDF_MAX_BYTES) {
                     // Large PDF → extract text client-side, send as text
                     const pdfText = await extractTextFromPdf(file);
                     contents = [{
@@ -445,6 +446,285 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
     );
 };
 
+
+const VoiceTabContent: React.FC<{
+    profile: BrandHubProfile;
+    brandId: string;
+    addNotification: (type: NotificationType, message: string) => void;
+}> = ({ profile, brandId, addNotification }) => {
+    const ar = profile.language === 'ar' || !profile.language;
+    const [voicePreview, setVoicePreview] = useState<{ complaint: string; post: string; welcome: string } | null>(null);
+    const [generatingPreview, setGeneratingPreview] = useState(false);
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+    const generatePreview = async () => {
+        setGeneratingPreview(true);
+        setVoicePreview(null);
+        try {
+            const tone = profile.brandVoice.toneDescription.slice(0, 3).join('، ') || 'محايد';
+            const keywords = profile.brandVoice.keywords.slice(0, 5).join('، ') || '';
+            const dos = profile.brandVoice.voiceGuidelines?.dos.slice(0, 2).join(' | ') || '';
+            const prompt = `أنت مساعد تسويق لبراند "${profile.brandName}" في مجال "${profile.industry || 'عام'}".
+نبرة الصوت: ${tone}
+الكلمات المفتاحية: ${keywords}
+${dos ? `إرشادات الصوت: ${dos}` : ''}
+
+أنشئ 3 نماذج نصية قصيرة تعكس صوت هذا البراند بدقة. أعد JSON فقط بهذا التنسيق:
+{"complaint":"رد على شكوى عميل (2-3 جمل)","post":"منشور ترويجي (2-3 جمل)","welcome":"رسالة ترحيب بعميل جديد (2-3 جمل)"}`;
+            const res = await callAIProxy({ model: 'gemini-2.0-flash', prompt, feature: 'voice_preview', brand_id: brandId });
+            const raw = res.text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(raw);
+            setVoicePreview({ complaint: parsed.complaint ?? '', post: parsed.post ?? '', welcome: parsed.welcome ?? '' });
+        } catch {
+            addNotification(NotificationType.Error, ar ? 'فشل توليد المعاينة.' : 'Voice preview failed.');
+        } finally {
+            setGeneratingPreview(false);
+        }
+    };
+
+    const copyText = (key: string, text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedKey(key);
+            setTimeout(() => setCopiedKey(null), 2000);
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">صوت البراند</h2>
+                <button
+                    onClick={generatePreview}
+                    disabled={generatingPreview}
+                    className="flex items-center gap-1.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-xs font-bold text-brand-secondary transition-colors hover:bg-brand-primary/20 disabled:opacity-50"
+                >
+                    <i className={`fas ${generatingPreview ? 'fa-spinner fa-spin' : 'fa-eye'} text-[10px]`} />
+                    {generatingPreview ? (ar ? 'جاري التوليد...' : 'Generating...') : (ar ? 'معاينة الصوت' : 'Preview Voice')}
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                    <h3 className="font-semibold text-white text-sm uppercase tracking-wide">نبرة الصوت</h3>
+                    {[
+                        { label: 'رسمي ← غير رسمي',    key: 'toneFormal',    icon: 'fa-user-tie' },
+                        { label: 'جاد ← خفيف',          key: 'tonePlayful',   icon: 'fa-smile' },
+                        { label: 'بارد ← دافئ',         key: 'toneWarm',      icon: 'fa-heart' },
+                        { label: 'تقني ← بسيط',         key: 'toneSimple',    icon: 'fa-code' },
+                    ].map(({ label, key, icon }) => {
+                        const val = profile.brandVoice.toneStrength ?? 50;
+                        return (
+                            <div key={key} className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs text-dark-text-secondary">
+                                    <i className={`fas ${icon}`} />
+                                    <span>{label}</span>
+                                    <span className="ms-auto font-mono">{val}%</span>
+                                </div>
+                                <div className="h-2 bg-dark-bg rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-brand-pink to-brand-purple rounded-full transition-all" style={{ width: `${val}%` }} />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="space-y-4">
+                    <h3 className="font-semibold text-white text-sm uppercase tracking-wide">الكلمات المفتاحية</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {profile.brandVoice.keywords.map((kw, i) => (
+                            <span key={i} className="px-3 py-1.5 bg-brand-pink/20 text-brand-pink rounded-full text-xs font-semibold border border-brand-pink/30">{kw}</span>
+                        ))}
+                    </div>
+                    <h3 className="font-semibold text-white text-sm uppercase tracking-wide mt-4">نبرة الصوت</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {profile.brandVoice.toneDescription.map((tone, i) => (
+                            <span key={i} className="px-3 py-1.5 bg-brand-purple/20 text-brand-secondary rounded-full text-xs font-semibold border border-brand-purple/30">{tone}</span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            {profile.brandVoice.voiceGuidelines && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-green-900/20 border border-green-800/40 rounded-xl p-4">
+                        <h4 className="font-semibold text-green-400 mb-3 flex items-center gap-2"><i className="fas fa-check-circle" /> نعم — استخدم</h4>
+                        <ul className="space-y-1.5">
+                            {profile.brandVoice.voiceGuidelines.dos.map((d, i) => (
+                                <li key={i} className="text-sm text-dark-text-secondary flex items-start gap-2"><i className="fas fa-plus text-green-500 mt-0.5 text-xs shrink-0" />{d}</li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="bg-red-900/20 border border-red-800/40 rounded-xl p-4">
+                        <h4 className="font-semibold text-red-400 mb-3 flex items-center gap-2"><i className="fas fa-times-circle" /> لا — تجنب</h4>
+                        <ul className="space-y-1.5">
+                            {profile.brandVoice.voiceGuidelines.donts.map((d, i) => (
+                                <li key={i} className="text-sm text-dark-text-secondary flex items-start gap-2"><i className="fas fa-minus text-red-500 mt-0.5 text-xs shrink-0" />{d}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
+            <div className="bg-dark-bg rounded-xl p-4 flex items-center gap-6">
+                <div className="space-y-1 text-sm flex-1">
+                    <p className="text-dark-text-secondary text-xs uppercase tracking-wide font-semibold">Sentiment Score</p>
+                    <div className="text-4xl font-black text-white">{profile.brandVoice.toneSentiment ?? 72}</div>
+                    <p className="text-xs text-dark-text-secondary">/ 100</p>
+                </div>
+                <div className="flex-1 space-y-2">
+                    {[
+                        { label: 'إيجابي', val: profile.brandVoice.toneSentiment ?? 72, color: 'bg-green-500' },
+                        { label: 'محايد',  val: 20, color: 'bg-gray-400' },
+                        { label: 'سلبي',   val: 8,  color: 'bg-red-500' },
+                    ].map(s => (
+                        <div key={s.label} className="space-y-0.5">
+                            <div className="flex justify-between text-xs text-dark-text-secondary"><span>{s.label}</span><span>{s.val}%</span></div>
+                            <div className="h-1.5 bg-dark-card rounded-full overflow-hidden">
+                                <div className={`h-full ${s.color} rounded-full`} style={{ width: `${s.val}%` }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            {voicePreview && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-dark-border/50" />
+                        <p className="text-[11px] font-black uppercase tracking-widest text-brand-secondary">
+                            {ar ? 'معاينة الصوت' : 'Voice Preview'}
+                        </p>
+                        <div className="h-px flex-1 bg-dark-border/50" />
+                    </div>
+                    {[
+                        { key: 'complaint', icon: 'fa-comment-exclamation', labelAr: 'رد على شكوى', labelEn: 'Complaint Reply',     text: voicePreview.complaint, color: 'border-rose-500/25 bg-rose-500/5'   },
+                        { key: 'post',      icon: 'fa-bullhorn',            labelAr: 'منشور ترويجي',  labelEn: 'Promotional Post',    text: voicePreview.post,      color: 'border-blue-500/25 bg-blue-500/5'   },
+                        { key: 'welcome',   icon: 'fa-hand-wave',           labelAr: 'رسالة ترحيب',  labelEn: 'Welcome Message',     text: voicePreview.welcome,   color: 'border-emerald-500/25 bg-emerald-500/5' },
+                    ].map(card => (
+                        <div key={card.key} className={`rounded-xl border p-4 ${card.color}`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <i className={`fas ${card.icon} text-xs text-dark-text-secondary`} />
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-dark-text-secondary">
+                                        {ar ? card.labelAr : card.labelEn}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => copyText(card.key, card.text)}
+                                    className="flex items-center gap-1 rounded-lg bg-dark-bg/50 px-2 py-1 text-[10px] font-semibold text-dark-text-secondary transition-colors hover:text-white"
+                                >
+                                    <i className={`fas ${copiedKey === card.key ? 'fa-check text-emerald-400' : 'fa-copy'} text-[9px]`} />
+                                    {copiedKey === card.key ? (ar ? 'تم النسخ' : 'Copied!') : (ar ? 'نسخ' : 'Copy')}
+                                </button>
+                            </div>
+                            <p className="text-sm leading-relaxed text-white">{card.text}</p>
+                        </div>
+                    ))}
+                    <button
+                        onClick={generatePreview}
+                        disabled={generatingPreview}
+                        className="w-full rounded-xl border border-dark-border py-2 text-xs font-semibold text-dark-text-secondary transition-colors hover:text-brand-secondary hover:border-brand-primary/40 disabled:opacity-50"
+                    >
+                        <i className={`fas ${generatingPreview ? 'fa-spinner fa-spin' : 'fa-rotate-right'} me-1.5 text-[10px]`} />
+                        {ar ? 'توليد معاينة جديدة' : 'Regenerate Preview'}
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const AudienceTabContent: React.FC<{
+    profile: BrandHubProfile;
+}> = ({ profile }) => {
+    const [personas, setPersonas] = useState(profile.brandAudiences);
+    const [editing, setEditing] = useState<number | null>(null);
+    const [form, setForm] = useState<{ personaName: string; description: string; keyEmotions: string; painPoints: string }>({ personaName: '', description: '', keyEmotions: '', painPoints: '' });
+
+    const openNew = () => {
+        setEditing(-1);
+        setForm({ personaName: '', description: '', keyEmotions: '', painPoints: '' });
+    };
+    const openEdit = (i: number) => {
+        const p = personas[i];
+        setEditing(i);
+        setForm({ personaName: p.personaName, description: p.description, keyEmotions: p.keyEmotions.join(', '), painPoints: p.painPoints.join(', ') });
+    };
+    const savePersona = () => {
+        const newP = { personaName: form.personaName, description: form.description, keyEmotions: form.keyEmotions.split(',').map(s => s.trim()).filter(Boolean), painPoints: form.painPoints.split(',').map(s => s.trim()).filter(Boolean) };
+        if (editing === -1) setPersonas(prev => [...prev, newP]);
+        else setPersonas(prev => prev.map((p, i) => i === editing ? newP : p));
+        setEditing(null);
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Buyer Personas</h2>
+                <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-pink to-brand-purple text-white rounded-xl text-sm font-semibold hover:opacity-90 transition">
+                    <i className="fas fa-plus text-xs" /> بيرسونا جديدة
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {personas.map((aud, i) => (
+                    <div key={i} className="bg-dark-bg border border-dark-border rounded-2xl p-5 space-y-3 hover:border-brand-pink/40 transition-all">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-pink to-brand-purple flex items-center justify-center text-white font-black text-lg shrink-0">
+                                {aud.personaName.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-white truncate">{aud.personaName}</p>
+                            </div>
+                            <button onClick={() => openEdit(i)} className="text-dark-text-secondary hover:text-white p-1 rounded">
+                                <i className="fas fa-pen text-xs" />
+                            </button>
+                            <button onClick={() => setPersonas(prev => prev.filter((_, idx) => idx !== i))} className="text-dark-text-secondary hover:text-red-400 p-1 rounded">
+                                <i className="fas fa-trash text-xs" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-dark-text-secondary leading-relaxed">{aud.description}</p>
+                        {aud.keyEmotions.length > 0 && (
+                            <div>
+                                <p className="text-xs font-semibold text-brand-pink uppercase mb-1">المشاعر</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {aud.keyEmotions.map((e, j) => <span key={j} className="text-xs px-2 py-0.5 bg-brand-pink/10 text-brand-pink rounded-full border border-brand-pink/20">{e}</span>)}
+                                </div>
+                            </div>
+                        )}
+                        {aud.painPoints.length > 0 && (
+                            <div>
+                                <p className="text-xs font-semibold text-brand-secondary uppercase mb-1">Pain Points</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {aud.painPoints.map((p, j) => <span key={j} className="text-xs px-2 py-0.5 bg-brand-purple/10 text-brand-secondary rounded-full border border-brand-purple/20">{p}</span>)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {personas.length === 0 && (
+                    <div className="col-span-full text-center py-12 text-dark-text-secondary">
+                        <i className="fas fa-users text-4xl mb-3 opacity-30" />
+                        <p>لا توجد بيرسونات — أضف أولى عملاءك المثاليين</p>
+                    </div>
+                )}
+            </div>
+            {editing !== null && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-dark-card border border-dark-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+                        <h3 className="font-bold text-white">{editing === -1 ? 'بيرسونا جديدة' : 'تعديل البيرسونا'}</h3>
+                        <input value={form.personaName} onChange={e => setForm(f => ({ ...f, personaName: e.target.value }))}
+                            placeholder="اسم البيرسونا" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink" />
+                        <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                            rows={3} placeholder="الوصف" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none" />
+                        <input value={form.keyEmotions} onChange={e => setForm(f => ({ ...f, keyEmotions: e.target.value }))}
+                            placeholder="المشاعر (مفصولة بفواصل)" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink" />
+                        <input value={form.painPoints} onChange={e => setForm(f => ({ ...f, painPoints: e.target.value }))}
+                            placeholder="Pain Points (مفصولة بفواصل)" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink" />
+                        <div className="flex gap-3">
+                            <button onClick={savePersona} disabled={!form.personaName} className="flex-1 py-2.5 bg-gradient-to-r from-brand-pink to-brand-purple text-white rounded-xl font-semibold text-sm hover:opacity-90 transition disabled:opacity-50">حفظ</button>
+                            <button onClick={() => setEditing(null)} className="px-4 py-2.5 border border-dark-border rounded-xl text-sm text-dark-text-secondary hover:bg-dark-bg transition">إلغاء</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProfile, onUpdate, addNotification }) => {
     const [profile, setProfile] = useState(initialProfile);
@@ -1166,284 +1446,13 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                     </div>
                 )}
                 {/* BRD-2: Voice Profile Visualizer */}
-                {activeTab === 'voice' && (() => {
-                    const ar = profile.language === 'ar' || !profile.language;
-                    const [voicePreview, setVoicePreview] = React.useState<{ complaint: string; post: string; welcome: string } | null>(null);
-                    const [generatingPreview, setGeneratingPreview] = React.useState(false);
-                    const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
-
-                    const generatePreview = async () => {
-                        setGeneratingPreview(true);
-                        setVoicePreview(null);
-                        try {
-                            const tone = profile.brandVoice.toneDescription.slice(0, 3).join('، ') || 'محايد';
-                            const keywords = profile.brandVoice.keywords.slice(0, 5).join('، ') || '';
-                            const dos = profile.brandVoice.voiceGuidelines?.dos.slice(0, 2).join(' | ') || '';
-                            const prompt = `أنت مساعد تسويق لبراند "${profile.brandName}" في مجال "${profile.industry || 'عام'}".
-نبرة الصوت: ${tone}
-الكلمات المفتاحية: ${keywords}
-${dos ? `إرشادات الصوت: ${dos}` : ''}
-
-أنشئ 3 نماذج نصية قصيرة تعكس صوت هذا البراند بدقة. أعد JSON فقط بهذا التنسيق:
-{"complaint":"رد على شكوى عميل (2-3 جمل)","post":"منشور ترويجي (2-3 جمل)","welcome":"رسالة ترحيب بعميل جديد (2-3 جمل)"}`;
-                            const res = await callAIProxy({ model: 'gemini-2.0-flash', prompt, feature: 'voice_preview', brand_id: brandId });
-                            const raw = res.text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-                            const parsed = JSON.parse(raw);
-                            setVoicePreview({ complaint: parsed.complaint ?? '', post: parsed.post ?? '', welcome: parsed.welcome ?? '' });
-                        } catch {
-                            addNotification(NotificationType.Error, ar ? 'فشل توليد المعاينة.' : 'Voice preview failed.');
-                        } finally {
-                            setGeneratingPreview(false);
-                        }
-                    };
-
-                    const copyText = (key: string, text: string) => {
-                        navigator.clipboard.writeText(text).then(() => {
-                            setCopiedKey(key);
-                            setTimeout(() => setCopiedKey(null), 2000);
-                        });
-                    };
-
-                    return (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white">صوت البراند</h2>
-                            <button
-                                onClick={generatePreview}
-                                disabled={generatingPreview}
-                                className="flex items-center gap-1.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-xs font-bold text-brand-secondary transition-colors hover:bg-brand-primary/20 disabled:opacity-50"
-                            >
-                                <i className={`fas ${generatingPreview ? 'fa-spinner fa-spin' : 'fa-eye'} text-[10px]`} />
-                                {generatingPreview ? (ar ? 'جاري التوليد...' : 'Generating...') : (ar ? 'معاينة الصوت' : 'Preview Voice')}
-                            </button>
-                        </div>
-                        {/* Tone sliders */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <h3 className="font-semibold text-white text-sm uppercase tracking-wide">نبرة الصوت</h3>
-                                {[
-                                    { label: 'رسمي ← غير رسمي',    key: 'toneFormal',    icon: 'fa-user-tie' },
-                                    { label: 'جاد ← خفيف',          key: 'tonePlayful',   icon: 'fa-smile' },
-                                    { label: 'بارد ← دافئ',         key: 'toneWarm',      icon: 'fa-heart' },
-                                    { label: 'تقني ← بسيط',         key: 'toneSimple',    icon: 'fa-code' },
-                                ].map(({ label, key, icon }) => {
-                                    const val = profile.brandVoice.toneStrength ?? 50;
-                                    return (
-                                        <div key={key} className="space-y-1">
-                                            <div className="flex items-center gap-2 text-xs text-dark-text-secondary">
-                                                <i className={`fas ${icon}`} />
-                                                <span>{label}</span>
-                                                <span className="ms-auto font-mono">{val}%</span>
-                                            </div>
-                                            <div className="h-2 bg-dark-bg rounded-full overflow-hidden">
-                                                <div className="h-full bg-gradient-to-r from-brand-pink to-brand-purple rounded-full transition-all" style={{ width: `${val}%` }} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="space-y-4">
-                                <h3 className="font-semibold text-white text-sm uppercase tracking-wide">الكلمات المفتاحية</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {profile.brandVoice.keywords.map((kw, i) => (
-                                        <span key={i} className="px-3 py-1.5 bg-brand-pink/20 text-brand-pink rounded-full text-xs font-semibold border border-brand-pink/30">{kw}</span>
-                                    ))}
-                                </div>
-                                <h3 className="font-semibold text-white text-sm uppercase tracking-wide mt-4">نبرة الصوت</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {profile.brandVoice.toneDescription.map((tone, i) => (
-                                        <span key={i} className="px-3 py-1.5 bg-brand-purple/20 text-brand-secondary rounded-full text-xs font-semibold border border-brand-purple/30">{tone}</span>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        {/* Do / Don't */}
-                        {profile.brandVoice.voiceGuidelines && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-green-900/20 border border-green-800/40 rounded-xl p-4">
-                                    <h4 className="font-semibold text-green-400 mb-3 flex items-center gap-2"><i className="fas fa-check-circle" /> نعم — استخدم</h4>
-                                    <ul className="space-y-1.5">
-                                        {profile.brandVoice.voiceGuidelines.dos.map((d, i) => (
-                                            <li key={i} className="text-sm text-dark-text-secondary flex items-start gap-2"><i className="fas fa-plus text-green-500 mt-0.5 text-xs shrink-0" />{d}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div className="bg-red-900/20 border border-red-800/40 rounded-xl p-4">
-                                    <h4 className="font-semibold text-red-400 mb-3 flex items-center gap-2"><i className="fas fa-times-circle" /> لا — تجنب</h4>
-                                    <ul className="space-y-1.5">
-                                        {profile.brandVoice.voiceGuidelines.donts.map((d, i) => (
-                                            <li key={i} className="text-sm text-dark-text-secondary flex items-start gap-2"><i className="fas fa-minus text-red-500 mt-0.5 text-xs shrink-0" />{d}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        )}
-                        {/* Sentiment ring */}
-                        <div className="bg-dark-bg rounded-xl p-4 flex items-center gap-6">
-                            <div className="space-y-1 text-sm flex-1">
-                                <p className="text-dark-text-secondary text-xs uppercase tracking-wide font-semibold">Sentiment Score</p>
-                                <div className="text-4xl font-black text-white">{profile.brandVoice.toneSentiment ?? 72}</div>
-                                <p className="text-xs text-dark-text-secondary">/ 100</p>
-                            </div>
-                            <div className="flex-1 space-y-2">
-                                {[
-                                    { label: 'إيجابي', val: profile.brandVoice.toneSentiment ?? 72, color: 'bg-green-500' },
-                                    { label: 'محايد',  val: 20, color: 'bg-gray-400' },
-                                    { label: 'سلبي',   val: 8,  color: 'bg-red-500' },
-                                ].map(s => (
-                                    <div key={s.label} className="space-y-0.5">
-                                        <div className="flex justify-between text-xs text-dark-text-secondary"><span>{s.label}</span><span>{s.val}%</span></div>
-                                        <div className="h-1.5 bg-dark-card rounded-full overflow-hidden">
-                                            <div className={`h-full ${s.color} rounded-full`} style={{ width: `${s.val}%` }} />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Voice Preview Cards */}
-                        {voicePreview && (
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-px flex-1 bg-dark-border/50" />
-                                    <p className="text-[11px] font-black uppercase tracking-widest text-brand-secondary">
-                                        {ar ? 'معاينة الصوت' : 'Voice Preview'}
-                                    </p>
-                                    <div className="h-px flex-1 bg-dark-border/50" />
-                                </div>
-                                {[
-                                    { key: 'complaint', icon: 'fa-comment-exclamation', labelAr: 'رد على شكوى', labelEn: 'Complaint Reply',     text: voicePreview.complaint, color: 'border-rose-500/25 bg-rose-500/5'   },
-                                    { key: 'post',      icon: 'fa-bullhorn',            labelAr: 'منشور ترويجي',  labelEn: 'Promotional Post',    text: voicePreview.post,      color: 'border-blue-500/25 bg-blue-500/5'   },
-                                    { key: 'welcome',   icon: 'fa-hand-wave',           labelAr: 'رسالة ترحيب',  labelEn: 'Welcome Message',     text: voicePreview.welcome,   color: 'border-emerald-500/25 bg-emerald-500/5' },
-                                ].map(card => (
-                                    <div key={card.key} className={`rounded-xl border p-4 ${card.color}`}>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <i className={`fas ${card.icon} text-xs text-dark-text-secondary`} />
-                                                <p className="text-[11px] font-bold uppercase tracking-wide text-dark-text-secondary">
-                                                    {ar ? card.labelAr : card.labelEn}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => copyText(card.key, card.text)}
-                                                className="flex items-center gap-1 rounded-lg bg-dark-bg/50 px-2 py-1 text-[10px] font-semibold text-dark-text-secondary transition-colors hover:text-white"
-                                            >
-                                                <i className={`fas ${copiedKey === card.key ? 'fa-check text-emerald-400' : 'fa-copy'} text-[9px]`} />
-                                                {copiedKey === card.key ? (ar ? 'تم النسخ' : 'Copied!') : (ar ? 'نسخ' : 'Copy')}
-                                            </button>
-                                        </div>
-                                        <p className="text-sm leading-relaxed text-white">{card.text}</p>
-                                    </div>
-                                ))}
-                                <button
-                                    onClick={generatePreview}
-                                    disabled={generatingPreview}
-                                    className="w-full rounded-xl border border-dark-border py-2 text-xs font-semibold text-dark-text-secondary transition-colors hover:text-brand-secondary hover:border-brand-primary/40 disabled:opacity-50"
-                                >
-                                    <i className={`fas ${generatingPreview ? 'fa-spinner fa-spin' : 'fa-rotate-right'} me-1.5 text-[10px]`} />
-                                    {ar ? 'توليد معاينة جديدة' : 'Regenerate Preview'}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    );
-                })()}
+                {activeTab === 'voice' && (
+                    <VoiceTabContent profile={profile} brandId={brandId} addNotification={addNotification} />
+                )}
                 {/* BRD-1: Buyer Personas Builder */}
-                {activeTab === 'audience' && (() => {
-                    const [personas, setPersonas] = React.useState(profile.brandAudiences);
-                    const [editing, setEditing] = React.useState<number | null>(null);
-                    const [form, setForm] = React.useState<{ personaName: string; description: string; keyEmotions: string; painPoints: string }>({ personaName: '', description: '', keyEmotions: '', painPoints: '' });
-
-                    const openNew = () => {
-                        setEditing(-1);
-                        setForm({ personaName: '', description: '', keyEmotions: '', painPoints: '' });
-                    };
-                    const openEdit = (i: number) => {
-                        const p = personas[i];
-                        setEditing(i);
-                        setForm({ personaName: p.personaName, description: p.description, keyEmotions: p.keyEmotions.join(', '), painPoints: p.painPoints.join(', ') });
-                    };
-                    const savePersona = () => {
-                        const newP = { personaName: form.personaName, description: form.description, keyEmotions: form.keyEmotions.split(',').map(s => s.trim()).filter(Boolean), painPoints: form.painPoints.split(',').map(s => s.trim()).filter(Boolean) };
-                        if (editing === -1) setPersonas(prev => [...prev, newP]);
-                        else setPersonas(prev => prev.map((p, i) => i === editing ? newP : p));
-                        setEditing(null);
-                    };
-
-                    return (
-                        <div className="space-y-5">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-white">Buyer Personas</h2>
-                                <button onClick={openNew} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-pink to-brand-purple text-white rounded-xl text-sm font-semibold hover:opacity-90 transition">
-                                    <i className="fas fa-plus text-xs" /> بيرسونا جديدة
-                                </button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {personas.map((aud, i) => (
-                                    <div key={i} className="bg-dark-bg border border-dark-border rounded-2xl p-5 space-y-3 hover:border-brand-pink/40 transition-all">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-pink to-brand-purple flex items-center justify-center text-white font-black text-lg shrink-0">
-                                                {aud.personaName.charAt(0)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-white truncate">{aud.personaName}</p>
-                                            </div>
-                                            <button onClick={() => openEdit(i)} className="text-dark-text-secondary hover:text-white p-1 rounded">
-                                                <i className="fas fa-pen text-xs" />
-                                            </button>
-                                            <button onClick={() => setPersonas(prev => prev.filter((_, idx) => idx !== i))} className="text-dark-text-secondary hover:text-red-400 p-1 rounded">
-                                                <i className="fas fa-trash text-xs" />
-                                            </button>
-                                        </div>
-                                        <p className="text-sm text-dark-text-secondary leading-relaxed">{aud.description}</p>
-                                        {aud.keyEmotions.length > 0 && (
-                                            <div>
-                                                <p className="text-xs font-semibold text-brand-pink uppercase mb-1">المشاعر</p>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {aud.keyEmotions.map((e, j) => <span key={j} className="text-xs px-2 py-0.5 bg-brand-pink/10 text-brand-pink rounded-full border border-brand-pink/20">{e}</span>)}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {aud.painPoints.length > 0 && (
-                                            <div>
-                                                <p className="text-xs font-semibold text-brand-secondary uppercase mb-1">Pain Points</p>
-                                                <div className="flex flex-wrap gap-1">
-                                                    {aud.painPoints.map((p, j) => <span key={j} className="text-xs px-2 py-0.5 bg-brand-purple/10 text-brand-secondary rounded-full border border-brand-purple/20">{p}</span>)}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                                {personas.length === 0 && (
-                                    <div className="col-span-full text-center py-12 text-dark-text-secondary">
-                                        <i className="fas fa-users text-4xl mb-3 opacity-30" />
-                                        <p>لا توجد بيرسونات — أضف أولى عملاءك المثاليين</p>
-                                    </div>
-                                )}
-                            </div>
-                            {/* Edit modal */}
-                            {editing !== null && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                                    <div className="bg-dark-card border border-dark-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-                                        <h3 className="font-bold text-white">{editing === -1 ? 'بيرسونا جديدة' : 'تعديل البيرسونا'}</h3>
-                                        <input value={form.personaName} onChange={e => setForm(f => ({ ...f, personaName: e.target.value }))}
-                                            placeholder="اسم البيرسونا" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink" />
-                                        <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                                            rows={3} placeholder="الوصف" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none" />
-                                        <input value={form.keyEmotions} onChange={e => setForm(f => ({ ...f, keyEmotions: e.target.value }))}
-                                            placeholder="المشاعر (مفصولة بفواصل)" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink" />
-                                        <input value={form.painPoints} onChange={e => setForm(f => ({ ...f, painPoints: e.target.value }))}
-                                            placeholder="Pain Points (مفصولة بفواصل)" className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink" />
-                                        <div className="flex gap-3">
-                                            <button onClick={savePersona} disabled={!form.personaName} className="flex-1 py-2.5 bg-gradient-to-r from-brand-pink to-brand-purple text-white rounded-xl font-semibold text-sm hover:opacity-90 transition disabled:opacity-50">حفظ</button>
-                                            <button onClick={() => setEditing(null)} className="px-4 py-2.5 border border-dark-border rounded-xl text-sm text-dark-text-secondary hover:bg-dark-bg transition">إلغاء</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                })()}
+                {activeTab === 'audience' && (
+                    <AudienceTabContent profile={profile} />
+                )}
                 {/* ── Knowledge Base Tab ──────────────────────────────────── */}
                 {activeTab === 'knowledge' && (() => {
                     const KNOWLEDGE_TYPES: { id: BrandKnowledgeType; label: string; icon: string; placeholder: { title: string; content: string } }[] = [

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { addBrand } from '../services/brandService';
 import { updateBrandProfile } from '../services/brandHubService';
 import { addKnowledgeEntry } from '../services/brandKnowledgeService';
@@ -23,6 +23,9 @@ type Step = 'input' | 'analyzing' | 'preview' | 'saving' | 'done';
 const BINARY_MIME_TYPES: Record<string, string> = {
     'pdf': 'application/pdf',
 };
+
+// 5 MB raw PDF ~= 6.7 MB base64 payload, leaving headroom under the 8 MB ai-proxy limit.
+const INLINE_PDF_MAX_BYTES = 5 * 1024 * 1024;
 
 // Formats that need conversion before Gemini can read them
 const UNSUPPORTED_BINARY_EXTS = new Set(['docx', 'doc', 'pptx', 'xlsx']);
@@ -162,9 +165,8 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 binaryData: { base64: '', mimeType: 'unsupported', sizeBytes: file.size },
             };
         } else if (isBinaryFormat(file.name)) {
-            // PDF — use inline_data only for small files (<170 KB).
-            // For large PDFs, extract text client-side to avoid Edge Function body limit.
-            if (file.size > 170 * 1024) {
+            // Use inline_data for typical PDFs and fall back to client-side extraction only for very large files.
+            if (file.size > INLINE_PDF_MAX_BYTES) {
                 const text = await extractTextFromPdf(file);
                 return { name: baseName, docType, text, binaryData: undefined, extractedFromPdf: { sizeBytes: file.size } };
             }
@@ -180,43 +182,32 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = '';
-        setIsLoadingFile(true);
-        try {
-            const patch = await loadFileEntry(file);
-            updateFile(activeFileId, patch);
-        } finally {
-            setIsLoadingFile(false);
-        }
+    const loadMultipleFiles = async (incomingFiles: File[]): Promise<FileEntry[]> => {
+        const supported = incomingFiles.filter(f => {
+            const ext = getFileExt(f.name);
+            return ['txt', 'md', 'text', 'pdf', 'docx', 'doc', 'pptx', 'xlsx'].includes(ext);
+        });
+        if (!supported.length) return [];
+
+        return Promise.all(
+            supported.map(async (file, index) => {
+                const patch = await loadFileEntry(file);
+                return {
+                    id: `${Date.now()}_${index}`,
+                    name: file.name.replace(/\.[^.]+$/, ''),
+                    docType: guessDocType(file.name),
+                    text: '',
+                    ...patch,
+                } as FileEntry;
+            })
+        );
     };
 
-    const handleDrop = useCallback(async (e: React.DragEvent) => {
-        e.preventDefault();
-        const supported = Array.from(e.dataTransfer.files).filter(f => {
-            const ext = getFileExt(f.name);
-            return ['txt', 'md', 'pdf', 'docx', 'doc', 'pptx', 'xlsx'].includes(ext);
-        });
-        if (!supported.length) return;
-
-        setIsLoadingFile(true);
-        let newEntries: FileEntry[];
-        try {
-            newEntries = await Promise.all(
-                supported.map(async (f, i) => {
-                    const patch = await loadFileEntry(f);
-                    return { id: `${Date.now()}_${i}`, ...patch } as FileEntry;
-                })
-            );
-        } finally {
-            setIsLoadingFile(false);
-        }
+    const appendLoadedFiles = (newEntries: FileEntry[]) => {
+        if (!newEntries.length) return;
 
         setFiles(prev => {
             const merged = [...prev];
-            // If the first file is empty, replace it
             if (merged.length === 1 && !merged[0].text && !merged[0].binaryData) {
                 merged[0] = { ...merged[0], ...newEntries[0] };
                 return [...merged, ...newEntries.slice(1)];
@@ -224,7 +215,37 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
             return [...merged, ...newEntries];
         });
         setActiveFileId(newEntries[0].id);
-    }, []);
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = Array.from(e.target.files ?? []);
+        if (!selectedFiles.length) return;
+        e.target.value = '';
+        setIsLoadingFile(true);
+        try {
+            if (selectedFiles.length === 1) {
+                const patch = await loadFileEntry(selectedFiles[0]);
+                updateFile(activeFileId, patch);
+                return;
+            }
+
+            const newEntries = await loadMultipleFiles(selectedFiles);
+            appendLoadedFiles(newEntries);
+        } finally {
+            setIsLoadingFile(false);
+        }
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsLoadingFile(true);
+        try {
+            const newEntries = await loadMultipleFiles(Array.from(e.dataTransfer.files));
+            appendLoadedFiles(newEntries);
+        } finally {
+            setIsLoadingFile(false);
+        }
+    };
 
     const handleAnalyze = async () => {
         const readyFiles = files.filter(f =>
@@ -248,20 +269,24 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 // Single text file
                 data = await extractBrandFromDocument(readyFiles[0].text);
             } else {
-                // Multiple files → merge text files, prepend binary file names as context
-                const textParts = readyFiles
-                    .filter(f => f.text.trim())
-                    .map(f => `=== ${f.name} (${DOC_TYPE_LABELS[f.docType]}) ===\n\n${f.text}`);
-                const binaryNote = readyFiles
-                    .filter(f => f.binaryData)
-                    .map(f => `[ملف ثنائي مرفق: ${f.name}]`);
-                const merged = [...binaryNote, ...textParts].join('\n\n---\n\n');
-                // If there are binary files mixed in, use the first one as the primary
+                // Multiple files → keep the first PDF attached to Gemini and merge the rest as text context.
                 const firstBinary = readyFiles.find(f => f.binaryData);
-                if (firstBinary?.binaryData && textParts.length === 0) {
-                    data = await extractBrandFromFileData(firstBinary.binaryData.base64, firstBinary.binaryData.mimeType);
+                const textParts = readyFiles
+                    .filter(f => f !== firstBinary && f.text.trim())
+                    .map(f => `=== ${f.name} (${DOC_TYPE_LABELS[f.docType]}) ===\n\n${f.text}`);
+                const secondaryBinaryNotes = readyFiles
+                    .filter(f => f !== firstBinary && f.binaryData && !f.text.trim())
+                    .map(f => `[ملف PDF إضافي مرفق بدون نص قابل للاستخراج: ${f.name}]`);
+                const mergedContext = [...secondaryBinaryNotes, ...textParts].join('\n\n---\n\n');
+
+                if (firstBinary?.binaryData) {
+                    data = await extractBrandFromFileData(
+                        firstBinary.binaryData.base64,
+                        firstBinary.binaryData.mimeType,
+                        mergedContext || undefined,
+                    );
                 } else {
-                    data = await extractBrandFromDocument(merged);
+                    data = await extractBrandFromDocument(mergedContext);
                 }
             }
 
