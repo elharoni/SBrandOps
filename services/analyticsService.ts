@@ -473,6 +473,7 @@ export async function getAnalyticsData(
             .eq('status', 'published')
             .gte('published_at', prevSinceDateIso)
             .lt('published_at', sinceDateIso);
+        if (hasPlatformFilter) prevPublishedQuery = prevPublishedQuery.overlaps('platforms', selectedPlatforms);
 
         // Run ALL queries in parallel
         const [
