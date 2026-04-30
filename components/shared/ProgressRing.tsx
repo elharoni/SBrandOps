@@ -42,7 +42,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({ steps, isCollapsed: 
     });
 
     useEffect(() => {
-        try { localStorage.setItem(STORAGE_KEY, String(open)); } catch {}
+        try { localStorage.setItem(STORAGE_KEY, String(open)); } catch { /* silently ignore localStorage errors */ }
     }, [open]);
 
     const r = 16;

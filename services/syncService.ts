@@ -325,7 +325,7 @@ export async function writeSocialPostFacts(
     }));
 
     const BATCH = 100;
-    let inserted = 0, updated = 0;
+    let inserted = 0;
 
     for (let i = 0; i < rows.length; i += BATCH) {
         const batch = rows.slice(i, i + BATCH);

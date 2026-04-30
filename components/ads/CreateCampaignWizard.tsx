@@ -374,7 +374,7 @@ export const CreateCampaignWizard: React.FC<CreateCampaignWizardProps> = ({ onCl
                         )}
                     </div>
                 );
-            case 4: // Review
+            case 4: { // Review
                 const platformAsset = AD_PLATFORM_ASSETS[platform];
                  return (
                     <div className="space-y-4 animate-fade-in">
@@ -437,6 +437,7 @@ export const CreateCampaignWizard: React.FC<CreateCampaignWizardProps> = ({ onCl
                         </div>
                     </div>
                 );
+            }
             default: return null;
         }
     };

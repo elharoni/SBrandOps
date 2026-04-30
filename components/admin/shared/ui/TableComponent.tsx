@@ -37,7 +37,7 @@ export const TableComponent = <T extends { id: string }>({
     }, [data, searchTerm, filterColumn]);
 
     const sortedData = useMemo(() => {
-        let sortableItems = [...filteredData];
+        const sortableItems = [...filteredData];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
                 if (a[sortConfig.key] < b[sortConfig.key]) {

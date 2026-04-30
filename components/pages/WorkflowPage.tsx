@@ -33,6 +33,140 @@ const triggerColor = (trigger: string) => {
     }
 };
 
+const NOTIF_EVENTS = [
+    { key: 'post_published',    label: 'نشر منشور',            icon: 'fa-paper-plane',   category: 'المحتوى' },
+    { key: 'post_scheduled',    label: 'جدولة منشور',          icon: 'fa-calendar-plus', category: 'المحتوى' },
+    { key: 'content_approved',  label: 'موافقة على محتوى',     icon: 'fa-check-double',  category: 'المحتوى' },
+    { key: 'content_rejected',  label: 'رفض محتوى',            icon: 'fa-times-circle',  category: 'المحتوى' },
+    { key: 'workflow_triggered',label: 'تشغيل Workflow',        icon: 'fa-bolt',          category: 'الأتمتة' },
+    { key: 'campaign_alert',    label: 'تنبيه حملة إعلانية',  icon: 'fa-ad',            category: 'الإعلانات' },
+    { key: 'low_roas',          label: 'ROAS منخفض',           icon: 'fa-chart-line',    category: 'الإعلانات' },
+    { key: 'task_due',          label: 'موعد مهمة قريب',       icon: 'fa-clock',         category: 'CRM' },
+    { key: 'new_lead',          label: 'عميل محتمل جديد',      icon: 'fa-user-plus',     category: 'CRM' },
+    { key: 'crm_order',         label: 'طلب جديد',             icon: 'fa-shopping-bag',  category: 'CRM' },
+];
+
+const NotificationsTab: React.FC<{ notify: (type: NotificationType, msg: string) => void }> = ({ notify }) => {
+    const [prefs, setPrefs] = React.useState<Record<string, { inApp: boolean; email: boolean }>>(() =>
+        Object.fromEntries(NOTIF_EVENTS.map(e => [e.key, { inApp: true, email: e.key.includes('alert') || e.key.includes('roas') }]))
+    );
+    const categories = [...new Set(NOTIF_EVENTS.map(e => e.category))];
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-5">
+                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">تحكم في الأحداث التي تُولّد إشعارات — وقنوات التسليم</p>
+            </div>
+            {categories.map(cat => (
+                <div key={cat} className="space-y-2">
+                    <p className="text-xs font-bold uppercase text-light-text-secondary dark:text-dark-text-secondary tracking-wide">{cat}</p>
+                    <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl overflow-hidden">
+                        {NOTIF_EVENTS.filter(e => e.category === cat).map((ev, i, arr) => (
+                            <div key={ev.key} className={`flex items-center gap-4 p-4 ${i < arr.length - 1 ? 'border-b border-light-border dark:border-dark-border' : ''}`}>
+                                <div className="w-9 h-9 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0">
+                                    <i className={`fas ${ev.icon} text-brand-primary text-sm`} />
+                                </div>
+                                <span className="flex-1 text-sm font-medium text-light-text dark:text-dark-text">{ev.label}</span>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">In-App</span>
+                                        <div onClick={() => setPrefs(p => ({ ...p, [ev.key]: { ...p[ev.key], inApp: !p[ev.key].inApp } }))}
+                                            className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${prefs[ev.key]?.inApp ? 'bg-brand-primary' : 'bg-light-border dark:bg-dark-border'}`}>
+                                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${prefs[ev.key]?.inApp ? 'left-5' : 'left-0.5'}`} />
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Email</span>
+                                        <div onClick={() => setPrefs(p => ({ ...p, [ev.key]: { ...p[ev.key], email: !p[ev.key].email } }))}
+                                            className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${prefs[ev.key]?.email ? 'bg-green-500' : 'bg-light-border dark:bg-dark-border'}`}>
+                                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${prefs[ev.key]?.email ? 'left-5' : 'left-0.5'}`} />
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+            <button onClick={() => notify(NotificationType.Success, 'تم حفظ إعدادات الإشعارات')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 transition">
+                <i className="fas fa-save" /> حفظ الإعدادات
+            </button>
+        </div>
+    );
+};
+
+const DependenciesTab: React.FC<{ workflows: Workflow[]; notify: (type: NotificationType, msg: string) => void }> = ({ workflows, notify }) => {
+    const allTasks = workflows.flatMap(wf =>
+        wf.steps.flatMap(step =>
+            step.tasks.map(t => ({ ...t, stepName: step.name, wfName: wf.name, wfId: wf.id }))
+        )
+    );
+    const [deps, setDeps] = React.useState<Record<string, string[]>>({});
+    const addDep = (taskId: string, depId: string) => {
+        if (taskId === depId) return;
+        setDeps(d => ({ ...d, [taskId]: [...new Set([...(d[taskId] ?? []), depId])] }));
+    };
+    const removeDep = (taskId: string, depId: string) => {
+        setDeps(d => ({ ...d, [taskId]: (d[taskId] ?? []).filter(id => id !== depId) }));
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-5">
+                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">حدّد الترتيب والتبعيات بين مهام الـ Workflows — مهمة لا تبدأ إلا بعد اكتمال المهمة التي تعتمد عليها</p>
+            </div>
+            {allTasks.length === 0 ? (
+                <div className="text-center py-12 text-light-text-secondary dark:text-dark-text-secondary">
+                    <i className="fas fa-sitemap text-4xl mb-3 opacity-30" />
+                    <p>لا توجد مهام — أنشئ Workflow بخطوات أولاً</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {allTasks.map(task => (
+                        <div key={task.id} className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-4 space-y-3">
+                            <div className="flex items-start gap-3">
+                                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${task.completed ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                <div className="flex-1">
+                                    <p className="text-sm font-semibold text-light-text dark:text-dark-text">{task.description}</p>
+                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{task.wfName} › {task.stepName}</p>
+                                </div>
+                            </div>
+                            {(deps[task.id] ?? []).length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 ps-5">
+                                    <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">يعتمد على:</span>
+                                    {(deps[task.id] ?? []).map(depId => {
+                                        const dep = allTasks.find(t => t.id === depId);
+                                        return dep ? (
+                                            <span key={depId} className="flex items-center gap-1 text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
+                                                {dep.description}
+                                                <button onClick={() => removeDep(task.id, depId)} className="hover:text-red-500"><i className="fas fa-times text-[10px]" /></button>
+                                            </span>
+                                        ) : null;
+                                    })}
+                                </div>
+                            )}
+                            <div className="ps-5">
+                                <select onChange={e => { if (e.target.value) { addDep(task.id, e.target.value); e.target.value = ''; } }}
+                                    className="text-xs bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-lg px-2 py-1 text-light-text-secondary dark:text-dark-text-secondary focus:outline-none focus:ring-1 focus:ring-brand-primary">
+                                    <option value="">+ إضافة تبعية</option>
+                                    {allTasks.filter(t => t.id !== task.id && !(deps[task.id] ?? []).includes(t.id)).map(t => (
+                                        <option key={t.id} value={t.id}>{t.description} ({t.wfName})</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <button onClick={() => notify(NotificationType.Success, 'تم حفظ تبعيات المهام')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 transition">
+                <i className="fas fa-save" /> حفظ التبعيات
+            </button>
+        </div>
+    );
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export const WorkflowPage: React.FC<WorkflowPageProps> = ({ initialWorkflows, addNotification }) => {
     const [workflows, setWorkflows] = useState<Workflow[]>(initialWorkflows);
@@ -275,144 +409,14 @@ export const WorkflowPage: React.FC<WorkflowPageProps> = ({ initialWorkflows, ad
             )}
 
             {/* ── WFL-1: Notification Settings ─────────────────────────────── */}
-            {activeTab === 'notifications' && (() => {
-                const NOTIF_EVENTS = [
-                    { key: 'post_published',   label: 'نشر منشور',               icon: 'fa-paper-plane', category: 'المحتوى' },
-                    { key: 'post_scheduled',   label: 'جدولة منشور',             icon: 'fa-calendar-plus', category: 'المحتوى' },
-                    { key: 'content_approved', label: 'موافقة على محتوى',        icon: 'fa-check-double', category: 'المحتوى' },
-                    { key: 'content_rejected', label: 'رفض محتوى',               icon: 'fa-times-circle', category: 'المحتوى' },
-                    { key: 'workflow_triggered', label: 'تشغيل Workflow',         icon: 'fa-bolt',  category: 'الأتمتة' },
-                    { key: 'campaign_alert',   label: 'تنبيه حملة إعلانية',     icon: 'fa-ad',    category: 'الإعلانات' },
-                    { key: 'low_roas',         label: 'ROAS منخفض',              icon: 'fa-chart-line', category: 'الإعلانات' },
-                    { key: 'task_due',         label: 'موعد مهمة قريب',          icon: 'fa-clock',  category: 'CRM' },
-                    { key: 'new_lead',         label: 'عميل محتمل جديد',         icon: 'fa-user-plus', category: 'CRM' },
-                    { key: 'crm_order',        label: 'طلب جديد',                icon: 'fa-shopping-bag', category: 'CRM' },
-                ];
-
-                const [prefs, setPrefs] = React.useState<Record<string, { inApp: boolean; email: boolean }>>(() =>
-                    Object.fromEntries(NOTIF_EVENTS.map(e => [e.key, { inApp: true, email: e.key.includes('alert') || e.key.includes('roas') }]))
-                );
-
-                const categories = [...new Set(NOTIF_EVENTS.map(e => e.category))];
-
-                return (
-                    <div className="space-y-6">
-                        <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-5">
-                            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">تحكم في الأحداث التي تُولّد إشعارات — وقنوات التسليم</p>
-                        </div>
-                        {categories.map(cat => (
-                            <div key={cat} className="space-y-2">
-                                <p className="text-xs font-bold uppercase text-light-text-secondary dark:text-dark-text-secondary tracking-wide">{cat}</p>
-                                <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl overflow-hidden">
-                                    {NOTIF_EVENTS.filter(e => e.category === cat).map((ev, i, arr) => (
-                                        <div key={ev.key} className={`flex items-center gap-4 p-4 ${i < arr.length - 1 ? 'border-b border-light-border dark:border-dark-border' : ''}`}>
-                                            <div className="w-9 h-9 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0">
-                                                <i className={`fas ${ev.icon} text-brand-primary text-sm`} />
-                                            </div>
-                                            <span className="flex-1 text-sm font-medium text-light-text dark:text-dark-text">{ev.label}</span>
-                                            <div className="flex items-center gap-4">
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">In-App</span>
-                                                    <div onClick={() => setPrefs(p => ({ ...p, [ev.key]: { ...p[ev.key], inApp: !p[ev.key].inApp } }))}
-                                                        className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${prefs[ev.key]?.inApp ? 'bg-brand-primary' : 'bg-light-border dark:bg-dark-border'}`}>
-                                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${prefs[ev.key]?.inApp ? 'left-5' : 'left-0.5'}`} />
-                                                    </div>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer">
-                                                    <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Email</span>
-                                                    <div onClick={() => setPrefs(p => ({ ...p, [ev.key]: { ...p[ev.key], email: !p[ev.key].email } }))}
-                                                        className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${prefs[ev.key]?.email ? 'bg-green-500' : 'bg-light-border dark:bg-dark-border'}`}>
-                                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${prefs[ev.key]?.email ? 'left-5' : 'left-0.5'}`} />
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                        <button onClick={() => notify(NotificationType.Success, 'تم حفظ إعدادات الإشعارات')}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 transition">
-                            <i className="fas fa-save" /> حفظ الإعدادات
-                        </button>
-                    </div>
-                );
-            })()}
+            {activeTab === 'notifications' && (
+                <NotificationsTab notify={notify} />
+            )}
 
             {/* ── WFL-2: Task Dependencies ──────────────────────────────────── */}
-            {activeTab === 'dependencies' && (() => {
-                // Flatten all tasks from all workflows
-                const allTasks = workflows.flatMap(wf =>
-                    wf.steps.flatMap(step =>
-                        step.tasks.map(t => ({ ...t, stepName: step.name, wfName: wf.name, wfId: wf.id }))
-                    )
-                );
-                const [deps, setDeps] = React.useState<Record<string, string[]>>({});
-                const addDep = (taskId: string, depId: string) => {
-                    if (taskId === depId) return;
-                    setDeps(d => ({ ...d, [taskId]: [...new Set([...(d[taskId] ?? []), depId])] }));
-                };
-                const removeDep = (taskId: string, depId: string) => {
-                    setDeps(d => ({ ...d, [taskId]: (d[taskId] ?? []).filter(id => id !== depId) }));
-                };
-
-                return (
-                    <div className="space-y-5">
-                        <div className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-5">
-                            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">حدّد الترتيب والتبعيات بين مهام الـ Workflows — مهمة لا تبدأ إلا بعد اكتمال المهمة التي تعتمد عليها</p>
-                        </div>
-                        {allTasks.length === 0 ? (
-                            <div className="text-center py-12 text-light-text-secondary dark:text-dark-text-secondary">
-                                <i className="fas fa-sitemap text-4xl mb-3 opacity-30" />
-                                <p>لا توجد مهام — أنشئ Workflow بخطوات أولاً</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                {allTasks.map(task => (
-                                    <div key={task.id} className="bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-2xl p-4 space-y-3">
-                                        <div className="flex items-start gap-3">
-                                            <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${task.completed ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                                            <div className="flex-1">
-                                                <p className="text-sm font-semibold text-light-text dark:text-dark-text">{task.description}</p>
-                                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{task.wfName} › {task.stepName}</p>
-                                            </div>
-                                        </div>
-                                        {/* Current deps */}
-                                        {(deps[task.id] ?? []).length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 ps-5">
-                                                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">يعتمد على:</span>
-                                                {(deps[task.id] ?? []).map(depId => {
-                                                    const dep = allTasks.find(t => t.id === depId);
-                                                    return dep ? (
-                                                        <span key={depId} className="flex items-center gap-1 text-xs bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
-                                                            {dep.description}
-                                                            <button onClick={() => removeDep(task.id, depId)} className="hover:text-red-500"><i className="fas fa-times text-[10px]" /></button>
-                                                        </span>
-                                                    ) : null;
-                                                })}
-                                            </div>
-                                        )}
-                                        {/* Add dep select */}
-                                        <div className="ps-5">
-                                            <select onChange={e => { if (e.target.value) { addDep(task.id, e.target.value); e.target.value = ''; } }}
-                                                className="text-xs bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-lg px-2 py-1 text-light-text-secondary dark:text-dark-text-secondary focus:outline-none focus:ring-1 focus:ring-brand-primary">
-                                                <option value="">+ إضافة تبعية</option>
-                                                {allTasks.filter(t => t.id !== task.id && !(deps[task.id] ?? []).includes(t.id)).map(t => (
-                                                    <option key={t.id} value={t.id}>{t.description} ({t.wfName})</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <button onClick={() => notify(NotificationType.Success, 'تم حفظ تبعيات المهام')}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-primary/90 transition">
-                            <i className="fas fa-save" /> حفظ التبعيات
-                        </button>
-                    </div>
-                );
-            })()}
+            {activeTab === 'dependencies' && (
+                <DependenciesTab workflows={workflows} notify={notify} />
+            )}
 
             {/* ── Create / Edit Modal ─────────────────────────────────────── */}
             {showModal && (

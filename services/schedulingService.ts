@@ -88,6 +88,6 @@ export async function getOptimalPostingTimes(params: SchedulingParams): Promise<
         throw new Error("AI response did not contain 'suggestions'.");
     } catch (error) {
         console.error("Error getting optimal times:", error);
-        throw new Error("Failed to communicate with the AI model or parse its response.");
+        throw new Error("Failed to communicate with the AI model or parse its response.", { cause: error });
     }
 }

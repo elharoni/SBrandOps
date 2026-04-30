@@ -167,7 +167,7 @@ export async function downloadStockPhoto(photo: StockPhoto): Promise<Blob> {
         return await response.blob();
     } catch (error) {
         console.error('Error downloading photo:', error);
-        throw new Error('فشل في تحميل الصورة');
+        throw new Error('فشل في تحميل الصورة', { cause: error });
     }
 }
 

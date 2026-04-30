@@ -101,7 +101,7 @@ ${brandVoice ? `صوت العلامة التجارية: ${brandVoice}` : ''}
         return [];
     } catch (error) {
         console.error('Error generating content variations:', error);
-        throw new Error('فشل في توليد نسخ المحتوى');
+        throw new Error('فشل في توليد نسخ المحتوى', { cause: error });
     }
 }
 
@@ -167,7 +167,7 @@ ${brandVoice ? `صوت العلامة التجارية: ${brandVoice}` : ''}
         return response.text.trim();
     } catch (error) {
         console.error('Error optimizing content:', error);
-        throw new Error('فشل في تحسين المحتوى');
+        throw new Error('فشل في تحسين المحتوى', { cause: error });
     }
 }
 
@@ -198,7 +198,7 @@ export async function rewriteWithTone(
         return response.text.trim();
     } catch (error) {
         console.error('Error rewriting content:', error);
-        throw new Error('فشل في إعادة كتابة المحتوى');
+        throw new Error('فشل في إعادة كتابة المحتوى', { cause: error });
     }
 }
 
@@ -223,7 +223,7 @@ ${targetLength === 'shorter' ? 'احتفظ بالنقاط الرئيسية فق�
         return response.text.trim();
     } catch (error) {
         console.error('Error adjusting length:', error);
-        throw new Error('فشل في تعديل طول المحتوى');
+        throw new Error('فشل في تعديل طول المحتوى', { cause: error });
     }
 }
 
@@ -256,6 +256,6 @@ export async function addCallToAction(
         return response.text.trim();
     } catch (error) {
         console.error('Error adding CTA:', error);
-        throw new Error('فشل في إضافة CTA');
+        throw new Error('فشل في إضافة CTA', { cause: error });
     }
 }

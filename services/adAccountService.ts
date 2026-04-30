@@ -1,6 +1,6 @@
 import { AdAccount, AdPlatform, AccountStatus } from '../types';
 
-let mockAdAccounts: AdAccount[] = [
+const mockAdAccounts: AdAccount[] = [
     {
         id: 'ad-meta-1',
         platform: AdPlatform.Meta,

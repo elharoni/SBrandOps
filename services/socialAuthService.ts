@@ -293,7 +293,7 @@ export async function connectSelectedAssets(
         });
     } catch (networkErr) {
         console.error('[connect-accounts] network error:', networkErr);
-        throw new Error(`خطأ في الشبكة — تعذّر الوصول إلى Edge Function: ${(networkErr as Error).message}`);
+        throw new Error(`خطأ في الشبكة — تعذّر الوصول إلى Edge Function: ${(networkErr as Error).message}`, { cause: networkErr });
     }
 
     console.log('[connect-accounts] response status:', response.status);

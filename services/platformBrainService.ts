@@ -306,8 +306,8 @@ export async function processMarketingRequest(
     const model = selectedSkill.preferredModel;
 
     // ── Steps 6: Execute skill ────────────────────────────────────────────────
-    let output: Record<string, unknown> = {};
-    let rawOutput = '';
+    let output: Record<string, unknown>;
+    let rawOutput: string;
 
     try {
         const result = await executeSkill(classification.detectedSkill, request, brandBrain, model);

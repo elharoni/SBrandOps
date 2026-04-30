@@ -26,7 +26,6 @@ export function subscribeToNotifications(
     const channel = supabase
         .channel(`notifications:brand:${brandId}`)
         .on(
-            // @ts-ignore — postgres_changes is valid at runtime
             'postgres_changes',
             {
                 event: 'INSERT',

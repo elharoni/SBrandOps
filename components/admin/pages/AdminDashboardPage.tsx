@@ -78,17 +78,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ stats, a
         setDrawerOpen(true);
     };
 
+    const growthAndRevenue = useMemo(
+        () => (stats ? stats.userGrowth.map((entry, index) => ({
+            ...entry,
+            revenue: stats.revenueOverTime[index]?.revenue ?? 0,
+        })) : []),
+        [stats]
+    );
+
     if (!stats) {
         return <DashboardSkeleton />;
     }
-
-    const growthAndRevenue = useMemo(
-        () => stats.userGrowth.map((entry, index) => ({
-            ...entry,
-            revenue: stats.revenueOverTime[index]?.revenue ?? 0,
-        })),
-        [stats.revenueOverTime, stats.userGrowth]
-    );
 
     const tokenUsageByPlan = [
         { label: 'Basic', value: 1200000, color: '#2563eb' },

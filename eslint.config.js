@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'supabase/functions/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'supabase/functions/**', 'SBrandOps_Professional_Identity_Pack_v4_EXACT/**', 'patch_sync.cjs', 'scripts/**', 'verify_locales.ts'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommended,

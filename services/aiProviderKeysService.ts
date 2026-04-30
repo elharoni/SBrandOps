@@ -92,7 +92,7 @@ export async function testAIProviderKey(id: string): Promise<'ok' | 'failed'> {
 
     if (error || !data) throw new Error('Key not found');
 
-    let testResult: 'ok' | 'failed' = 'failed';
+    let testResult: 'ok' | 'failed';
 
     try {
         if (data.provider === 'gemini') {

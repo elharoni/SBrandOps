@@ -85,7 +85,15 @@
       "Bash(grep -E \"\\\\.\\(toml|json\\)$\")",
       "Bash(awk 'NR>=1213 && NR<=1480 {print NR\": \"$0}' components/pages/InboxPage.tsx)",
       "Bash(grep -E \"^\\\\d+: *\\(<div|<\\\\/div|return \\\\\\(|\\\\\\);$|^};\\)\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(npx eslint *)",
+      "Bash(cat eslint.config.js)",
+      "Bash(cat eslint.config.mjs)",
+      "Bash(cat .eslintrc.js)",
+      "Bash(cat .eslintrc.json)",
+      "Bash(ls -la *.eslint* eslint.*)",
+      "Bash(cat .eslintignore)",
+      "Bash(ls -la .eslint*)"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",
