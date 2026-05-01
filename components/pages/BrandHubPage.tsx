@@ -1992,8 +1992,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
                     // ── Recommended actions (based on what's missing) ──────────
                     type HubTab = 'identity' | 'voice' | 'audience' | 'knowledge';
-                    const actions: { label: string; impact: string; hubTab: HubTab | null; icon: string }[] = [];
-                    type HubTab = 'identity' | 'voice' | 'audience';
                     const actions: { label: string; impact: string; hubTab: HubTab | null; route?: string; icon: string }[] = [];
                     if (!profile.description)
                         actions.push({ label: 'أضف وصفاً للبراند', impact: 'يُحسّن توليد المحتوى بـ 35%', hubTab: 'identity', icon: 'fa-building' });
@@ -2003,9 +2001,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                         actions.push({ label: 'أنشئ شخصية الجمهور', impact: 'يُحسّن الردود الذكية بـ 50%', hubTab: 'audience', icon: 'fa-users' });
                     if (intellData.knowledgeCount < 5)
                         actions.push({ label: 'أضف منتجاتك وخدماتك', impact: 'يُحسّن ردود المبيعات بـ 40%', hubTab: 'knowledge', icon: 'fa-database' });
-                        actions.push({ label: 'أضف منتجاتك وخدماتك', impact: 'يُحسّن ردود المبيعات بـ 40%', hubTab: null, route: 'brand-knowledge', icon: 'fa-database' });
                     if (intellData.socialCount === 0)
-                        actions.push({ label: 'اربط حسابات التواصل', impact: 'يُفعّل التحليلات الحقيقية', hubTab: null, icon: 'fa-plug' });
                         actions.push({ label: 'اربط حسابات التواصل', impact: 'يُفعّل التحليلات الحقيقية', hubTab: null, route: 'social-ops/accounts', icon: 'fa-plug' });
 
                     const scoreColor = totalScore >= 80 ? '#10B981' : totalScore >= 50 ? '#F59E0B' : '#EF4444';
@@ -2116,7 +2112,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                                 {[
                                                     { label: 'بيانات يدوية',         active: true,                        desc: 'ملف البراند + الصوت + الجمهور' },
                                                     { label: 'صفحات مرتبطة',         active: intellData.socialCount > 0,  desc: `${intellData.socialCount} حساب متصل` },
-                                                    { label: 'قاعدة المعرفة',         active: intellData.knowledgeCount > 0, desc: `${intellData.knowledgeCount} عنصر معرفي` },
                                                     { label: 'قاعدة المعرفة',         active: intellData.knowledgeCount > 0, desc: `${intellData.knowledgeCount} عنصر (${intellData.knowledgeByType['product'] || 0} منتج، ${intellData.knowledgeByType['faq'] || 0} أسئلة)` },
                                                     { label: 'وثائق مرفوعة',          active: intellData.docCount > 0,     desc: `${intellData.docCount} وثيقة` },
                                                     { label: 'CRM وبيانات المبيعات', active: false,                       desc: 'غير مفعّل بعد' },
@@ -2147,8 +2142,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                                     {actions.map((action, i) => (
                                                         <button
                                                             key={i}
-                                                            onClick={() => action.hubTab && setActiveTab(action.hubTab)}
-                                                            disabled={!action.hubTab}
                                                             onClick={() => {
                                                                 if (action.hubTab) setActiveTab(action.hubTab);
                                                                 else if (action.route && onNavigate) onNavigate(action.route);
