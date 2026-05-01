@@ -651,7 +651,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             );
 
         case 'brand-brain':
-            return <BrandBrainPage brandId={activeBrand.id} brandName={activeBrand.name} addNotification={addNotification} />;
+            return <BrandBrainPage brandId={activeBrand.id} brandName={activeBrand.name} addNotification={addNotification} onNavigate={onNavigate} />;
 
         case 'campaign-brain':
             return (

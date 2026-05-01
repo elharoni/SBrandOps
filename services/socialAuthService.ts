@@ -21,6 +21,7 @@ export interface AuthResponse {
     accessToken: string;
     expiresIn: number;
     platform: SocialPlatform;
+    user?: { id: string; name: string; avatarUrl: string; username?: string };
 }
 
 export async function initiateSocialLogin(platform: SocialPlatform): Promise<AuthResponse> {
@@ -69,82 +70,62 @@ export async function initiateSocialLogin(platform: SocialPlatform): Promise<Aut
         });
     }
 
-    // X (Twitter) and LinkedIn: redirect through Supabase OAuth provider-oauth-callback Edge Function
-    // The user completes OAuth in a popup, then the token is stored via Edge Function
-    const platformLower = platform.toLowerCase().replace('x', 'twitter');
+    // TikTok / LinkedIn / X: open the dedicated OAuth Edge Function in a popup.
+    // Each EF handles /init (redirect to provider) and /callback (exchange code, postMessage token).
+    const efNameMap: Record<string, string> = {
+        tiktok:   'tiktok-oauth',
+        linkedin: 'linkedin-oauth',
+        x:        'twitter-oauth',
+        twitter:  'twitter-oauth',
+    };
+    const efName = efNameMap[platform.toLowerCase()] ?? `${platform.toLowerCase()}-oauth`;
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    
+
     if (!supabaseUrl) {
         throw new Error(`OAuth for ${platform} requires VITE_SUPABASE_URL to be configured.`);
     }
 
     return new Promise((resolve, reject) => {
-        const callbackUrl = `${supabaseUrl}/functions/v1/provider-oauth-callback?provider=${platformLower}`;
-        const popup = window.open(callbackUrl, `${platform}_oauth`, 'width=600,height=700,left=300,top=100');
-        
+        const initUrl = `${supabaseUrl}/functions/v1/${efName}/init`;
+        const popup = window.open(initUrl, `${platform}_oauth`, 'width=600,height=700,left=300,top=100');
+
         if (!popup) {
             reject(new Error(`Popup blocked! Please allow popups for this site and try again.`));
             return;
         }
 
-        let attempts = 0;
-        const maxAttempts = 120; // 60 seconds timeout
-
-        const interval = setInterval(() => {
-            attempts++;
-            
+        // Poll for manual close (user dismissed without completing auth)
+        const cancelInterval = setInterval(() => {
             if (popup.closed) {
-                clearInterval(interval);
+                clearInterval(cancelInterval);
+                window.removeEventListener('message', messageHandler);
                 reject(new Error(`${platform} login was cancelled.`));
-                return;
-            }
-
-            if (attempts >= maxAttempts) {
-                clearInterval(interval);
-                popup.close();
-                reject(new Error(`${platform} login timed out after 60 seconds.`));
-                return;
-            }
-
-            // Check if popup posted a message with the token
-            try {
-                const hash = popup.location.hash;
-                if (hash && hash.includes('access_token=')) {
-                    clearInterval(interval);
-                    popup.close();
-                    const params = new URLSearchParams(hash.substring(1));
-                    const token = params.get('access_token');
-                    if (token) {
-                        resolve({ accessToken: token, expiresIn: 3600, platform });
-                    } else {
-                        reject(new Error(`Failed to extract ${platform} access token.`));
-                    }
-                }
-            } catch {
-                // Cross-origin error — popup is still on provider page, keep waiting
             }
         }, 500);
 
-        // Listen for postMessage from callback page
-        // SECURITY: validate event.origin so only our Supabase Edge Function
-        // can deliver OAuth tokens — not arbitrary pages in the popup's chain.
-        const allowedOrigin = import.meta.env.VITE_SUPABASE_URL
-            ? new URL(import.meta.env.VITE_SUPABASE_URL).origin
-            : null;
+        // SECURITY: validate event.origin — only our Supabase Edge Function
+        // should deliver OAuth tokens, not arbitrary pages in the popup's chain.
+        const allowedOrigin = new URL(supabaseUrl).origin;
 
         const messageHandler = (event: MessageEvent) => {
-            if (allowedOrigin && event.origin !== allowedOrigin) return;
-            if (event.data?.type === 'OAUTH_SUCCESS' && event.data?.platform === platform) {
-                clearInterval(interval);
+            if (event.origin !== allowedOrigin) return;
+            // EFs send lowercase platform values ('x', 'tiktok', 'linkedin');
+            // SocialPlatform enum values are title-case — compare case-insensitively.
+            const msgPlatform   = (event.data?.platform as string)?.toLowerCase();
+            const thisPlatform  = platform.toLowerCase();
+
+            if (event.data?.type === 'OAUTH_SUCCESS' && msgPlatform === thisPlatform) {
+                clearInterval(cancelInterval);
                 popup.close();
                 window.removeEventListener('message', messageHandler);
                 resolve({
                     accessToken: event.data.accessToken,
-                    expiresIn: event.data.expiresIn ?? 3600,
+                    expiresIn:   event.data.expiresIn ?? 3600,
                     platform,
+                    user:        event.data.user ?? undefined,
                 });
-            } else if (event.data?.type === 'OAUTH_ERROR' && event.data?.platform === platform) {
-                clearInterval(interval);
+            } else if (event.data?.type === 'OAUTH_ERROR' && msgPlatform === thisPlatform) {
+                clearInterval(cancelInterval);
                 popup.close();
                 window.removeEventListener('message', messageHandler);
                 reject(new Error(event.data.error ?? `${platform} OAuth failed.`));
@@ -225,13 +206,69 @@ export async function fetchAvailableAssets(platform: SocialPlatform, token: stri
         });
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Fetch real user info from each platform's API.
+    // Falls back to a minimal placeholder if the call fails (e.g. CORS in some envs).
+    try {
+        if (platform === SocialPlatform.X) {
+            const resp = await fetch(
+                'https://api.twitter.com/2/users/me?user.fields=profile_image_url,public_metrics',
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const data = await resp.json();
+            const u = data?.data;
+            if (u?.id) {
+                return [{
+                    id:          u.id,
+                    name:        u.name || 'X Account',
+                    followers:   u.public_metrics?.followers_count || 0,
+                    avatarUrl:   u.profile_image_url?.replace('_normal', '') || '',
+                    accessToken: token,
+                }];
+            }
+        }
+
+        if (platform === SocialPlatform.LinkedIn) {
+            const resp = await fetch(
+                'https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))',
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const profile = await resp.json();
+            if (profile?.id) {
+                const name     = `${profile.localizedFirstName || ''} ${profile.localizedLastName || ''}`.trim() || 'LinkedIn Account';
+                const elements = profile?.profilePicture?.['displayImage~']?.elements;
+                const avatarUrl = elements?.[elements.length - 1]?.identifiers?.[0]?.identifier || '';
+                return [{ id: profile.id, name, followers: 0, avatarUrl, accessToken: token }];
+            }
+        }
+
+        if (platform === SocialPlatform.TikTok) {
+            const resp = await fetch(
+                'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,follower_count',
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const data = await resp.json();
+            const u = data?.data?.user;
+            if (u?.open_id) {
+                return [{
+                    id:          u.open_id,
+                    name:        u.display_name || 'TikTok Account',
+                    followers:   u.follower_count || 0,
+                    avatarUrl:   u.avatar_url || '',
+                    accessToken: token,
+                }];
+            }
+        }
+    } catch {
+        // API call failed — fall through to placeholder below
+    }
+
+    // Placeholder fallback: the token is still valid for connectSelectedAssets
     return [{
-        id: `asset-${platform}-${Date.now()}`,
-        name: `${platform} Demo Account`,
-        category: 'Demo',
-        followers: Math.floor(Math.random() * 10000),
-        avatarUrl: `https://picsum.photos/seed/${platform}/100`,
+        id:          `${platform.toLowerCase()}-${Date.now()}`,
+        name:        `${platform} Account`,
+        followers:   0,
+        avatarUrl:   '',
+        accessToken: token,
     }];
 }
 

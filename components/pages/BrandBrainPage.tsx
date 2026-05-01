@@ -10,6 +10,7 @@ interface BrandBrainPageProps {
     brandId: string;
     brandName?: string;
     addNotification?: (type: NotificationType, message: string) => void;
+    onNavigate?: (page: string) => void;
 }
 
 type ActiveTab = 'skills' | 'executions' | 'knowledge' | 'trend';
@@ -133,7 +134,7 @@ function SkillCard({ skillType, stats }: { skillType: string; stats: SkillStats 
     );
 }
 
-export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandName, addNotification }) => {
+export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandName, addNotification, onNavigate }) => {
     const [activeTab, setActiveTab]       = useState<ActiveTab>('skills');
     const [period, setPeriod]             = useState<PeriodDays>(30);
     const [skillsReport, setSkillsReport] = useState<Record<string, SkillStats>>({});
@@ -306,6 +307,31 @@ export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandNa
                 {/* ── Knowledge Tab ── */}
                 {activeTab === 'knowledge' && (
                     <div className="space-y-4">
+                        {/* Shortcut to BrandKnowledgePage */}
+                        {onNavigate && (
+                            <button
+                                onClick={() => onNavigate('brand-knowledge')}
+                                className="w-full bg-dark-card border border-dark-border rounded-2xl p-5 text-right hover:border-brand-primary/40 transition-all group"
+                            >
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                        <i className="fas fa-book-open text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-white text-sm">قاعدة المعرفة</h3>
+                                        <p className="text-[11px] text-dark-text-secondary">المنتجات، الأسئلة، السياسات</p>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-dark-text-secondary leading-relaxed">
+                                    أضف معلومات براندك لتحسين دقة الذكاء الاصطناعي في كل العمليات
+                                </p>
+                                <div className="mt-3 flex items-center gap-1 text-brand-primary text-xs font-semibold group-hover:gap-2 transition-all">
+                                    <span>فتح قاعدة المعرفة</span>
+                                    <i className="fas fa-arrow-left text-[10px]" />
+                                </div>
+                            </button>
+                        )}
+
                         {/* Type breakdown */}
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                             {Object.entries(KNOWLEDGE_TYPE_LABELS).map(([type, label]) => (

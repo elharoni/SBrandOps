@@ -3,10 +3,19 @@ import { addBrand } from '../services/brandService';
 import { updateBrandProfile } from '../services/brandHubService';
 import { addKnowledgeEntry } from '../services/brandKnowledgeService';
 import { addBrandDocument, BrandDocType, DOC_TYPE_LABELS } from '../services/brandDocumentService';
-import { extractBrandFromDocument, extractBrandFromFileData, calcBrandImportCompleteness, BrandImportData } from '../services/geminiService';
+import { analyzeBrandFiles } from '../services/brandFileAnalysisService';
 import { extractTextFromPdf } from '../services/pdfExtractor';
 import { supabase } from '../services/supabaseClient';
 import { useModalClose } from '../hooks/useModalClose';
+import {
+    BrandAnalysisDocumentPayload,
+    BrandImportData,
+    calcBrandImportCompleteness,
+    getBrandFileExt,
+    getBrandFileMimeType,
+    isBrandFileBinaryExt,
+    isSupportedBrandFileExt,
+} from '../services/brandFileAnalysisShared';
 
 interface Props {
     onClose: () => void;
@@ -18,38 +27,38 @@ interface Props {
 
 type Step = 'input' | 'analyzing' | 'preview' | 'saving' | 'done';
 
-// MIME types Gemini can read natively as inline_data.
-// Only PDF is confirmed supported — DOCX/DOC/PPTX must be converted or pasted as text.
+// Binary formats sent server-side to OpenAI Responses as in-memory file inputs.
 const BINARY_MIME_TYPES: Record<string, string> = {
-    'pdf': 'application/pdf',
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
 // 5 MB raw PDF ~= 6.7 MB base64 payload, leaving headroom under the 8 MB ai-proxy limit.
-const INLINE_PDF_MAX_BYTES = 5 * 1024 * 1024;
-
-// Formats that need conversion before Gemini can read them
-const UNSUPPORTED_BINARY_EXTS = new Set(['docx', 'doc', 'pptx', 'xlsx']);
+const DIRECT_FILE_MAX_BYTES = 5 * 1024 * 1024;
+const TOTAL_ANALYSIS_BYTES_LIMIT = 7 * 1024 * 1024;
 
 const FORMAT_ICONS: Record<string, string> = {
     pdf: '📕', docx: '📘', doc: '📘', pptx: '📙',
-    xlsx: '📗', txt: '📄', md: '📄',
+    xlsx: '📗', csv: '📗', txt: '📄', md: '📄',
 };
 
 function getFileExt(name: string): string {
-    return name.split('.').pop()?.toLowerCase() ?? '';
+    return getBrandFileExt(name);
 }
 
 function isBinaryFormat(name: string): boolean {
-    return getFileExt(name) in BINARY_MIME_TYPES;
-}
-
-function isUnsupportedBinary(name: string): boolean {
-    return UNSUPPORTED_BINARY_EXTS.has(getFileExt(name));
+    return isBrandFileBinaryExt(getFileExt(name));
 }
 
 interface FileEntry {
     id: string;
     name: string;
+    originalFileName?: string;
+    fileType: string;
+    sizeBytes: number;
     docType: BrandDocType;
     // For text files (txt, md):
     text: string;
@@ -123,13 +132,22 @@ function formatBytes(bytes: number): string {
 
 export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existingBrandId }) => {
     const [step, setStep] = useState<Step>('input');
-    const [files, setFiles] = useState<FileEntry[]>([{ id: '1', name: 'وثيقة رئيسية', text: '', docType: 'brand_book' }]);
+    const [files, setFiles] = useState<FileEntry[]>([{
+        id: '1',
+        name: 'وثيقة رئيسية',
+        originalFileName: undefined,
+        fileType: 'text/plain',
+        sizeBytes: 0,
+        text: '',
+        docType: 'brand_book',
+    }]);
     const [extracted, setExtracted] = useState<BrandImportData | null>(null);
     const [completeness, setCompleteness] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [saveProgress, setSaveProgress] = useState('');
     const [saveDetails, setSaveDetails] = useState<string[]>([]);
     const [isLoadingFile, setIsLoadingFile] = useState(false);
+    const [analysisState, setAnalysisState] = useState<'idle' | 'uploading' | 'analyzing' | 'completed' | 'failed'>('idle');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [activeFileId, setActiveFileId] = useState('1');
     useModalClose(onClose);
@@ -141,7 +159,15 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
 
     const addFile = () => {
         const id = Date.now().toString();
-        setFiles(prev => [...prev, { id, name: `وثيقة ${prev.length + 1}`, text: '', docType: 'other' }]);
+        setFiles(prev => [...prev, {
+            id,
+            name: `وثيقة ${prev.length + 1}`,
+            originalFileName: undefined,
+            fileType: 'text/plain',
+            sizeBytes: 0,
+            text: '',
+            docType: 'other',
+        }]);
         setActiveFileId(id);
     };
 
@@ -152,40 +178,69 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         setActiveFileId(remaining[0].id);
     };
 
+    const validateSelectedFile = (file: File): string | null => {
+        const ext = getFileExt(file.name);
+        if (!isSupportedBrandFileExt(ext)) {
+            return 'نوع الملف غير مدعوم. استخدم PDF أو DOCX أو PPTX أو XLSX أو CSV أو TXT أو MD.';
+        }
+        if (file.size === 0) {
+            return 'الملف فارغ. ارفع ملفاً يحتوي على محتوى فعلي.';
+        }
+        if (isBinaryFormat(file.name) && ext !== 'pdf' && file.size > DIRECT_FILE_MAX_BYTES) {
+            return 'هذا الملف كبير جداً للتحليل المباشر. الحد الأقصى 5MB لملفات Word وPowerPoint وExcel.';
+        }
+        return null;
+    };
+
     const loadFileEntry = async (file: File): Promise<Partial<FileEntry>> => {
         const ext = getFileExt(file.name);
         const baseName = file.name.replace(/\.[^.]+$/, '');
         const docType = guessDocType(file.name);
+        const fileType = getBrandFileMimeType(file.name, file.type || 'text/plain');
 
-        if (isUnsupportedBinary(file.name)) {
-            // DOCX/DOC/PPTX: Gemini inline_data doesn't support these.
-            // Store as unsupported so we can show a conversion message.
-            return {
-                name: baseName, docType, text: '',
-                binaryData: { base64: '', mimeType: 'unsupported', sizeBytes: file.size },
-            };
-        } else if (isBinaryFormat(file.name)) {
-            // Use inline_data for typical PDFs and fall back to client-side extraction only for very large files.
-            if (file.size > INLINE_PDF_MAX_BYTES) {
+        if (isBinaryFormat(file.name)) {
+            // Large PDFs are converted to text locally; other supported binary files go to OpenAI as file inputs.
+            if (ext === 'pdf' && file.size > DIRECT_FILE_MAX_BYTES) {
                 const text = await extractTextFromPdf(file);
-                return { name: baseName, docType, text, binaryData: undefined, extractedFromPdf: { sizeBytes: file.size } };
+                return {
+                    name: baseName,
+                    originalFileName: file.name,
+                    fileType,
+                    sizeBytes: file.size,
+                    docType,
+                    text,
+                    binaryData: undefined,
+                    extractedFromPdf: { sizeBytes: file.size },
+                };
             }
             const base64 = await fileToBase64(file);
-            const mimeType = BINARY_MIME_TYPES[ext] ?? file.type;
             return {
-                name: baseName, docType, text: '',
-                binaryData: { base64, mimeType, sizeBytes: file.size },
+                name: baseName,
+                originalFileName: file.name,
+                fileType,
+                sizeBytes: file.size,
+                docType,
+                text: '',
+                binaryData: { base64, mimeType: BINARY_MIME_TYPES[ext] ?? fileType, sizeBytes: file.size },
             };
-        } else {
-            const text = await file.text();
-            return { name: baseName, docType, text, binaryData: undefined };
         }
+
+        const text = await file.text();
+        return {
+            name: baseName,
+            originalFileName: file.name,
+            fileType,
+            sizeBytes: file.size,
+            docType,
+            text,
+            binaryData: undefined,
+        };
     };
 
     const loadMultipleFiles = async (incomingFiles: File[]): Promise<FileEntry[]> => {
         const supported = incomingFiles.filter(f => {
             const ext = getFileExt(f.name);
-            return ['txt', 'md', 'text', 'pdf', 'docx', 'doc', 'pptx', 'xlsx'].includes(ext);
+            return isSupportedBrandFileExt(ext);
         });
         if (!supported.length) return [];
 
@@ -195,6 +250,9 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 return {
                     id: `${Date.now()}_${index}`,
                     name: file.name.replace(/\.[^.]+$/, ''),
+                    originalFileName: file.name,
+                    fileType: getBrandFileMimeType(file.name, file.type || 'text/plain'),
+                    sizeBytes: file.size,
                     docType: guessDocType(file.name),
                     text: '',
                     ...patch,
@@ -222,15 +280,25 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         if (!selectedFiles.length) return;
         e.target.value = '';
         setIsLoadingFile(true);
+        setAnalysisState('uploading');
+        setError(null);
         try {
+            const invalid = selectedFiles.map(validateSelectedFile).find(Boolean);
+            if (invalid) throw new Error(invalid);
+
             if (selectedFiles.length === 1) {
                 const patch = await loadFileEntry(selectedFiles[0]);
                 updateFile(activeFileId, patch);
+                setAnalysisState('idle');
                 return;
             }
 
             const newEntries = await loadMultipleFiles(selectedFiles);
             appendLoadedFiles(newEntries);
+            setAnalysisState('idle');
+        } catch (err) {
+            setAnalysisState('failed');
+            setError(err instanceof Error ? err.message : 'فشل تجهيز الملف للتحليل.');
         } finally {
             setIsLoadingFile(false);
         }
@@ -239,63 +307,65 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
     const handleDrop = async (e: React.DragEvent) => {
         e.preventDefault();
         setIsLoadingFile(true);
+        setAnalysisState('uploading');
+        setError(null);
         try {
-            const newEntries = await loadMultipleFiles(Array.from(e.dataTransfer.files));
+            const dropped = Array.from(e.dataTransfer.files);
+            const invalid = dropped.map(validateSelectedFile).find(Boolean);
+            if (invalid) throw new Error(invalid);
+            const newEntries = await loadMultipleFiles(dropped);
             appendLoadedFiles(newEntries);
+            setAnalysisState('idle');
+        } catch (err) {
+            setAnalysisState('failed');
+            setError(err instanceof Error ? err.message : 'فشل تجهيز الملف للتحليل.');
         } finally {
             setIsLoadingFile(false);
         }
     };
 
     const handleAnalyze = async () => {
-        const readyFiles = files.filter(f =>
-            (f.text.trim() || f.binaryData) &&
-            f.binaryData?.mimeType !== 'unsupported'
-        );
+        const readyFiles = files.filter((file) => file.text.trim() || file.binaryData);
         if (!readyFiles.length) {
-            setError('يرجى رفع ملف PDF أو TXT/MD، أو لصق المحتوى في مربع النص.');
+            setError('يرجى رفع ملف مدعوم أو لصق المحتوى في مربع النص قبل بدء التحليل.');
+            setAnalysisState('failed');
             return;
         }
+
+        const estimatedBytes = readyFiles.reduce((sum, file) => (
+            sum +
+            (file.binaryData?.sizeBytes ?? 0) +
+            (file.text ? new Blob([file.text]).size : 0)
+        ), 0);
+
+        if (estimatedBytes > TOTAL_ANALYSIS_BYTES_LIMIT) {
+            setError('الملفات المحددة كبيرة جداً للتحليل دفعة واحدة. قلّل العدد أو استخدم ملفات أصغر.');
+            setAnalysisState('failed');
+            return;
+        }
+
+        const documents: BrandAnalysisDocumentPayload[] = readyFiles.map((file) => ({
+            file_name: file.originalFileName || `${file.name}.${file.fileType.split('/').pop() || 'txt'}`,
+            file_type: file.fileType,
+            mime_type: file.binaryData?.mimeType || file.fileType,
+            size_bytes: file.binaryData?.sizeBytes ?? file.sizeBytes ?? new Blob([file.text]).size,
+            ...(file.binaryData?.base64 ? { base64_data: file.binaryData.base64 } : {}),
+            ...(file.text.trim() ? { text_content: file.text.trim() } : {}),
+        }));
+
         setError(null);
+        setAnalysisState('analyzing');
         setStep('analyzing');
+
         try {
-            let data: BrandImportData;
-
-            if (readyFiles.length === 1 && readyFiles[0].binaryData) {
-                // Single binary file (PDF) → send directly to Gemini as inline_data
-                const { base64, mimeType } = readyFiles[0].binaryData;
-                data = await extractBrandFromFileData(base64, mimeType);
-            } else if (readyFiles.length === 1 && readyFiles[0].text) {
-                // Single text file
-                data = await extractBrandFromDocument(readyFiles[0].text);
-            } else {
-                // Multiple files → keep the first PDF attached to Gemini and merge the rest as text context.
-                const firstBinary = readyFiles.find(f => f.binaryData);
-                const textParts = readyFiles
-                    .filter(f => f !== firstBinary && f.text.trim())
-                    .map(f => `=== ${f.name} (${DOC_TYPE_LABELS[f.docType]}) ===\n\n${f.text}`);
-                const secondaryBinaryNotes = readyFiles
-                    .filter(f => f !== firstBinary && f.binaryData && !f.text.trim())
-                    .map(f => `[ملف PDF إضافي مرفق بدون نص قابل للاستخراج: ${f.name}]`);
-                const mergedContext = [...secondaryBinaryNotes, ...textParts].join('\n\n---\n\n');
-
-                if (firstBinary?.binaryData) {
-                    data = await extractBrandFromFileData(
-                        firstBinary.binaryData.base64,
-                        firstBinary.binaryData.mimeType,
-                        mergedContext || undefined,
-                    );
-                } else {
-                    data = await extractBrandFromDocument(mergedContext);
-                }
-            }
-
-            const score = calcBrandImportCompleteness(data);
-            setExtracted(data);
-            setCompleteness(score);
+            const result = await analyzeBrandFiles(documents, existingBrandId);
+            setExtracted(result.data);
+            setCompleteness(result.score || calcBrandImportCompleteness(result.data));
+            setAnalysisState('completed');
             setStep('preview');
-        } catch (err: any) {
-            setError(err.message ?? 'فشل التحليل، حاول مرة أخرى');
+        } catch (err) {
+            setAnalysisState('failed');
+            setError(err instanceof Error ? err.message : 'فشل التحليل، حاول مرة أخرى.');
             setStep('input');
         }
     };
@@ -334,6 +404,11 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
             await updateBrandProfile(brandId, {
                 brandName: extracted.name,
                 industry: extracted.industry,
+                description: extracted.documentSummary || extracted.positioning,
+                targetAudienceSummary: extracted.targetAudienceSummary,
+                valueProp: extracted.valueProp,
+                brandPromise: extracted.coreOffer,
+                messagingPillars: extracted.contentPillars,
                 values: extracted.values,
                 keySellingPoints: extracted.keySellingPoints,
                 styleGuidelines: extracted.styleGuidelines,
@@ -357,10 +432,28 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
             if (extracted.missionStatement) strategyEntries.push({ title: 'رسالة البراند', content: extracted.missionStatement });
             if (extracted.visionStatement)  strategyEntries.push({ title: 'رؤية البراند',  content: extracted.visionStatement });
             if (extracted.brandArchetype)   strategyEntries.push({ title: 'شخصية البراند (Archetype)', content: `${extracted.brandArchetype}${extracted.brandStory ? '\n\nقصة البراند: ' + extracted.brandStory : ''}` });
+            if (extracted.positioning) strategyEntries.push({ title: 'التموضع السوقي', content: extracted.positioning });
+            if (extracted.coreOffer) strategyEntries.push({ title: 'العرض الأساسي', content: extracted.coreOffer });
+            if (extracted.valueProp) strategyEntries.push({ title: 'القيمة المقترحة', content: extracted.valueProp });
             if (extracted.contentPillars.length) strategyEntries.push({ title: 'محاور المحتوى', content: extracted.contentPillars.map((p, i) => `${i + 1}. ${p}`).join('\n') });
             if (extracted.postingStrategy) strategyEntries.push({ title: 'استراتيجية النشر', content: extracted.postingStrategy });
             if (extracted.brandColors.length)  strategyEntries.push({ title: 'ألوان البراند',   content: extracted.brandColors.join('، ') });
             if (extracted.brandHashtags.length) strategyEntries.push({ title: 'هاشتاقات البراند', content: extracted.brandHashtags.join(' ') });
+            if (extracted.marketingIntelligence.content_angles.length) {
+                strategyEntries.push({ title: 'زوايا المحتوى المقترحة', content: extracted.marketingIntelligence.content_angles.map((item, index) => `${index + 1}. ${item}`).join('\n') });
+            }
+            if (extracted.marketingIntelligence.ad_angles.length) {
+                strategyEntries.push({ title: 'زوايا الإعلانات المقترحة', content: extracted.marketingIntelligence.ad_angles.map((item, index) => `${index + 1}. ${item}`).join('\n') });
+            }
+            if (extracted.contentSystem.suggested_hooks.length) {
+                strategyEntries.push({ title: 'الهوكات المقترحة', content: extracted.contentSystem.suggested_hooks.map((item, index) => `${index + 1}. ${item}`).join('\n') });
+            }
+            if (extracted.contentSystem.cta_suggestions.length) {
+                strategyEntries.push({ title: 'دعوات الإجراء المقترحة', content: extracted.contentSystem.cta_suggestions.map((item, index) => `${index + 1}. ${item}`).join('\n') });
+            }
+            if (extracted.businessNotes.recommended_next_questions.length) {
+                strategyEntries.push({ title: 'أسئلة المتابعة الموصى بها', content: extracted.businessNotes.recommended_next_questions.map((item, index) => `${index + 1}. ${item}`).join('\n') });
+            }
 
             for (let i = 0; i < strategyEntries.length; i++) {
                 await addKnowledgeEntry(brandId, {
@@ -421,12 +514,14 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 knowledgeEntries: extracted.knowledgeEntries.length,
                 sampleContent: extracted.sampleContent.length,
                 contentPillars: extracted.contentPillars.length,
+                contentAngles: extracted.marketingIntelligence.content_angles.length,
+                adAngles: extracted.marketingIntelligence.ad_angles.length,
+                hooks: extracted.contentSystem.suggested_hooks.length,
+                ctas: extracted.contentSystem.cta_suggestions.length,
+                confidenceScore: extracted.businessNotes.confidence_score,
             };
 
-            const savableFiles = files.filter(f =>
-                (f.text.trim() || f.binaryData) &&
-                f.binaryData?.mimeType !== 'unsupported'
-            );
+            const savableFiles = files.filter(f => f.text.trim() || f.binaryData);
             for (const file of savableFiles) {
                 await addBrandDocument(brandId, {
                     title: file.name,
@@ -437,6 +532,12 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                     completenessScore: completeness,
                     memoryEntriesSaved: extracted.sampleContent.length,
                     knowledgeEntriesSaved: extracted.knowledgeEntries.length,
+                    fileName: file.originalFileName || `${file.name}.${file.fileType.split('/').pop() || 'txt'}`,
+                    fileType: file.fileType,
+                    analysisProvider: extracted.analysisProvider,
+                    analysisModel: extracted.analysisModel,
+                    analysisJson: extracted.rawAnalysis as unknown as Record<string, unknown>,
+                    detectedLanguage: extracted.detectedLanguage,
                 });
             }
             addDetail(`📚 ${savableFiles.length} وثيقة حُفظت في مكتبة التعلم`);
@@ -450,10 +551,7 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
         }
     };
 
-    const filledFiles = files.filter(f =>
-        (f.text.trim() || f.binaryData) &&
-        f.binaryData?.mimeType !== 'unsupported'
-    ).length;
+    const filledFiles = files.filter(f => f.text.trim() || f.binaryData).length;
 
     return (
         <div
@@ -543,7 +641,7 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                         }
                                         {isLoadingFile ? 'جارٍ القراءة...' : 'رفع ملف'}
                                     </button>
-                                    <input ref={fileInputRef} type="file" accept=".txt,.md,.text,.pdf,.docx,.doc,.pptx,.xlsx" className="hidden" onChange={handleFileUpload} multiple />
+                                    <input ref={fileInputRef} type="file" accept=".txt,.md,.text,.csv,.pdf,.docx,.doc,.pptx,.xlsx" className="hidden" onChange={handleFileUpload} multiple />
                                 </div>
 
                                 {/* Binary file: show card preview instead of textarea */}
@@ -565,68 +663,28 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                             title="إزالة الملف">×</button>
                                     </div>
                                 ) : activeFile.binaryData ? (
-                                    activeFile.binaryData.mimeType === 'unsupported' ? (
-                                        /* DOCX / DOC / PPTX — not supported via inline_data */
-                                        <div className="p-4 bg-amber-500/5 border-2 border-amber-500/30 rounded-xl space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-3xl flex-shrink-0">
-                                                    {FORMAT_ICONS[getFileExt(activeFile.name)] ?? '📄'}
-                                                </span>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-semibold text-light-text dark:text-dark-text truncate text-sm">{activeFile.name}</p>
-                                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
-                                                        {getFileExt(activeFile.name).toUpperCase()} • {formatBytes(activeFile.binaryData.sizeBytes)}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => updateFile(activeFileId, { binaryData: undefined, text: '' })}
-                                                    className="text-light-text-secondary dark:text-dark-text-secondary hover:text-red-500 text-sm flex-shrink-0"
-                                                >×</button>
-                                            </div>
-                                            <div className="flex items-start gap-2 text-amber-600 dark:text-amber-400">
-                                                <i className="fas fa-triangle-exclamation text-xs mt-0.5 flex-shrink-0" />
-                                                <p className="text-xs leading-relaxed">
-                                                    <span className="font-bold">Word / PowerPoint غير مدعوم مباشرة.</span>{' '}
-                                                    يدعم Gemini قراءة <span className="font-bold">PDF</span> فقط من الملفات الثنائية.
-                                                    يرجى:
-                                                </p>
-                                            </div>
-                                            <ul className="text-xs text-light-text-secondary dark:text-dark-text-secondary space-y-1 pr-4 list-disc">
-                                                <li>حفظ الملف كـ <span className="font-bold text-light-text dark:text-dark-text">PDF</span> ثم رفعه من جديد</li>
-                                                <li>أو نسخ المحتوى ولصقه في مربع النص أدناه</li>
-                                            </ul>
-                                            <button
-                                                type="button"
-                                                onClick={() => updateFile(activeFileId, { binaryData: undefined, text: '' })}
-                                                className="text-xs text-brand-primary hover:underline font-medium"
-                                            >
-                                                إزالة الملف والتبديل إلى النص
-                                            </button>
+                                    <div className="flex items-center gap-4 p-4 bg-light-bg dark:bg-dark-bg border-2 border-brand-primary/30 rounded-xl">
+                                        <span className="text-3xl flex-shrink-0">
+                                            {FORMAT_ICONS[getFileExt(activeFile.originalFileName || activeFile.name)] ?? '📄'}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-light-text dark:text-dark-text truncate text-sm">{activeFile.name}</p>
+                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
+                                                {getFileExt(activeFile.originalFileName || activeFile.name).toUpperCase()} • {formatBytes(activeFile.binaryData.sizeBytes)}
+                                            </p>
+                                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                                                ✓ جاهز — سيُرسل الملف إلى OpenAI / ChatGPT للتحليل
+                                            </p>
                                         </div>
-                                    ) : (
-                                        /* PDF — ready (small: inline_data, large: text extracted client-side) */
-                                        <div className="flex items-center gap-4 p-4 bg-light-bg dark:bg-dark-bg border-2 border-brand-primary/30 rounded-xl">
-                                            <span className="text-3xl flex-shrink-0">📕</span>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-light-text dark:text-dark-text truncate text-sm">{activeFile.name}</p>
-                                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
-                                                    PDF • {formatBytes(activeFile.binaryData!.sizeBytes)}
-                                                </p>
-                                                <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
-                                                    ✓ جاهز — Gemini سيقرأه مباشرة
-                                                </p>
-                                            </div>
-                                            <button type="button" onClick={() => updateFile(activeFileId, { binaryData: undefined, text: '' })}
-                                                className="text-light-text-secondary dark:text-dark-text-secondary hover:text-red-500 text-sm flex-shrink-0"
-                                                title="إزالة الملف">×</button>
-                                        </div>
-                                    )
+                                        <button type="button" onClick={() => updateFile(activeFileId, { binaryData: undefined, text: '' })}
+                                            className="text-light-text-secondary dark:text-dark-text-secondary hover:text-red-500 text-sm flex-shrink-0"
+                                            title="إزالة الملف">×</button>
+                                    </div>
                                 ) : (
                                     <textarea
                                         value={activeFile.text}
                                         onChange={e => updateFile(activeFileId, { text: e.target.value })}
-                                        placeholder={`الصق محتوى الوثيقة هنا أو ارفع ملف...\n\nملفات مدعومة: PDF (مباشر) • TXT • MD\nWord/PowerPoint: انسخ المحتوى والصقه هنا\n\nمثال على ما يمكن إدخاله:\n• كتاب البراند الكامل\n• وصف المنتجات والخدمات\n• أمثلة على منشورات سوشيال ميديا\n• تحليل المنافسين\n• قصة البراند والرسالة والرؤية\n• الأسئلة الشائعة والسياسات`}
+                                        placeholder={`الصق محتوى الوثيقة هنا أو ارفع ملف...\n\nملفات مدعومة: PDF • DOCX • PPTX • XLSX • CSV • TXT • MD\nالتحليل يتم عبر OpenAI / ChatGPT من السيرفر فقط\n\nمثال على ما يمكن إدخاله:\n• كتاب البراند الكامل\n• وصف المنتجات والخدمات\n• أمثلة على منشورات سوشيال ميديا\n• تحليل المنافسين\n• قصة البراند والرسالة والرؤية\n• الأسئلة الشائعة والسياسات`}
                                         rows={10}
                                         dir="auto"
                                         className="w-full p-3 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-sm text-light-text dark:text-dark-text focus:ring-brand-primary focus:border-brand-primary resize-none font-mono leading-relaxed"
@@ -650,9 +708,17 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                 <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-sm">{error}</div>
                             )}
 
+                            <div className="p-3 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-lg text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                {analysisState === 'uploading' && 'الحالة: تجهيز الملف للرفع والتحليل'}
+                                {analysisState === 'analyzing' && 'الحالة: جاري التحليل عبر OpenAI / ChatGPT'}
+                                {analysisState === 'completed' && 'الحالة: اكتمل التحليل بنجاح'}
+                                {analysisState === 'failed' && 'الحالة: فشل التحليل — يمكنك تعديل الملفات ثم إعادة المحاولة'}
+                                {analysisState === 'idle' && 'الحالة: جاهز للتحليل'}
+                            </div>
+
                             <div className="p-3 bg-brand-primary/10 border border-brand-primary/20 rounded-lg text-sm text-brand-primary/90 space-y-1">
                                 <p className="font-semibold">💡 كلما أضفت أكثر، تعلّم البراند أكثر:</p>
-                                <p className="text-xs opacity-80">يستخرج الـ AI: الهوية، الرسالة والرؤية، الشخصية، محاور المحتوى، المنشورات النموذجية، قاعدة المعرفة — ويحفظها كلها في ذاكرة الـ AI</p>
+                                <p className="text-xs opacity-80">يستخرج OpenAI: الهوية، الرسالة والرؤية، التمركز، الجمهور، محاور المحتوى، قاعدة المعرفة، وملاحظات العمل — ثم يحفظها داخل Brand Hub</p>
                             </div>
                         </div>
                     )}
@@ -666,9 +732,9 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                 <div className="absolute inset-0 flex items-center justify-center text-3xl">🧠</div>
                             </div>
                             <div className="text-center space-y-2">
-                                <p className="text-lg font-bold text-light-text dark:text-dark-text">الذكاء الاصطناعي يدرس الوثائق...</p>
-                                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">يستخرج الهوية، الصوت، المحتوى النموذجي، قاعدة المعرفة</p>
-                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary opacity-70 mt-1">قد يستغرق 30–90 ثانية حسب حجم الوثائق</p>
+                                <p className="text-lg font-bold text-light-text dark:text-dark-text">ChatGPT / OpenAI يحلل الوثائق...</p>
+                                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">يستخرج الهوية، الصوت، الجمهور، الذكاء التسويقي، ونظام المحتوى</p>
+                                <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary opacity-70 mt-1">قد يستغرق 20–60 ثانية حسب حجم الوثائق</p>
                             </div>
                         </div>
                     )}
@@ -694,6 +760,8 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                         <Pill color="blue"  label={`${extracted.knowledgeEntries.length} إدخال معرفة`} />
                                         <Pill color="green" label={`${extracted.sampleContent.length} مثال محتوى`} />
                                         <Pill color="purple" label={`${extracted.brandAudiences.length} جمهور`} />
+                                        <Pill color="yellow" label={`OpenAI • ${extracted.analysisModel || 'model'}`} />
+                                        {extracted.detectedLanguage && <Pill color="red" label={`اللغة: ${extracted.detectedLanguage}`} />}
                                     </div>
                                 </div>
                             </div>
@@ -701,10 +769,15 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                             {/* Identity */}
                             <Section title="🏷️ الهوية الأساسية">
                                 <Row label="الاسم"     value={extracted.name} />
+                                {extracted.businessType && <Row label="نوع النشاط" value={extracted.businessType} />}
                                 <Row label="المجال"    value={extracted.industry} />
+                                {extracted.market && <Row label="السوق" value={extracted.market} />}
                                 {extracted.country  && <Row label="الدولة"  value={extracted.country} />}
                                 {extracted.website  && <Row label="الموقع"  value={extracted.website} />}
                                 {extracted.brandArchetype && <Row label="الشخصية" value={extracted.brandArchetype} />}
+                                {extracted.positioning && <LongRow label="التموضع" value={extracted.positioning} />}
+                                {extracted.coreOffer && <LongRow label="العرض الأساسي" value={extracted.coreOffer} />}
+                                {extracted.valueProp && <LongRow label="القيمة المقترحة" value={extracted.valueProp} />}
                             </Section>
 
                             {/* Mission / Vision / Story */}
@@ -800,6 +873,39 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                     </div>
                                 </Section>
                             )}
+
+                            <Section title="📈 الذكاء التسويقي">
+                                <TagRow label="المنتجات / الخدمات" tags={extracted.marketingIntelligence.main_products_or_services} color="blue" />
+                                <TagRow label="نقاط الألم" tags={extracted.marketingIntelligence.customer_pain_points} color="red" />
+                                <TagRow label="الرغبات" tags={extracted.marketingIntelligence.customer_desires} color="green" />
+                                <TagRow label="المزايا التنافسية" tags={extracted.marketingIntelligence.competitive_advantages} color="purple" />
+                                <TagRow label="عناصر الإثبات" tags={extracted.marketingIntelligence.proof_points} color="yellow" />
+                                <TagRow label="الاعتراضات" tags={extracted.marketingIntelligence.objections} color="red" />
+                                <TagRow label="زوايا المحتوى" tags={extracted.marketingIntelligence.content_angles} color="blue" />
+                                <TagRow label="زوايا الإعلانات" tags={extracted.marketingIntelligence.ad_angles} color="green" />
+                            </Section>
+
+                            <Section title="🪄 نظام المحتوى">
+                                <TagRow label="محاور المحتوى الموصى بها" tags={extracted.contentSystem.recommended_content_pillars} color="purple" />
+                                <TagRow label="Hooks مقترحة" tags={extracted.contentSystem.suggested_hooks} color="yellow" />
+                                <TagRow label="CTA مقترحة" tags={extracted.contentSystem.cta_suggestions} color="green" />
+                                {extracted.contentSystem.caption_style && <LongRow label="أسلوب الكابشن" value={extracted.contentSystem.caption_style} />}
+                                {extracted.contentSystem.do.length > 0 && <ListRow label="✅ افعل" items={extracted.contentSystem.do} />}
+                                {extracted.contentSystem.dont.length > 0 && <ListRow label="❌ لا تفعل" items={extracted.contentSystem.dont} />}
+                            </Section>
+
+                            <Section title="🧭 ملاحظات العمل">
+                                <Row label="الثقة" value={`${Math.max(0, Math.min(100, extracted.businessNotes.confidence_score))}%`} />
+                                {extracted.businessNotes.missing_information.length > 0 && (
+                                    <ListRow label="معلومات ناقصة" items={extracted.businessNotes.missing_information} />
+                                )}
+                                {extracted.businessNotes.risks_or_inconsistencies.length > 0 && (
+                                    <ListRow label="مخاطر أو تناقضات" items={extracted.businessNotes.risks_or_inconsistencies} />
+                                )}
+                                {extracted.businessNotes.recommended_next_questions.length > 0 && (
+                                    <ListRow label="الأسئلة التالية" items={extracted.businessNotes.recommended_next_questions} />
+                                )}
+                            </Section>
                         </div>
                     )}
 
@@ -861,10 +967,15 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                     className="text-light-text-secondary dark:text-dark-text-secondary font-medium py-2 px-4 rounded-lg hover:bg-light-bg dark:hover:bg-dark-bg">
                                     إلغاء
                                 </button>
-                                <button type="button" onClick={handleAnalyze} disabled={filledFiles === 0}
+                                <button
+                                    type="button"
+                                    onClick={handleAnalyze}
+                                    disabled={filledFiles === 0 || isLoadingFile || analysisState === 'analyzing'}
                                     className="bg-brand-primary text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500 hover:bg-brand-secondary flex items-center gap-2">
-                                    <span>🧠</span>
-                                    تحليل {filledFiles > 1 ? `${filledFiles} وثائق` : 'الوثيقة'}
+                                    <span>{analysisState === 'failed' ? '↻' : '🧠'}</span>
+                                    {analysisState === 'failed'
+                                        ? 'إعادة التحليل'
+                                        : `تحليل ${filledFiles > 1 ? `${filledFiles} وثائق` : 'الوثيقة'}`}
                                 </button>
                             </>
                         )}

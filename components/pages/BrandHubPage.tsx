@@ -1,11 +1,11 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
+import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
 import { analyzeBrandFiles, buildWizardPrefillFromAnalysis } from '../../services/brandFileAnalysisService';
 import { getBrandFileExt, getBrandFileMimeType, isBrandFileBinaryExt, isSupportedBrandFileExt } from '../../services/brandFileAnalysisShared';
-import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
+import { getBrandKnowledge } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
 import { getBrandSkillsReport } from '../../services/evaluationService';
@@ -24,7 +24,7 @@ interface BrandHubPageProps {
     onNavigate?: (page: string) => void;
 }
 
-type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'knowledge' | 'documents' | 'intelligence';
+type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'documents' | 'intelligence';
 
 // ONB-1: Multi-step AI First-Run Experience Wizard
 const TONE_OPTIONS = [
@@ -673,38 +673,10 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     const [evaluationResult, setEvaluationResult] = useState<BrandConsistencyEvaluation | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
 
-    // Knowledge Base State
-    const [knowledgeEntries, setKnowledgeEntries] = useState<BrandKnowledgeEntry[]>([]);
-    const [knowledgeTab, setKnowledgeTab] = useState<BrandKnowledgeType>('product');
-    const [isLoadingKnowledge, setIsLoadingKnowledge] = useState(false);
-    const [showKnowledgeForm, setShowKnowledgeForm] = useState(false);
-    const [editingEntry, setEditingEntry] = useState<BrandKnowledgeEntry | null>(null);
-    const [kForm, setKForm] = useState({ title: '', content: '' });
-    const [kSaving, setKSaving] = useState(false);
-
-    // AI Quick-Fill State (P2-01)
-    type AISuggestion = { title: string; content: string; status: 'pending' | 'approved' | 'rejected'; editTitle: string; editContent: string; editing: boolean };
-    const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
-    const [showAiReview, setShowAiReview] = useState(false);
-
     // Learning Library State
     const [documents, setDocuments] = useState<BrandDocument[]>([]);
     const [isLoadingDocs, setIsLoadingDocs] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
-
-    const loadKnowledge = useCallback(async () => {
-        if (!brandId) return;
-        setIsLoadingKnowledge(true);
-        try {
-            const entries = await getBrandKnowledge(brandId);
-            setKnowledgeEntries(entries);
-        } catch (err) {
-            console.warn('[BrandHub] knowledge fetch error:', err);
-        } finally {
-            setIsLoadingKnowledge(false);
-        }
-    }, [brandId]);
 
     const loadDocuments = useCallback(async () => {
         if (!brandId) return;
@@ -732,9 +704,8 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     }, [brandId, initialProfile.brandName, loadDocuments, onUpdate, profile.brandName]);
 
     useEffect(() => {
-        if (activeTab === 'knowledge') loadKnowledge();
         if (activeTab === 'documents') loadDocuments();
-    }, [activeTab, loadKnowledge, loadDocuments]);
+    }, [activeTab, loadDocuments]);
 
     const handleDeleteDocument = async (docId: string) => {
         try {
@@ -743,135 +714,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
             addNotification(NotificationType.Success, 'تم حذف الوثيقة');
         } catch {
             addNotification(NotificationType.Error, 'فشل الحذف');
-        }
-    };
-
-    const openAddForm = () => {
-        setEditingEntry(null);
-        setKForm({ title: '', content: '' });
-        setShowKnowledgeForm(true);
-    };
-
-    const openEditForm = (entry: BrandKnowledgeEntry) => {
-        setEditingEntry(entry);
-        setKForm({ title: entry.title, content: entry.content });
-        setShowKnowledgeForm(true);
-    };
-
-    const handleKSave = async () => {
-        if (!kForm.title.trim() || !kForm.content.trim()) return;
-        setKSaving(true);
-        try {
-            if (editingEntry) {
-                await updateKnowledgeEntry(brandId, editingEntry.id, { title: kForm.title, content: kForm.content });
-                addNotification(NotificationType.Success, 'تم تحديث السجل.');
-            } else {
-                await addKnowledgeEntry(brandId, { type: knowledgeTab, title: kForm.title, content: kForm.content, metadata: {}, sortOrder: 0 });
-                addNotification(NotificationType.Success, 'تم إضافة السجل.');
-            }
-            setShowKnowledgeForm(false);
-            await loadKnowledge();
-        } catch (err) {
-            addNotification(NotificationType.Error, 'فشل الحفظ.');
-        } finally {
-            setKSaving(false);
-        }
-    };
-
-    const handleKDelete = async (entry: BrandKnowledgeEntry) => {
-        try {
-            await deleteKnowledgeEntry(brandId, entry.id);
-            setKnowledgeEntries(prev => prev.filter(e => e.id !== entry.id));
-            addNotification(NotificationType.Success, 'تم الحذف.');
-        } catch {
-            addNotification(NotificationType.Error, 'فشل الحذف.');
-        }
-    };
-
-    const handleAIQuickFill = async () => {
-        setAiGenerating(true);
-        setShowAiReview(false);
-        setAiSuggestions([]);
-        const typeLabels: Record<string, string> = {
-            product: 'منتجات أو خدمات يقدمها البراند',
-            faq: 'أسئلة شائعة مع إجاباتها',
-            scenario_script: 'سيناريوهات رد على اعتراضات شائعة',
-        };
-        const typeLabel = typeLabels[knowledgeTab] || knowledgeTab;
-        const brandContext = [
-            `اسم البراند: ${profile.brandName}`,
-            profile.industry ? `الصناعة: ${profile.industry}` : null,
-            profile.description ? `الوصف: ${profile.description}` : null,
-            profile.targetAudienceSummary ? `الجمهور: ${profile.targetAudienceSummary}` : null,
-            profile.brandAudiences?.[0]?.description ? `وصف الجمهور: ${profile.brandAudiences[0].description}` : null,
-        ].filter(Boolean).join('\n');
-        try {
-            const res = await callAIProxy({
-                model: 'gemini-2.5-flash',
-                contents: [{
-                    role: 'user',
-                    parts: [{ text: `بناءً على هذه المعلومات عن البراند:\n${brandContext}\n\nاقترح 6 سجلات عملية من نوع "${typeLabel}" لقاعدة المعرفة. كل سجل يجب أن يكون مناسباً لهذا البراند تحديداً. أرجع JSON فقط.` }],
-                }],
-                schema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        suggestions: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    title: { type: Type.STRING, description: 'عنوان مختصر واضح' },
-                                    content: { type: Type.STRING, description: 'المحتوى التفصيلي' },
-                                },
-                                required: ['title', 'content'],
-                            },
-                        },
-                    },
-                    required: ['suggestions'],
-                },
-                feature: 'knowledge_quickfill',
-            });
-            const data = (typeof res.text === 'string' ? JSON.parse(res.text) : res.text) as { suggestions: { title: string; content: string }[] };
-            const suggestions: AISuggestion[] = (data.suggestions ?? []).slice(0, 8).map(s => ({
-                title: s.title,
-                content: s.content,
-                status: 'pending',
-                editTitle: s.title,
-                editContent: s.content,
-                editing: false,
-            }));
-            setAiSuggestions(suggestions);
-            setShowAiReview(true);
-        } catch (err) {
-            addNotification(NotificationType.Error, 'فشل التوليد — تحقق من اتصال الذكاء الاصطناعي');
-            console.error('[AI QuickFill]', err);
-        } finally {
-            setAiGenerating(false);
-        }
-    };
-
-    const handleSaveAISuggestions = async () => {
-        const approved = aiSuggestions.filter(s => s.status === 'approved');
-        if (approved.length === 0) return;
-        setKSaving(true);
-        try {
-            for (const s of approved) {
-                await addKnowledgeEntry(brandId, {
-                    type: knowledgeTab,
-                    title: s.editing ? s.editTitle : s.title,
-                    content: s.editing ? s.editContent : s.content,
-                    metadata: {},
-                    sortOrder: 0,
-                });
-            }
-            addNotification(NotificationType.Success, `تم حفظ ${approved.length} سجل جديد ✓`);
-            setShowAiReview(false);
-            setAiSuggestions([]);
-            await loadKnowledge();
-        } catch {
-            addNotification(NotificationType.Error, 'فشل حفظ المقترحات');
-        } finally {
-            setKSaving(false);
         }
     };
 
@@ -1547,252 +1389,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                 {activeTab === 'audience' && (
                     <AudienceTabContent profile={profile} />
                 )}
-                {/* ── Knowledge Base Tab ──────────────────────────────────── */}
-                {activeTab === 'knowledge' && (() => {
-                    const KNOWLEDGE_TYPES: { id: BrandKnowledgeType; label: string; icon: string; placeholder: { title: string; content: string } }[] = [
-                        { id: 'product',         label: 'المنتجات والخدمات', icon: 'fa-box-open',    placeholder: { title: 'اسم المنتج أو الخدمة', content: 'وصف المنتج، المميزات، السعر، إلخ...' } },
-                        { id: 'faq',             label: 'الأسئلة الشائعة',  icon: 'fa-question-circle', placeholder: { title: 'السؤال', content: 'الإجابة الكاملة...' } },
-                        { id: 'policy',          label: 'السياسات',          icon: 'fa-file-contract', placeholder: { title: 'نوع السياسة (شحن، إرجاع، دفع...)', content: 'تفاصيل السياسة...' } },
-                        { id: 'competitor',      label: 'المنافسون',         icon: 'fa-chess',        placeholder: { title: 'اسم المنافس', content: 'نقاط القوة، الضعف، الفرق...' } },
-                        { id: 'scenario_script', label: 'سيناريوهات الرد',   icon: 'fa-comments',     placeholder: { title: 'اسم السيناريو (مثل: رد على شكوى تأخير)', content: 'الرد المقترح بالكامل...' } },
-                    ];
-                    const currentTypeConfig = KNOWLEDGE_TYPES.find(t => t.id === knowledgeTab)!;
-                    const visibleEntries = knowledgeEntries.filter(e => e.type === knowledgeTab);
-
-                    return (
-                        <div className="space-y-5">
-                            <div className="flex items-center justify-between flex-wrap gap-3">
-                                <div>
-                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                        <i className="fas fa-database text-brand-pink" />
-                                        قاعدة المعرفة الخاصة
-                                    </h2>
-                                    <p className="text-xs text-dark-text-secondary mt-1">
-                                        هذه المعلومات تُغذّي الذكاء الاصطناعي في كل طلباتك — كلما كانت أدق كانت المخرجات أفضل.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {['product', 'faq', 'scenario_script'].includes(knowledgeTab) && (
-                                        <button
-                                            onClick={handleAIQuickFill}
-                                            disabled={aiGenerating}
-                                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brand-pink to-brand-purple text-white rounded-xl text-sm font-semibold hover:opacity-90 disabled:opacity-60 transition-all"
-                                        >
-                                            {aiGenerating
-                                                ? <i className="fas fa-circle-notch fa-spin text-xs" />
-                                                : <i className="fas fa-magic text-xs" />
-                                            }
-                                            {aiGenerating ? 'جاري التوليد...' : 'توليد بـ AI'}
-                                        </button>
-                                    )}
-                                    <button
-                                        onClick={openAddForm}
-                                        className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-secondary transition-colors"
-                                    >
-                                        <i className="fas fa-plus text-xs" />
-                                        إضافة سجل
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Type sub-tabs */}
-                            <div className="flex gap-1.5 flex-wrap">
-                                {KNOWLEDGE_TYPES.map(t => (
-                                    <button
-                                        key={t.id}
-                                        onClick={() => setKnowledgeTab(t.id)}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                                            knowledgeTab === t.id
-                                                ? 'bg-brand-primary text-white'
-                                                : 'bg-dark-bg text-dark-text-secondary hover:text-white border border-dark-border'
-                                        }`}
-                                    >
-                                        <i className={`fas ${t.icon} text-[10px]`} />
-                                        {t.label}
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                                            knowledgeTab === t.id ? 'bg-white/20' : 'bg-dark-card'
-                                        }`}>
-                                            {knowledgeEntries.filter(e => e.type === t.id).length}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* AI Review Panel (P2-01) */}
-                            {showAiReview && aiSuggestions.length > 0 && (
-                                <div className="rounded-2xl border border-brand-pink/30 bg-brand-pink/5 p-5 space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                                                <i className="fas fa-magic text-brand-pink" />
-                                                مقترحات الذكاء الاصطناعي
-                                            </h3>
-                                            <p className="text-[11px] text-dark-text-secondary mt-0.5">راجع كل مقترح — ✓ وافق / ✎ عدّل / ✗ ارفض</p>
-                                        </div>
-                                        <button onClick={() => { setShowAiReview(false); setAiSuggestions([]); }} className="text-dark-text-secondary hover:text-white">
-                                            <i className="fas fa-times text-sm" />
-                                        </button>
-                                    </div>
-                                    <div className="space-y-3">
-                                        {aiSuggestions.map((s, i) => (
-                                            <div key={i} className={`rounded-xl border p-4 transition-all ${
-                                                s.status === 'approved' ? 'border-emerald-500/40 bg-emerald-500/5' :
-                                                s.status === 'rejected' ? 'border-dark-border opacity-40' :
-                                                'border-dark-border bg-dark-bg'
-                                            }`}>
-                                                {s.editing ? (
-                                                    <div className="space-y-2">
-                                                        <input
-                                                            value={s.editTitle}
-                                                            onChange={e => setAiSuggestions(prev => prev.map((x, j) => j === i ? { ...x, editTitle: e.target.value } : x))}
-                                                            className="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary"
-                                                        />
-                                                        <textarea
-                                                            value={s.editContent}
-                                                            onChange={e => setAiSuggestions(prev => prev.map((x, j) => j === i ? { ...x, editContent: e.target.value } : x))}
-                                                            rows={3}
-                                                            className="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary resize-none"
-                                                        />
-                                                        <button
-                                                            onClick={() => setAiSuggestions(prev => prev.map((x, j) => j === i ? { ...x, editing: false, status: 'approved' } : x))}
-                                                            className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-semibold"
-                                                        >
-                                                            <i className="fas fa-check me-1" />حفظ التعديل
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-white">{s.editTitle || s.title}</p>
-                                                            <p className="text-xs text-dark-text-secondary mt-1 leading-relaxed">{s.editContent || s.content}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                                            <button
-                                                                onClick={() => setAiSuggestions(prev => prev.map((x, j) => j === i ? { ...x, status: x.status === 'approved' ? 'pending' : 'approved' } : x))}
-                                                                title="موافق"
-                                                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${s.status === 'approved' ? 'bg-emerald-500 text-white' : 'text-emerald-400 hover:bg-emerald-500/20'}`}
-                                                            ><i className="fas fa-check" /></button>
-                                                            <button
-                                                                onClick={() => setAiSuggestions(prev => prev.map((x, j) => j === i ? { ...x, editing: true, editTitle: x.editTitle || x.title, editContent: x.editContent || x.content } : x))}
-                                                                title="تعديل"
-                                                                className="w-8 h-8 flex items-center justify-center rounded-lg text-blue-400 hover:bg-blue-500/20 transition-colors"
-                                                            ><i className="fas fa-pen text-xs" /></button>
-                                                            <button
-                                                                onClick={() => setAiSuggestions(prev => prev.map((x, j) => j === i ? { ...x, status: x.status === 'rejected' ? 'pending' : 'rejected' } : x))}
-                                                                title="رفض"
-                                                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${s.status === 'rejected' ? 'bg-red-500/30 text-red-400' : 'text-red-400 hover:bg-red-500/20'}`}
-                                                            ><i className="fas fa-times" /></button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {aiSuggestions.some(s => s.status === 'approved') && (
-                                        <button
-                                            onClick={handleSaveAISuggestions}
-                                            disabled={kSaving}
-                                            className="w-full py-2.5 bg-gradient-to-r from-brand-pink to-brand-purple text-white font-bold rounded-xl text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            {kSaving ? <i className="fas fa-spinner fa-spin" /> : <i className="fas fa-save" />}
-                                            حفظ {aiSuggestions.filter(s => s.status === 'approved').length} مقترح موافق عليه
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Add/Edit Form */}
-                            {showKnowledgeForm && (
-                                <div className="rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-5 space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                                            <i className={`fas ${currentTypeConfig.icon} text-brand-pink`} />
-                                            {editingEntry ? 'تعديل السجل' : `إضافة — ${currentTypeConfig.label}`}
-                                        </h3>
-                                        <button onClick={() => setShowKnowledgeForm(false)} className="text-dark-text-secondary hover:text-white text-xs">
-                                            <i className="fas fa-times" />
-                                        </button>
-                                    </div>
-                                    <input
-                                        value={kForm.title}
-                                        onChange={e => setKForm(f => ({ ...f, title: e.target.value }))}
-                                        placeholder={currentTypeConfig.placeholder.title}
-                                        className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink"
-                                    />
-                                    <textarea
-                                        value={kForm.content}
-                                        onChange={e => setKForm(f => ({ ...f, content: e.target.value }))}
-                                        placeholder={currentTypeConfig.placeholder.content}
-                                        rows={4}
-                                        className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-pink resize-none"
-                                    />
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            onClick={handleKSave}
-                                            disabled={kSaving || !kForm.title.trim() || !kForm.content.trim()}
-                                            className="flex items-center gap-1.5 px-4 py-2 bg-brand-primary text-white rounded-xl text-sm font-semibold hover:bg-brand-secondary disabled:opacity-40 transition-colors"
-                                        >
-                                            {kSaving ? <i className="fas fa-spinner fa-spin text-xs" /> : <i className="fas fa-save text-xs" />}
-                                            حفظ
-                                        </button>
-                                        <button onClick={() => setShowKnowledgeForm(false)} className="px-4 py-2 text-sm text-dark-text-secondary hover:text-white transition-colors">
-                                            إلغاء
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Entries list */}
-                            {isLoadingKnowledge ? (
-                                <div className="space-y-3">
-                                    {[1, 2, 3].map(i => <div key={i} className="h-16 bg-dark-bg rounded-xl animate-pulse" />)}
-                                </div>
-                            ) : visibleEntries.length === 0 ? (
-                                <div className="py-16 text-center rounded-2xl border border-dashed border-dark-border">
-                                    <i className={`fas ${currentTypeConfig.icon} text-4xl text-dark-text-secondary mb-3 block opacity-30`} />
-                                    <p className="text-sm text-dark-text-secondary mb-4">لا توجد سجلات في {currentTypeConfig.label} بعد</p>
-                                    <button
-                                        onClick={openAddForm}
-                                        className="px-4 py-2 bg-brand-primary/10 text-brand-secondary rounded-xl text-sm font-semibold hover:bg-brand-primary hover:text-white transition-colors"
-                                    >
-                                        <i className="fas fa-plus me-2 text-xs" />
-                                        أضف أول سجل
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {visibleEntries.map(entry => (
-                                        <div key={entry.id} className="group rounded-xl border border-dark-border bg-dark-bg p-4 hover:border-brand-primary/30 transition-colors">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-bold text-white truncate">{entry.title}</p>
-                                                    <p className="mt-1 text-xs text-dark-text-secondary leading-relaxed line-clamp-2">{entry.content}</p>
-                                                </div>
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                    <button
-                                                        onClick={() => openEditForm(entry)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-lg text-dark-text-secondary hover:text-white hover:bg-blue-500/20 transition-colors"
-                                                        title="تعديل"
-                                                    >
-                                                        <i className="fas fa-pen text-xs" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleKDelete(entry)}
-                                                        className="w-8 h-8 flex items-center justify-center rounded-lg text-dark-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                                                        title="حذف"
-                                                    >
-                                                        <i className="fas fa-trash text-xs" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })()}
-
                 {/* ── Learning Library Tab ────────────────────────────────── */}
                 {activeTab === 'documents' && (
                     <div className="space-y-5">
@@ -1984,7 +1580,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                     ];
 
                     // ── Recommended actions (based on what's missing) ──────────
-                    type HubTab = 'identity' | 'voice' | 'audience' | 'knowledge';
+                    type HubTab = 'identity' | 'voice' | 'audience';
                     const actions: { label: string; impact: string; hubTab: HubTab | null; route?: string; icon: string }[] = [];
                     if (!profile.description)
                         actions.push({ label: 'أضف وصفاً للبراند', impact: 'يُحسّن توليد المحتوى بـ 35%', hubTab: 'identity', icon: 'fa-building' });
@@ -1993,7 +1589,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                     if (!(profile.brandAudiences?.length))
                         actions.push({ label: 'أنشئ شخصية الجمهور', impact: 'يُحسّن الردود الذكية بـ 50%', hubTab: 'audience', icon: 'fa-users' });
                     if (intellData.knowledgeCount < 5)
-                        actions.push({ label: 'أضف منتجاتك وخدماتك', impact: 'يُحسّن ردود المبيعات بـ 40%', hubTab: 'knowledge', icon: 'fa-database' });
+                        actions.push({ label: 'أضف منتجاتك وخدماتك', impact: 'يُحسّن ردود المبيعات بـ 40%', hubTab: null, route: 'brand-knowledge', icon: 'fa-database' });
                     if (intellData.socialCount === 0)
                         actions.push({ label: 'اربط حسابات التواصل', impact: 'يُفعّل التحليلات الحقيقية', hubTab: null, route: 'social-ops/accounts', icon: 'fa-plug' });
 
@@ -2105,7 +1701,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                                 {[
                                                     { label: 'بيانات يدوية',         active: true,                        desc: 'ملف البراند + الصوت + الجمهور' },
                                                     { label: 'صفحات مرتبطة',         active: intellData.socialCount > 0,  desc: `${intellData.socialCount} حساب متصل` },
-                                                    { label: 'قاعدة المعرفة',         active: intellData.knowledgeCount > 0, desc: `${intellData.knowledgeCount} عنصر (${intellData.knowledgeByType['product'] || 0} منتج، ${intellData.knowledgeByType['faq'] || 0} أسئلة)` },
+                                                    { label: 'قاعدة المعرفة',         active: intellData.knowledgeCount > 0, desc: `${intellData.knowledgeCount} عنصر — ${intellData.knowledgeByType['product'] || 0} منتج، ${intellData.knowledgeByType['faq'] || 0} أسئلة، ${intellData.knowledgeByType['policy'] || 0} سياسات، ${intellData.knowledgeByType['scenario_script'] || 0} سيناريوهات` },
                                                     { label: 'وثائق مرفوعة',          active: intellData.docCount > 0,     desc: `${intellData.docCount} وثيقة` },
                                                     { label: 'CRM وبيانات المبيعات', active: false,                       desc: 'غير مفعّل بعد' },
                                                 ].map(src => (
