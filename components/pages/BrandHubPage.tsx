@@ -758,8 +758,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     useEffect(() => {
         if (activeTab === 'knowledge') loadKnowledge();
         if (activeTab === 'documents') loadDocuments();
-    }, [activeTab, loadKnowledge]);
-    }, [activeTab, loadDocuments]);
+    }, [activeTab, loadKnowledge, loadDocuments]);
 
     const loadDocuments = useCallback(async () => {
         if (!brandId) return;
@@ -919,7 +918,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     const [statsDays, setStatsDays] = useState(30);
 
     // Intelligence Tab State
-    const [intellData, setIntellData] = useState({ loading: false, knowledgeCount: 0, socialCount: 0, docCount: 0 });
     const [intellData, setIntellData] = useState({ loading: false, knowledgeCount: 0, knowledgeByType: {} as Record<string, number>, socialCount: 0, docCount: 0 });
 
     // AI Memory Review State (P1-05)
