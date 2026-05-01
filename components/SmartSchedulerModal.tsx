@@ -86,7 +86,7 @@ export const SmartSchedulerModal: React.FC<SmartSchedulerModalProps> = ({ onClos
         } finally {
             setIsLoading(false);
         }
-    }, [platforms, postTopic, targetAudience, goal, preferredDays, preferredTime]);
+    }, [platforms, postTopic, targetAudience, goal, preferredDays, preferredTime, brandProfile]);
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>

@@ -174,7 +174,7 @@ const AppShell: React.FC = () => {
         if (isAuthenticated && activeBrandPage === 'dashboard' && window.innerWidth < 1024) {
             setActiveBrandPage('mobile-home');
         }
-    }, [isAuthenticated, activeBrandPage]);
+    }, [isAuthenticated, activeBrandPage, setActiveBrandPage]);
 
     // ── Data hooks ────────────────────────────────────────────────────────────
     const {

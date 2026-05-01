@@ -57,20 +57,53 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
     const ar = language === 'ar';
     const [expandedSection, setExpandedSection] = useState<string | null>('identity');
 
-    // Compute a simple completeness score (0–1)
+    // Completeness score — covers all major brand profile fields (0–1)
     const completeness = (() => {
-        let score = 0;
         const checks = [
+            // Core identity
             !!brandProfile.brandName,
             !!brandProfile.industry,
-            brandProfile.values.length > 0,
-            brandProfile.keySellingPoints.length > 0,
-            !!brandProfile.brandVoice?.toneDescription?.length,
-            brandProfile.brandAudiences.length > 0,
+            !!brandProfile.description,
+            !!brandProfile.businessModel,
+            // Strategy
+            !!brandProfile.valueProp,
+            !!brandProfile.brandPromise,
+            (brandProfile.messagingPillars?.length ?? 0) > 0,
+            // Values & differentiation
+            (brandProfile.values?.length ?? 0) > 0,
+            (brandProfile.keySellingPoints?.length ?? 0) > 0,
+            // Voice
+            (brandProfile.brandVoice?.toneDescription?.length ?? 0) > 0,
+            (brandProfile.brandVoice?.voiceGuidelines?.dos?.length ?? 0) > 0,
+            // Audience
+            (brandProfile.brandAudiences?.length ?? 0) > 0,
         ];
-        checks.forEach((c) => { if (c) score++; });
-        return score / checks.length;
+        return checks.filter(Boolean).length / checks.length;
     })();
+
+    // Per-section completeness for granular feedback
+    const sectionScores = {
+        identity: [
+            !!brandProfile.brandName,
+            !!brandProfile.industry,
+            !!brandProfile.description,
+            !!brandProfile.businessModel,
+        ].filter(Boolean).length / 4,
+        strategy: [
+            !!brandProfile.valueProp,
+            !!brandProfile.brandPromise,
+            (brandProfile.messagingPillars?.length ?? 0) > 0,
+        ].filter(Boolean).length / 3,
+        voice: [
+            (brandProfile.brandVoice?.toneDescription?.length ?? 0) > 0,
+            (brandProfile.brandVoice?.keywords?.length ?? 0) > 0,
+            (brandProfile.brandVoice?.voiceGuidelines?.dos?.length ?? 0) > 0,
+        ].filter(Boolean).length / 3,
+        audience: [
+            (brandProfile.brandAudiences?.length ?? 0) > 0,
+            (brandProfile.brandAudiences?.[0]?.painPoints?.length ?? 0) > 0,
+        ].filter(Boolean).length / 2,
+    };
 
     const sections: ReviewSection[] = [
         {
@@ -83,8 +116,24 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             items: [
                 { labelAr: 'اسم البراند', labelEn: 'Brand name', value: brandProfile.brandName },
                 { labelAr: 'المجال', labelEn: 'Industry', value: brandProfile.industry },
+                { labelAr: 'وصف النشاط', labelEn: 'Business description', value: brandProfile.description },
+                { labelAr: 'نموذج العمل', labelEn: 'Business model', value: brandProfile.businessModel },
                 { labelAr: 'الدولة / السوق', labelEn: 'Country / Market', value: brandProfile.country },
                 { labelAr: 'الموقع', labelEn: 'Website', value: brandProfile.website },
+            ],
+        },
+        {
+            id: 'strategy',
+            icon: 'fa-chess',
+            titleAr: 'الاستراتيجية التسويقية',
+            titleEn: 'Marketing strategy',
+            color: 'text-pink-600',
+            bg: 'bg-pink-500/8',
+            items: [
+                { labelAr: 'عرض القيمة الفريدة', labelEn: 'Value proposition', value: brandProfile.valueProp },
+                { labelAr: 'وعد البراند', labelEn: 'Brand promise', value: brandProfile.brandPromise },
+                { labelAr: 'ركائز الرسائل', labelEn: 'Messaging pillars', value: brandProfile.messagingPillars },
+                { labelAr: 'نقاط البيع الأساسية', labelEn: 'Key selling points', value: brandProfile.keySellingPoints },
             ],
         },
         {
@@ -98,18 +147,18 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                 { labelAr: 'وصف النبرة', labelEn: 'Tone description', value: brandProfile.brandVoice?.toneDescription },
                 { labelAr: 'الكلمات الجوهرية', labelEn: 'Core keywords', value: brandProfile.brandVoice?.keywords },
                 { labelAr: 'كلمات ممنوعة', labelEn: 'Negative keywords', value: brandProfile.brandVoice?.negativeKeywords },
+                { labelAr: 'ماذا نفعل', labelEn: 'Voice dos', value: brandProfile.brandVoice?.voiceGuidelines?.dos },
             ],
         },
         {
             id: 'values',
             icon: 'fa-star',
-            titleAr: 'قيم البراند ونقاط التميز',
-            titleEn: 'Brand values & USPs',
+            titleAr: 'قيم البراند',
+            titleEn: 'Brand values',
             color: 'text-amber-600',
             bg: 'bg-amber-500/8',
             items: [
                 { labelAr: 'القيم الجوهرية', labelEn: 'Core values', value: brandProfile.values },
-                { labelAr: 'نقاط البيع الأساسية', labelEn: 'Key selling points', value: brandProfile.keySellingPoints },
                 { labelAr: 'إرشادات الأسلوب', labelEn: 'Style guidelines', value: brandProfile.styleGuidelines },
             ],
         },
@@ -120,7 +169,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             titleEn: 'Target audience',
             color: 'text-emerald-600',
             bg: 'bg-emerald-500/8',
-            items: brandProfile.brandAudiences.length > 0
+            items: brandProfile.brandAudiences?.length > 0
                 ? brandProfile.brandAudiences.map((a, i) => ({
                     labelAr: `شريحة ${i + 1}`,
                     labelEn: `Segment ${i + 1}`,
@@ -165,9 +214,9 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                 </p>
             </div>
 
-            {/* Completeness bar */}
-            <div className="surface-panel rounded-[1.5rem] p-5">
-                <div className="mb-3 flex items-center justify-between">
+            {/* Completeness bar + per-section breakdown */}
+            <div className="surface-panel rounded-[1.5rem] p-5 space-y-4">
+                <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-light-text dark:text-dark-text">
                         {ar ? 'جاهزية عقل البراند' : 'Brand Brain readiness'}
                     </p>
@@ -180,6 +229,29 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                     </button>
                 </div>
                 <ConfidenceBar score={completeness} ar={ar} />
+
+                {/* Section-level mini scores */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                    {[
+                        { key: 'identity',  labelAr: 'الهوية',     labelEn: 'Identity',  color: 'bg-brand-primary' },
+                        { key: 'strategy',  labelAr: 'الاستراتيجية', labelEn: 'Strategy', color: 'bg-pink-500'       },
+                        { key: 'voice',     labelAr: 'الصوت',      labelEn: 'Voice',     color: 'bg-violet-500'    },
+                        { key: 'audience',  labelAr: 'الجمهور',    labelEn: 'Audience',  color: 'bg-emerald-500'   },
+                    ].map(({ key, labelAr, labelEn, color }) => {
+                        const pct = Math.round(sectionScores[key as keyof typeof sectionScores] * 100);
+                        return (
+                            <div key={key} className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{ar ? labelAr : labelEn}</span>
+                                    <span className="text-[10px] font-bold text-light-text dark:text-dark-text">{pct}%</span>
+                                </div>
+                                <div className="h-1 rounded-full bg-light-bg dark:bg-dark-bg overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Review sections */}

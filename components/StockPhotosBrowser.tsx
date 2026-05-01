@@ -3,7 +3,7 @@
  * واجهة البحث عن الصور المجانية
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useModalClose } from '../hooks/useModalClose';
 import { searchStockPhotos, downloadStockPhoto, StockPhoto } from '../services/stockPhotosService';
 import { Button, Input, Spinner, EmptyState } from './shared/UIComponents';
@@ -76,11 +76,6 @@ export const StockPhotosBrowser: React.FC<StockPhotosBrowserProps> = ({
         setSearchQuery(query);
         setTimeout(() => handleSearch(), 100);
     };
-
-    useEffect(() => {
-        // Load trending photos on mount
-        handleSearch();
-    }, []);
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={onClose}>

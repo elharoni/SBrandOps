@@ -1,5 +1,5 @@
 // components/admin/pages/QueuesPage.tsx
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { QueueJob } from '../../../types';
 import { TableComponent, ColumnDefinition } from '../shared/ui/TableComponent';
 import { SkeletonLoader } from '../shared/ui/SkeletonLoader';
@@ -34,12 +34,12 @@ export const QueuesPage: React.FC<QueuesPageProps> = ({ jobs: initialJobs, isLoa
         setJobs(initialJobs);
     }, [initialJobs]);
 
-    const handleRetry = (jobId: string) => {
-        setJobs(prevJobs => prevJobs.map(job => 
+    const handleRetry = useCallback((jobId: string) => {
+        setJobs(prevJobs => prevJobs.map(job =>
             job.id === jobId ? { ...job, status: 'pending' } : job
         ));
         // In a real app, you would add a notification and call an API to re-queue the job.
-    };
+    }, []);
 
     const columns = useMemo<ColumnDefinition<QueueJob>[]>(() => [
         { header: 'معرف المهمة', accessor: 'id', cell: (job) => <span className="font-mono text-xs">{job.id}</span> },

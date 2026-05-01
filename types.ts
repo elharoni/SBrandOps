@@ -298,6 +298,10 @@ export interface BrandHubProfile {
     ageRange?: string;
     targetAudienceSummary?: string;
     contactInfo?: { phone?: string; email?: string; };
+    // Strategy fields — critical for AI content quality
+    valueProp?: string;       // عرض القيمة: "نساعد [X] على تحقيق [Y] بطريقة [Z] بعكس المنافسين الذين [W]"
+    brandPromise?: string;    // وعد البراند: جملة واحدة تعبر عن التزام البراند تجاه العميل
+    messagingPillars?: string[]; // ركائز الرسائل: 3-5 محاور رئيسية يرتكز عليها كل المحتوى
 }
 
 // --- AI & Gemini Service Related ---
@@ -2341,6 +2345,9 @@ export interface BrandBrainContext {
     memory: string;           // ذاكرة المحتوى السابق والتصحيحات
     sellingPoints: string[];
     values: string[];
+    valueProp?: string;       // عرض القيمة الفريدة
+    brandPromise?: string;    // وعد البراند
+    messagingPillars?: string[]; // ركائز الرسائل
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

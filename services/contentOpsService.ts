@@ -93,7 +93,6 @@ export async function deleteContentPiece(brandId: string, pieceId: string): Prom
 }
 
 export async function addComment(brandId: string, pieceId: string, comment: Comment): Promise<void> {
-    // For now, comments are not in the schema to keep it simple.
-    // In a full implementation, we would insert into a 'comments' table.
-    console.log('Adding comment (not persisted yet):', comment);
+    // Comments are not persisted yet — schema extension needed.
+    void brandId; void pieceId; void comment;
 }

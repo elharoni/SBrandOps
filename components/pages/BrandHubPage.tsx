@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType, BrandGoal, BrandLanguage, BusinessModel } from '../../types';
+import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandGoal, BrandLanguage, BusinessModel } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
 import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
+import { getBrandKnowledge } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
 import { getBrandSkillsReport } from '../../services/evaluationService';
 import { getBrandDocuments, deleteBrandDocument, BrandDocument, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
 import { BrandImportModal } from '../BrandImportModal';
+import { ScoreDonut } from '../shared/ScoreDonut';
 import { SkillStats } from '../../types';
 import { getMemoryEntries, deleteMemoryEntry, BrandMemoryEntry, MemoryType } from '../../services/brandMemoryService';
 import { getSocialAccounts } from '../../services/socialAccountService';
@@ -18,32 +21,11 @@ interface BrandHubPageProps {
     initialProfile: BrandHubProfile;
     onUpdate: (profile: BrandHubProfile) => void;
     addNotification: (type: NotificationType, message: string) => void;
+    onNavigate?: (page: string) => void;
 }
 
 type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'knowledge' | 'documents' | 'intelligence';
-
-const ScoreDonut: React.FC<{ score: number }> = ({ score }) => {
-    const color = score >= 85 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400';
-    const circumference = 2 * Math.PI * 45;
-    const strokeDashoffset = circumference - (score / 100) * circumference;
-    return (
-        <div className="relative w-48 h-48 mx-auto">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                <circle className="text-dark-bg" cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="10" />
-                <circle
-                    className={color} cx="50" cy="50" r="45" fill="none"
-                    stroke="currentColor" strokeWidth="10" strokeDasharray={`${circumference} ${circumference}`}
-                    strokeDashoffset={strokeDashoffset} strokeLinecap="round"
-                    style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
-                />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xs text-dark-text-secondary">درجة الاتساق</span>
-                <span className={`text-5xl font-bold ${color}`}>{score}</span>
-            </div>
-        </div>
-    );
-};
+type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'documents' | 'intelligence';
 
 // ONB-1: Multi-step AI First-Run Experience Wizard
 const TONE_OPTIONS = [
@@ -726,10 +708,14 @@ const AudienceTabContent: React.FC<{
     );
 };
 
-export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProfile, onUpdate, addNotification }) => {
+export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProfile, onUpdate, addNotification, onNavigate }) => {
     const [profile, setProfile] = useState(initialProfile);
     const [activeTab, setActiveTab] = useState<ActiveTab>('identity');
     const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Strategy field input state (identity tab tag inputs)
+    const [newValueInput, setNewValueInput] = useState('');
+    const [newPillarInput, setNewPillarInput] = useState('');
 
     // AI Memory State
     const [contentToEvaluate, setContentToEvaluate] = useState('');
@@ -773,6 +759,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         if (activeTab === 'knowledge') loadKnowledge();
         if (activeTab === 'documents') loadDocuments();
     }, [activeTab, loadKnowledge]);
+    }, [activeTab, loadDocuments]);
 
     const loadDocuments = useCallback(async () => {
         if (!brandId) return;
@@ -933,6 +920,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
     // Intelligence Tab State
     const [intellData, setIntellData] = useState({ loading: false, knowledgeCount: 0, socialCount: 0, docCount: 0 });
+    const [intellData, setIntellData] = useState({ loading: false, knowledgeCount: 0, knowledgeByType: {} as Record<string, number>, socialCount: 0, docCount: 0 });
 
     // AI Memory Review State (P1-05)
     const [memoryEntries, setMemoryEntries] = useState<BrandMemoryEntry[]>([]);
@@ -964,9 +952,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
             getSocialAccounts(brandId),
             getBrandDocuments(brandId),
         ]).then(([knowledge, accounts, docs]) => {
+            const kByType = knowledge.reduce((acc, k) => { acc[k.type] = (acc[k.type] || 0) + 1; return acc; }, {} as Record<string, number>);
             setIntellData({
                 loading: false,
                 knowledgeCount: knowledge.length,
+                knowledgeByType: kByType,
                 socialCount: accounts.length,
                 docCount: docs.length,
             });
@@ -1099,16 +1089,57 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                 هذا هو مصدر الحقيقة للذكاء الاصطناعي. حافظ على تحديثه لضمان أفضل النتائج.
             </p>
 
+            {/* ── Brand Readiness Bar ─────────────────────────────── */}
+            {(() => {
+                const checks = [
+                    !!profile.brandName,
+                    !!profile.industry,
+                    !!profile.description,
+                    (profile.values?.length ?? 0) > 0,
+                    (profile.brandVoice.toneDescription?.length ?? 0) > 0,
+                    (profile.brandVoice.voiceGuidelines?.dos?.length ?? 0) > 0,
+                    (profile.brandAudiences?.length ?? 0) > 0,
+                    !!profile.valueProp,
+                    !!profile.brandPromise,
+                    !!profile.businessModel,
+                ];
+                const filled = checks.filter(Boolean).length;
+                const pct = Math.round((filled / checks.length) * 100);
+                const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : 'bg-rose-400';
+                const label = pct >= 80 ? 'جاهز للنشر' : pct >= 50 ? 'يحتاج إكمال' : 'ابدأ بملء البيانات';
+                return (
+                    <div className="flex items-center gap-3 rounded-xl bg-dark-bg border border-dark-border px-4 py-3">
+                        <i className="fas fa-gauge-high text-xs text-dark-text-secondary flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-semibold text-dark-text-secondary">جاهزية البراند</span>
+                                <span className={`text-[10px] font-bold ${pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                                    {pct}% — {label}
+                                </span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-dark-card overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${pct}%` }} />
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setActiveTab('intelligence')}
+                            className="text-[10px] text-brand-primary hover:underline flex-shrink-0"
+                        >
+                            التفاصيل
+                        </button>
+                    </div>
+                );
+            })()}
+
             <div className="bg-dark-bg p-1 rounded-lg flex items-center gap-1 flex-wrap">
                 {([
-                    { id: 'identity',     label: 'الهوية',       icon: 'fa-building' },
-                    { id: 'assets',       label: 'الأصول',       icon: 'fa-palette' },
-                    { id: 'voice',        label: 'الصوت',        icon: 'fa-microphone' },
-                    { id: 'audience',     label: 'الجمهور',      icon: 'fa-users' },
-                    { id: 'knowledge',    label: 'قاعدة المعرفة', icon: 'fa-database' },
-                    { id: 'documents',    label: 'مكتبة التعلم', icon: 'fa-book-open' },
-                    { id: 'intelligence', label: 'الذكاء',       icon: 'fa-lightbulb' },
-                    { id: 'ai-memory',    label: 'ذاكرة AI',     icon: 'fa-brain' },
+                    { id: 'identity',     label: 'الهوية',        icon: 'fa-building' },
+                    { id: 'assets',       label: 'الأصول',        icon: 'fa-palette' },
+                    { id: 'voice',        label: 'الصوت',         icon: 'fa-microphone' },
+                    { id: 'audience',     label: 'الجمهور',       icon: 'fa-users' },
+                    { id: 'documents',    label: 'مكتبة التعلم',  icon: 'fa-book-open' },
+                    { id: 'intelligence', label: 'الذكاء',        icon: 'fa-lightbulb' },
+                    { id: 'ai-memory',    label: 'ذاكرة AI',      icon: 'fa-brain' },
                 ] as const).map(tab => (
                     <button
                         key={tab.id}
@@ -1320,18 +1351,120 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                             </div>
                         </div>
 
-                        {/* Values (read-only tags) */}
-                        {profile.values && profile.values.length > 0 && (
+                        {/* Values — now editable */}
+                        <div>
+                            <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">قيم البراند</label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {(profile.values ?? []).map((v, i) => (
+                                    <span key={i} className="flex items-center gap-1.5 text-xs bg-brand-primary/10 text-brand-primary px-3 py-1 rounded-full border border-brand-primary/20">
+                                        {v}
+                                        <button
+                                            onClick={() => setProfile(prev => ({ ...prev, values: prev.values.filter((_, idx) => idx !== i) }))}
+                                            className="opacity-50 hover:opacity-100 transition-opacity"
+                                        >
+                                            <i className="fas fa-times text-[8px]" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="flex gap-2">
+                                <input
+                                    value={newValueInput}
+                                    onChange={e => setNewValueInput(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && newValueInput.trim()) {
+                                            setProfile(prev => ({ ...prev, values: [...(prev.values ?? []), newValueInput.trim()] }));
+                                            setNewValueInput('');
+                                        }
+                                    }}
+                                    placeholder="اكتب قيمة واضغط Enter..."
+                                    className="flex-1 bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-xs text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none"
+                                />
+                                <button
+                                    onClick={() => { if (newValueInput.trim()) { setProfile(prev => ({ ...prev, values: [...(prev.values ?? []), newValueInput.trim()] })); setNewValueInput(''); } }}
+                                    className="px-3 py-2 bg-brand-primary/10 text-brand-primary rounded-xl text-xs hover:bg-brand-primary hover:text-white transition-colors"
+                                >
+                                    <i className="fas fa-plus text-[10px]" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* ── Strategy Fields ──────────────────────────────────── */}
+                        <div className="pt-4 border-t border-dark-border space-y-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <i className="fas fa-chess text-brand-pink text-xs" />
+                                <h3 className="text-sm font-bold text-white">الاستراتيجية التسويقية</h3>
+                                <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">يُحسّن جودة AI بشكل كبير</span>
+                            </div>
+
                             <div>
-                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">قيم البراند</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {profile.values.map((v, i) => (
-                                        <span key={i} className="text-xs bg-brand-primary/10 text-brand-primary px-3 py-1 rounded-full border border-brand-primary/20">{v}</span>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">
+                                    عرض القيمة الفريدة (Value Proposition)
+                                </label>
+                                <textarea
+                                    value={profile.valueProp ?? ''}
+                                    onChange={e => setProfile(prev => ({ ...prev, valueProp: e.target.value }))}
+                                    rows={2}
+                                    placeholder='مثال: "نساعد أصحاب المطاعم الصغيرة على ملء طاولاتهم كل يوم بنظام حجز ذكي وتسويق آلي — بعكس المنافسين الذين يقدمون أدوات تقنية معقدة"'
+                                    className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none resize-none"
+                                />
+                                <p className="text-[10px] text-dark-text-secondary mt-1">يُستخدم في: عناوين الإعلانات، أول سطر في المحتوى، ردود المبيعات</p>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">
+                                    وعد البراند (Brand Promise)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={profile.brandPromise ?? ''}
+                                    onChange={e => setProfile(prev => ({ ...prev, brandPromise: e.target.value }))}
+                                    placeholder='مثال: "نضمن لك نتيجة قابلة للقياس خلال 30 يوماً أو نُعيد لك المال"'
+                                    className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none"
+                                />
+                                <p className="text-[10px] text-dark-text-secondary mt-1">يُستخدم في: ردود الصندوق، كلوز الإعلانات، صفحات الهبوط</p>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">
+                                    ركائز الرسائل (Messaging Pillars)
+                                </label>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                    {(profile.messagingPillars ?? []).map((p, i) => (
+                                        <span key={i} className="flex items-center gap-1.5 text-xs bg-violet-500/10 text-violet-400 px-3 py-1 rounded-full border border-violet-500/20">
+                                            {p}
+                                            <button
+                                                onClick={() => setProfile(prev => ({ ...prev, messagingPillars: (prev.messagingPillars ?? []).filter((_, idx) => idx !== i) }))}
+                                                className="opacity-50 hover:opacity-100"
+                                            >
+                                                <i className="fas fa-times text-[8px]" />
+                                            </button>
+                                        </span>
                                     ))}
                                 </div>
-                                <p className="text-[10px] text-dark-text-secondary mt-1">القيم تُحدَّث عبر "تحديث بالذكاء الاصطناعي"</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        value={newPillarInput}
+                                        onChange={e => setNewPillarInput(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && newPillarInput.trim()) {
+                                                setProfile(prev => ({ ...prev, messagingPillars: [...(prev.messagingPillars ?? []), newPillarInput.trim()] }));
+                                                setNewPillarInput('');
+                                            }
+                                        }}
+                                        placeholder='مثال: "نتائج قابلة للقياس" أو "دعم 24/7" أو "بلا تعقيدات تقنية"'
+                                        className="flex-1 bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-xs text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none"
+                                    />
+                                    <button
+                                        onClick={() => { if (newPillarInput.trim()) { setProfile(prev => ({ ...prev, messagingPillars: [...(prev.messagingPillars ?? []), newPillarInput.trim()] })); setNewPillarInput(''); } }}
+                                        className="px-3 py-2 bg-violet-500/10 text-violet-400 rounded-xl text-xs hover:bg-violet-500 hover:text-white transition-colors"
+                                    >
+                                        <i className="fas fa-plus text-[10px]" />
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-dark-text-secondary mt-1">أضف 3–5 ركائز — تُستخدم في خطط المحتوى وحملات الإعلانات</p>
                             </div>
-                        )}
+                        </div>
                     </div>
                 )}
 
@@ -1822,9 +1955,12 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                 {activeTab === 'intelligence' && (() => {
                     // ── Completeness scoring ───────────────────────────────────
                     const identityPts = [
+                    const identityPts = Math.round([
                         profile.brandName, profile.industry, profile.description,
                         (profile.values?.length ?? 0) > 0, profile.country, profile.website,
                     ].filter(Boolean).length * 5;
+                        profile.valueProp, profile.brandPromise
+                    ].filter(Boolean).length * 3.75);
 
                     const voicePts = [
                         (profile.brandVoice.toneDescription?.length ?? 0) > 0,
@@ -1861,6 +1997,8 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                     // ── Recommended actions (based on what's missing) ──────────
                     type HubTab = 'identity' | 'voice' | 'audience' | 'knowledge';
                     const actions: { label: string; impact: string; hubTab: HubTab | null; icon: string }[] = [];
+                    type HubTab = 'identity' | 'voice' | 'audience';
+                    const actions: { label: string; impact: string; hubTab: HubTab | null; route?: string; icon: string }[] = [];
                     if (!profile.description)
                         actions.push({ label: 'أضف وصفاً للبراند', impact: 'يُحسّن توليد المحتوى بـ 35%', hubTab: 'identity', icon: 'fa-building' });
                     if (!(profile.brandVoice.voiceGuidelines?.dos?.length))
@@ -1869,8 +2007,10 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                         actions.push({ label: 'أنشئ شخصية الجمهور', impact: 'يُحسّن الردود الذكية بـ 50%', hubTab: 'audience', icon: 'fa-users' });
                     if (intellData.knowledgeCount < 5)
                         actions.push({ label: 'أضف منتجاتك وخدماتك', impact: 'يُحسّن ردود المبيعات بـ 40%', hubTab: 'knowledge', icon: 'fa-database' });
+                        actions.push({ label: 'أضف منتجاتك وخدماتك', impact: 'يُحسّن ردود المبيعات بـ 40%', hubTab: null, route: 'brand-knowledge', icon: 'fa-database' });
                     if (intellData.socialCount === 0)
                         actions.push({ label: 'اربط حسابات التواصل', impact: 'يُفعّل التحليلات الحقيقية', hubTab: null, icon: 'fa-plug' });
+                        actions.push({ label: 'اربط حسابات التواصل', impact: 'يُفعّل التحليلات الحقيقية', hubTab: null, route: 'social-ops/accounts', icon: 'fa-plug' });
 
                     const scoreColor = totalScore >= 80 ? '#10B981' : totalScore >= 50 ? '#F59E0B' : '#EF4444';
                     const scoreTextColor = totalScore >= 80 ? 'text-emerald-400' : totalScore >= 50 ? 'text-yellow-400' : 'text-red-400';
@@ -1917,6 +2057,12 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                                     : totalScore >= 50 ? 'بيانات كافية — يمكن تحسينها'
                                                     : 'البيانات غير كاملة — النتائج محدودة'}
                                             </p>
+                                            <button
+                                                onClick={() => onNavigate && onNavigate('brand-analysis')}
+                                                className="mt-4 flex items-center gap-2 rounded-xl bg-brand-primary/10 px-4 py-2 text-xs font-bold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white"
+                                            >
+                                                <i className="fas fa-magnifying-glass-plus" /> إجراء تدقيق شامل للبراند
+                                            </button>
                                         </div>
 
                                         <div className="bg-dark-bg rounded-2xl p-6 space-y-4">
@@ -1975,6 +2121,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                                     { label: 'بيانات يدوية',         active: true,                        desc: 'ملف البراند + الصوت + الجمهور' },
                                                     { label: 'صفحات مرتبطة',         active: intellData.socialCount > 0,  desc: `${intellData.socialCount} حساب متصل` },
                                                     { label: 'قاعدة المعرفة',         active: intellData.knowledgeCount > 0, desc: `${intellData.knowledgeCount} عنصر معرفي` },
+                                                    { label: 'قاعدة المعرفة',         active: intellData.knowledgeCount > 0, desc: `${intellData.knowledgeCount} عنصر (${intellData.knowledgeByType['product'] || 0} منتج، ${intellData.knowledgeByType['faq'] || 0} أسئلة)` },
                                                     { label: 'وثائق مرفوعة',          active: intellData.docCount > 0,     desc: `${intellData.docCount} وثيقة` },
                                                     { label: 'CRM وبيانات المبيعات', active: false,                       desc: 'غير مفعّل بعد' },
                                                 ].map(src => (
@@ -2006,6 +2153,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                                             key={i}
                                                             onClick={() => action.hubTab && setActiveTab(action.hubTab)}
                                                             disabled={!action.hubTab}
+                                                            onClick={() => {
+                                                                if (action.hubTab) setActiveTab(action.hubTab);
+                                                                else if (action.route && onNavigate) onNavigate(action.route);
+                                                            }}
+                                                            disabled={!action.hubTab && !action.route}
                                                             className="w-full text-right flex items-start gap-3 bg-dark-card rounded-xl p-3 hover:bg-brand-primary/10 transition-colors disabled:opacity-60 disabled:cursor-default"
                                                         >
                                                             <div className="w-8 h-8 rounded-lg bg-brand-primary/20 flex items-center justify-center flex-shrink-0">

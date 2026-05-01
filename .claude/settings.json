@@ -93,7 +93,12 @@
       "Bash(cat .eslintrc.json)",
       "Bash(ls -la *.eslint* eslint.*)",
       "Bash(cat .eslintignore)",
-      "Bash(ls -la .eslint*)"
+      "Bash(ls -la .eslint*)",
+      "Bash(grep -E \"\\\\.md$|\\\\.ts$|\\\\.tsx$|\\\\.json$\")",
+      "Bash(npx vitest *)",
+      "Bash(grep -v \"//.*console\")",
+      "Bash(npm test *)",
+      "Bash(echo \"EXIT:$?\")"
     ],
     "additionalDirectories": [
       "e:\\sbrandops---v1.0541\\.github\\workflows",

@@ -269,15 +269,6 @@ export async function connectSelectedAssets(
         default_market:     options?.market,
     };
 
-    console.log('[connect-accounts] calling', functionUrl, {
-        brand_id: brandId,
-        platform,
-        assetCount: assets.length,
-        hasUserToken: Boolean(userToken),
-        hasJwt: Boolean(jwt),
-        jwtPrefix: jwt.substring(0, 20) + '...',
-    });
-
     // Use raw fetch to bypass supabase-js v2 functions wrapper quirks
     // and guarantee the correct JWT is sent as Authorization header.
     let response: Response;
@@ -295,8 +286,6 @@ export async function connectSelectedAssets(
         console.error('[connect-accounts] network error:', networkErr);
         throw new Error(`خطأ في الشبكة — تعذّر الوصول إلى Edge Function: ${(networkErr as Error).message}`, { cause: networkErr });
     }
-
-    console.log('[connect-accounts] response status:', response.status);
 
     if (!response.ok) {
         let serverMsg = `HTTP ${response.status}`;

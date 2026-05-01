@@ -57,9 +57,12 @@ export async function buildBrandBrainContext(
             policies:    formatKnowledgeForPrompt(knowledge, 'policy'),
             competitors: formatKnowledgeForPrompt(knowledge, 'competitor'),
         },
-        memory:        formatMemoryForPrompt(memories),
-        sellingPoints: brandProfile.keySellingPoints,
-        values:        brandProfile.values,
+        memory:          formatMemoryForPrompt(memories),
+        sellingPoints:   brandProfile.keySellingPoints,
+        values:          brandProfile.values,
+        valueProp:       brandProfile.valueProp,
+        brandPromise:    brandProfile.brandPromise,
+        messagingPillars: brandProfile.messagingPillars,
     };
 }
 
@@ -108,6 +111,8 @@ function buildStandardPrompt(ctx: BrandBrainContext): string {
         ``,
         `قيم: ${ctx.values.join(' | ') || 'غير محدد'}`,
         `تميز: ${ctx.sellingPoints.join(' | ') || 'غير محدد'}`,
+        ctx.valueProp    ? `عرض القيمة: ${ctx.valueProp}` : '',
+        ctx.brandPromise ? `وعد البراند: ${ctx.brandPromise}` : '',
         `جمهور: ${audiences}`,
         dos   ? `${dos}` : '',
         donts ? `${donts}` : '',
@@ -142,6 +147,14 @@ function buildFullPrompt(ctx: BrandBrainContext): string {
         knowledgeSections.push(`━ المنافسون:\n${ctx.knowledge.competitors}`);
     }
 
+    const strategySection = [
+        ctx.valueProp        ? `عرض القيمة: ${ctx.valueProp}` : '',
+        ctx.brandPromise     ? `وعد البراند: ${ctx.brandPromise}` : '',
+        ctx.messagingPillars?.length
+            ? `ركائز الرسائل: ${ctx.messagingPillars.join(' | ')}`
+            : '',
+    ].filter(Boolean).join('\n');
+
     return `
 أنت عقل تسويقي متخصص لبراند "${ctx.identity.name}" — لست مساعداً عاماً.
 كل مخرج يجب أن يعكس هذا البراند تحديداً وأن يكون جاهزاً للاستخدام الفوري.
@@ -150,6 +163,7 @@ function buildFullPrompt(ctx: BrandBrainContext): string {
 ${ctx.identity.name} | ${ctx.identity.industry} | ${ctx.identity.country}
 القيم: ${ctx.values.join(' | ') || 'غير محدد'}
 التميز: ${ctx.sellingPoints.join(' | ') || 'غير محدد'}
+${strategySection ? `\n══ الاستراتيجية ══\n${strategySection}` : ''}
 
 ══ الصوت ══
 النبرة: ${ctx.voice.tone.join(', ') || 'محايدة'}

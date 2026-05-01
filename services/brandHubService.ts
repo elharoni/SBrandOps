@@ -57,6 +57,10 @@ function mapToProfile(data: any, brandName: string): BrandHubProfile {
         ageRange: ext.ageRange as string | undefined,
         targetAudienceSummary: ext.targetAudienceSummary as string | undefined,
         contactInfo: ext.contactInfo as { phone?: string; email?: string } | undefined,
+        // Strategy fields
+        valueProp: ext.valueProp as string | undefined,
+        brandPromise: ext.brandPromise as string | undefined,
+        messagingPillars: (ext.messagingPillars as string[]) ?? [],
     };
 }
 
@@ -124,7 +128,10 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
         profile.language !== undefined ||
         profile.ageRange !== undefined ||
         profile.targetAudienceSummary !== undefined ||
-        profile.contactInfo !== undefined
+        profile.contactInfo !== undefined ||
+        profile.valueProp !== undefined ||
+        profile.brandPromise !== undefined ||
+        profile.messagingPillars !== undefined
     );
     if (hasExtended) {
         // Fetch existing extended_profile to merge (avoid overwriting unrelated keys)
@@ -136,13 +143,16 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
         const existingExt = (existing?.extended_profile as Record<string, any>) ?? {};
         upsertData.extended_profile = {
             ...existingExt,
-            ...(profile.description !== undefined         && { description: profile.description }),
-            ...(profile.businessModel !== undefined       && { businessModel: profile.businessModel }),
-            ...(profile.goals !== undefined               && { goals: profile.goals }),
-            ...(profile.language !== undefined            && { language: profile.language }),
-            ...(profile.ageRange !== undefined            && { ageRange: profile.ageRange }),
-            ...(profile.targetAudienceSummary !== undefined && { targetAudienceSummary: profile.targetAudienceSummary }),
-            ...(profile.contactInfo !== undefined         && { contactInfo: profile.contactInfo }),
+            ...(profile.description !== undefined            && { description: profile.description }),
+            ...(profile.businessModel !== undefined          && { businessModel: profile.businessModel }),
+            ...(profile.goals !== undefined                  && { goals: profile.goals }),
+            ...(profile.language !== undefined               && { language: profile.language }),
+            ...(profile.ageRange !== undefined               && { ageRange: profile.ageRange }),
+            ...(profile.targetAudienceSummary !== undefined  && { targetAudienceSummary: profile.targetAudienceSummary }),
+            ...(profile.contactInfo !== undefined            && { contactInfo: profile.contactInfo }),
+            ...(profile.valueProp !== undefined              && { valueProp: profile.valueProp }),
+            ...(profile.brandPromise !== undefined           && { brandPromise: profile.brandPromise }),
+            ...(profile.messagingPillars !== undefined       && { messagingPillars: profile.messagingPillars }),
         };
     }
 

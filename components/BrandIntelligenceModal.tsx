@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Brand, BrandHubProfile } from '../types';
 import { callAIProxy, Type } from '../services/aiProxy';
 import { useModalClose } from '../hooks/useModalClose';
@@ -23,12 +23,7 @@ export const BrandIntelligenceModal: React.FC<Props> = ({ brand, brandProfile, o
     const [copiedIdx, setCopiedIdx] = useState<string | null>(null);
     useModalClose(onClose);
 
-    useEffect(() => {
-        setTimeout(() => setVisible(true), 60);
-        generate();
-    }, []);
-
-    const generate = async () => {
+    const generate = useCallback(async () => {
         try {
             const profileContext = brandProfile ? `
 معلومات البراند التفصيلية:
@@ -76,7 +71,12 @@ ${profileContext}
         } catch {
             setStatus('error');
         }
-    };
+    }, [brand, brandProfile]);
+
+    useEffect(() => {
+        setTimeout(() => setVisible(true), 60);
+        generate();
+    }, [generate]);
 
     const copy = (text: string, key: string) => {
         navigator.clipboard.writeText(text);

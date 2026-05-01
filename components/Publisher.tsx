@@ -506,7 +506,7 @@ export const Publisher: React.FC<PublisherProps> = ({
         } finally {
             setIsSaving(false);
         }
-    }, [addNotification, ar, brandId, copy.partialPublish, copy.publishFailed, persistPost, post, postToEditId, validatePost]);
+    }, [addNotification, ar, brandId, copy.partialPublish, copy.publishFailed, persistPost, post, postToEditId, validatePost, processMediaUploads]);
 
     const showLocationInput = useMemo(() => post.platforms.some((platform) => platform === SocialPlatform.Instagram || platform === SocialPlatform.LinkedIn), [post.platforms]);
     const currentLocationValue = useMemo(() => {

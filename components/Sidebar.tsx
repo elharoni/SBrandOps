@@ -26,15 +26,15 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
         id: 'brand-system',
         label: ar ? 'نظام البراند' : 'Brand System',
         items: [
-            { id: 'brand-hub', icon: 'fa-fingerprint', label: ar ? 'هوية البراند' : 'Brand Hub' },
+                { id: 'brand-hub', icon: 'fa-fingerprint', label: ar ? 'مركز البراند' : 'Brand Hub' },
+                { id: 'brand-knowledge', icon: 'fa-book-open', label: ar ? 'قاعدة المعرفة' : 'Knowledge Base' },
             {
                 id: 'brand-brain',
                 icon: 'fa-microchip',
                 label: ar ? 'عقل البراند' : 'Brand Brain',
                 children: [
-                    { id: 'brand-knowledge',    icon: 'fa-book-open',             label: ar ? 'قاعدة المعرفة'      : 'Knowledge Base' },
-                    { id: 'brand-brain-review', icon: 'fa-circle-check',          label: ar ? 'مراجعة عقل البراند' : 'Brain Review'   },
-                    { id: 'brand-analysis',     icon: 'fa-magnifying-glass-plus', label: ar ? 'تحليل البراند'      : 'Brand Analysis' },
+                        { id: 'brand-brain-review', icon: 'fa-circle-check',          label: ar ? 'جاهزية البراند' : 'Brain Review'   },
+                        { id: 'brand-analysis',     icon: 'fa-magnifying-glass-plus', label: ar ? 'تدقيق البراند'  : 'Brand Analysis' },
                 ],
             },
         ],
@@ -142,7 +142,7 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
 
 // Stable module-level map: child page id → parent menu id.
 const CHILD_TO_PARENT: Record<string, string> = {
-    'brand-knowledge': 'brand-brain', 'brand-brain-review': 'brand-brain', 'brand-analysis': 'brand-brain',
+    'brand-brain-review': 'brand-brain', 'brand-analysis': 'brand-brain',
     'content-studio': 'content-hub',  'idea-ops': 'content-hub',  'content-ops': 'content-hub', 'marketing-plans': 'content-hub',
     'media-ops': 'media-hub',         'design-ops': 'media-hub',  'ai-video': 'media-hub',
     'crm/dashboard': 'crm', 'crm/customers': 'crm', 'crm/pipeline': 'crm', 'crm/tickets': 'crm',

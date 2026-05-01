@@ -53,12 +53,13 @@ export interface ConversationAnalysisPayload {
 
 // ── Read ─────────────────────────────────────────────────────────────────────
 
-export async function getConversations(brandId: string): Promise<InboxConversation[]> {
+export async function getConversations(brandId: string, limit = 200): Promise<InboxConversation[]> {
     const { data, error } = await supabase
         .from('inbox_conversations')
         .select('*, inbox_messages(id, sender, text, sent_at)')
         .eq('brand_id', brandId)
-        .order('last_message_at', { ascending: false });
+        .order('last_message_at', { ascending: false })
+        .limit(limit);
 
     if (error) {
         console.error('getConversations error:', error);

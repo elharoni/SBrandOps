@@ -13,7 +13,8 @@ import { getConversations, persistConversationAnalysis } from '../services/inbox
 const makeChain = (overrides: Record<string, any> = {}) => ({
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({ data: [], error: null }),
     update: vi.fn().mockReturnThis(),
     ...overrides,
 });
@@ -25,7 +26,7 @@ describe('inboxService', () => {
 
     it('maps persisted sentiment analysis fields from inbox conversations', async () => {
         const chain = makeChain({
-            order: vi.fn().mockResolvedValue({
+            limit: vi.fn().mockResolvedValue({
                 data: [
                     {
                         id: 'conv-1',
