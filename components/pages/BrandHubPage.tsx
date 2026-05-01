@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
+import { analyzeBrandFiles, buildWizardPrefillFromAnalysis } from '../../services/brandFileAnalysisService';
+import { getBrandFileExt, getBrandFileMimeType, isBrandFileBinaryExt, isSupportedBrandFileExt } from '../../services/brandFileAnalysisShared';
 import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
@@ -12,6 +14,7 @@ import { BrandImportModal } from '../BrandImportModal';
 import { ScoreDonut } from '../shared/ScoreDonut';
 import { getMemoryEntries, deleteMemoryEntry, BrandMemoryEntry, MemoryType } from '../../services/brandMemoryService';
 import { getSocialAccounts } from '../../services/socialAccountService';
+import { getBrandHubProfile } from '../../services/brandHubService';
 
 interface BrandHubPageProps {
     brandId: string;
@@ -35,14 +38,10 @@ const TONE_OPTIONS = [
 
 const INDUSTRY_OPTIONS = ['تجزئة وتسوق', 'عقارات', 'مطاعم وأغذية', 'صحة وجمال', 'تقنية وSaaS', 'تعليم', 'سياحة وضيافة', 'مالية وبنوك', 'رياضة ولياقة', 'أخرى'];
 
-// Only PDF is natively supported by Gemini inline_data
-const BINARY_EXTS: Record<string, string> = {
-    pdf: 'application/pdf',
-};
+// Brand Hub uploaded file analysis is handled server-side via OpenAI Responses API.
 const INLINE_PDF_MAX_BYTES = 5 * 1024 * 1024;
-const UNSUPPORTED_EXTS = new Set(['docx', 'doc', 'pptx', 'xlsx']);
 
-function getExt(name: string) { return name.split('.').pop()?.toLowerCase() ?? ''; }
+function getExt(name: string) { return getBrandFileExt(name); }
 
 async function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -75,11 +74,19 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
         e.target.value = '';
 
         const ext = getExt(file.name);
-
-        // DOCX / DOC / PPTX — Gemini doesn't support these as inline_data
-        if (UNSUPPORTED_EXTS.has(ext)) {
+        if (!isSupportedBrandFileExt(ext)) {
             setUnsupportedExt(ext);
-            setFileExtractMsg(null);
+            setFileExtractMsg('نوع الملف غير مدعوم في التحليل الذكي.');
+            return;
+        }
+        if (file.size === 0) {
+            setUnsupportedExt(null);
+            setFileExtractMsg('الملف فارغ. ارفع ملفاً يحتوي على محتوى فعلي.');
+            return;
+        }
+        if (isBrandFileBinaryExt(ext) && ext !== 'pdf' && file.size > INLINE_PDF_MAX_BYTES) {
+            setUnsupportedExt(null);
+            setFileExtractMsg('هذا الملف كبير جداً للتحليل المباشر. الحد الأقصى 5MB لملفات Word وPowerPoint وExcel.');
             return;
         }
         setUnsupportedExt(null);
@@ -87,79 +94,44 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
         setIsExtractingFile(true);
         setFileExtractMsg(null);
         try {
-            // Build contents array:
-            // - PDF ≤ 5 MB → inline_data (preserves the original file for Gemini)
-            // - PDF > 5 MB → extract text client-side via PDF.js (avoids base64 body overflow)
-            // - TXT / MD     → send as plain text
-            let contents: unknown[];
-            const PROMPT = 'استخرج من هذه الوثيقة: الصناعة، وصف النشاط التجاري، الجمهور المستهدف، الفئة العمرية، نبرة الصوت، والمنصات المناسبة. أرجع JSON فقط.';
-
-            if (ext === 'pdf') {
-                if (file.size > INLINE_PDF_MAX_BYTES) {
-                    // Large PDF → extract text client-side, send as text
-                    const pdfText = await extractTextFromPdf(file);
-                    contents = [{
-                        role: 'user',
-                        parts: [{ text: `${PROMPT}\n\n${pdfText.slice(0, 20000)}` }],
-                    }];
-                } else {
-                    // Small PDF → inline_data
-                    const base64 = await fileToBase64(file);
-                    contents = [{
-                        role: 'user',
-                        parts: [
-                            { inline_data: { mime_type: 'application/pdf', data: base64 } },
-                            { text: PROMPT },
-                        ],
-                    }];
+            const document = isBrandFileBinaryExt(ext) && !(ext === 'pdf' && file.size > INLINE_PDF_MAX_BYTES)
+                ? {
+                    file_name: file.name,
+                    file_type: getBrandFileMimeType(file.name, file.type || 'application/octet-stream'),
+                    mime_type: getBrandFileMimeType(file.name, file.type || 'application/octet-stream'),
+                    size_bytes: file.size,
+                    base64_data: await fileToBase64(file),
                 }
-            } else {
-                const rawText = await file.text();
-                contents = [{
-                    role: 'user',
-                    parts: [{ text: `${PROMPT}\n\n${rawText.slice(0, 20000)}` }],
-                }];
-            }
+                : {
+                    file_name: file.name,
+                    file_type: getBrandFileMimeType(file.name, file.type || 'text/plain'),
+                    mime_type: getBrandFileMimeType(file.name, file.type || 'text/plain'),
+                    size_bytes: file.size,
+                    text_content: ext === 'pdf'
+                        ? await extractTextFromPdf(file)
+                        : await file.text(),
+                };
 
-            const WIZARD_INDUSTRIES = ['تجزئة وتسوق', 'عقارات', 'مطاعم وأغذية', 'صحة وجمال', 'تقنية وSaaS', 'تعليم', 'سياحة وضيافة', 'مالية وبنوك', 'رياضة ولياقة', 'أخرى'];
-            const WIZARD_TONES = ['professional', 'friendly', 'bold', 'creative', 'empathetic', 'authoritative'];
-            const WIZARD_PLATFORMS = ['Instagram', 'TikTok', 'Facebook', 'X', 'LinkedIn', 'Snapchat'];
-
-            const res = await callAIProxy({
-                model: 'gemini-2.5-flash',
-                contents,
-                schema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        industry:       { type: Type.STRING,  description: `واحدة فقط من: ${WIZARD_INDUSTRIES.join(', ')}` },
-                        description:    { type: Type.STRING,  description: 'وصف موجز للنشاط التجاري، 2-4 جمل' },
-                        targetAudience: { type: Type.STRING,  description: 'وصف الجمهور المستهدف' },
-                        ageRange:       { type: Type.STRING,  description: 'مثال: 25-34' },
-                        tones:          { type: Type.ARRAY,   items: { type: Type.STRING, description: `واحدة من: ${WIZARD_TONES.join(', ')}` } },
-                        platforms:      { type: Type.ARRAY,   items: { type: Type.STRING, description: `واحدة من: ${WIZARD_PLATFORMS.join(', ')}` } },
-                    },
-                },
-                feature: 'wizard_file_extract',
-            });
-
-            const raw = typeof res.text === 'string' ? JSON.parse(res.text) : res.text as Record<string, unknown>;
-
-            const matchedIndustry = WIZARD_INDUSTRIES.find(o => o === raw.industry) ?? '';
-            const matchedTones = ((raw.tones as string[] | undefined) ?? []).filter(t => WIZARD_TONES.includes(t)).slice(0, 3);
-            const matchedPlatforms = ((raw.platforms as string[] | undefined) ?? []).filter(p => WIZARD_PLATFORMS.includes(p));
-            const matchedAge = ['18-24','25-34','35-44','45-54','55+'].find(r => r === raw.ageRange) ?? '';
+            const result = await analyzeBrandFiles([document]);
+            const prefill = buildWizardPrefillFromAnalysis(result.data);
 
             setForm(f => ({
                 ...f,
-                industry:       matchedIndustry        || f.industry,
-                description:    (raw.description as string | undefined)    || f.description,
-                targetAudience: (raw.targetAudience as string | undefined) || f.targetAudience,
-                ageRange:       matchedAge             || f.ageRange,
-                tones:          matchedTones.length    ? matchedTones    : f.tones,
-                platforms:      matchedPlatforms.length ? matchedPlatforms : f.platforms,
+                industry: prefill.industry || f.industry,
+                description: prefill.description || f.description,
+                targetAudience: prefill.targetAudience || f.targetAudience,
+                ageRange: prefill.ageRange || f.ageRange,
+                tones: prefill.tones.length ? prefill.tones : f.tones,
+                platforms: prefill.platforms.length ? prefill.platforms : f.platforms,
             }));
 
-            const filledCount = [matchedIndustry, raw.description, raw.targetAudience, matchedTones.length, matchedPlatforms.length].filter(Boolean).length;
+            const filledCount = [
+                prefill.industry,
+                prefill.description,
+                prefill.targetAudience,
+                prefill.tones.length,
+                prefill.platforms.length,
+            ].filter(Boolean).length;
             setFileExtractMsg(`✓ تم ملء ${filledCount} حقول تلقائياً من "${file.name}"`);
 
             // If enough fields were filled, skip all manual steps and go straight to generation
@@ -238,7 +210,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                             <p className="text-dark-text-secondary text-sm">أخبرنا عن نشاطك التجاري — سيبني الذكاء الاصطناعي هوية البراند من هذه المعلومات</p>
 
                             {/* File upload */}
-                            <input ref={fileInputRef} type="file" accept=".txt,.md,.pdf,.docx,.doc,.pptx,.xlsx" className="hidden" onChange={handleFileUpload} />
+                            <input ref={fileInputRef} type="file" accept=".txt,.md,.pdf,.docx,.doc,.pptx,.xlsx,.csv" className="hidden" onChange={handleFileUpload} />
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
@@ -256,7 +228,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                                         {isExtractingFile ? 'جارٍ قراءة الملف...' : 'استيراد من ملف'}
                                     </p>
                                     <p className="text-xs text-dark-text-secondary mt-0.5">
-                                        PDF، TXT، MD — يملأ الـ AI الحقول تلقائياً
+                                        PDF، DOCX، XLSX، CSV، TXT، MD — OpenAI يملأ الحقول تلقائياً
                                     </p>
                                 </div>
                                 <i className="fas fa-chevron-left text-brand-pink/50 group-hover:text-brand-pink transition-colors flex-shrink-0 text-xs" />
@@ -275,32 +247,15 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                                         <i className="fas fa-circle-exclamation text-amber-400 mt-0.5 text-sm flex-shrink-0" />
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-semibold text-amber-300">
-                                                ملف {unsupportedExt.toUpperCase()} غير مدعوم مباشرةً
+                                                امتداد {unsupportedExt.toUpperCase()} غير مدعوم حالياً
                                             </p>
                                             <p className="text-[11px] text-amber-300/70 mt-0.5">
-                                                حوّله إلى PDF مجاناً عبر أحد الروابط أدناه، ثم ارفعه مرة أخرى
+                                                استخدم PDF أو DOCX أو PPTX أو XLSX أو CSV أو TXT أو MD.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 flex-wrap">
-                                        <a href="https://smallpdf.com/word-to-pdf" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 text-[11px] font-semibold hover:bg-amber-500/25 transition-colors">
-                                            <i className="fas fa-arrow-up-right-from-square text-[9px]" />
-                                            Smallpdf
-                                        </a>
-                                        <a href="https://www.ilovepdf.com/word_to_pdf" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 text-[11px] font-semibold hover:bg-amber-500/25 transition-colors">
-                                            <i className="fas fa-arrow-up-right-from-square text-[9px]" />
-                                            iLovePDF
-                                        </a>
-                                        <a href="https://pdf2go.com/word-to-pdf" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 text-[11px] font-semibold hover:bg-amber-500/25 transition-colors">
-                                            <i className="fas fa-arrow-up-right-from-square text-[9px]" />
-                                            PDF2Go
-                                        </a>
-                                    </div>
                                     <p className="text-[10px] text-amber-300/50">
-                                        بديل: احفظ الملف كـ .txt أو .pdf ثم ارفعه هنا مباشرة
+                                        لو كان الملف كبيراً جداً، صدّره كـ PDF أو الصق النص الأساسي مباشرة.
                                     </p>
                                 </div>
                             )}
@@ -394,7 +349,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
                                         <i className="fas fa-magic text-3xl text-brand-pink" />
                                     </div>
                                     <p className="text-white font-semibold">جاهز للإنشاء!</p>
-                                    <p className="text-dark-text-secondary text-sm">بناءً على معلوماتك، سيُنشئ Gemini هوية براند متكاملة تشمل الصوت، القيم، الجمهور، والإرشادات</p>
+                                    <p className="text-dark-text-secondary text-sm">بناءً على معلوماتك، سيُنشئ الذكاء الاصطناعي هوية براند متكاملة تشمل الصوت، القيم، الجمهور، والإرشادات</p>
                                 </>
                             )}
                         </div>
@@ -763,6 +718,18 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
             setIsLoadingDocs(false);
         }
     }, [brandId]);
+
+    const refreshBrandHubData = useCallback(async () => {
+        if (!brandId) return;
+
+        const refreshed = await getBrandHubProfile(
+            brandId,
+            profile.brandName || initialProfile.brandName || 'Brand',
+        );
+        setProfile(refreshed);
+        onUpdate(refreshed);
+        await loadDocuments();
+    }, [brandId, initialProfile.brandName, loadDocuments, onUpdate, profile.brandName]);
 
     useEffect(() => {
         if (activeTab === 'knowledge') loadKnowledge();
@@ -1175,8 +1142,8 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                 existingBrandId={brandId}
                                 onImported={async () => {
                                     setShowImportModal(false);
+                                    await refreshBrandHubData();
                                     addNotification(NotificationType.Success, 'تم تحديث بيانات البراند من الوثيقة');
-                                    window.location.reload();
                                 }}
                             />
                         )}
@@ -1835,7 +1802,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                 existingBrandId={brandId}
                                 onImported={async () => {
                                     setShowImportModal(false);
-                                    await loadDocuments();
+                                    await refreshBrandHubData();
                                     addNotification(NotificationType.Success, 'تم إضافة الوثائق إلى مكتبة التعلم');
                                 }}
                             />
@@ -1909,6 +1876,36 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
                                                 {doc.extractedSummary && (
                                                     <p className="text-xs text-dark-text-secondary mt-2 leading-relaxed line-clamp-2">{doc.extractedSummary}</p>
+                                                )}
+
+                                                {(doc.fileName || doc.fileType || doc.analysisProvider || doc.analysisModel || doc.detectedLanguage) && (
+                                                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                                        {doc.fileName && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-dark-text-secondary border border-dark-border">
+                                                                {doc.fileName}
+                                                            </span>
+                                                        )}
+                                                        {doc.fileType && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-dark-text-secondary border border-dark-border">
+                                                                {doc.fileType}
+                                                            </span>
+                                                        )}
+                                                        {doc.analysisProvider && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-pink/10 text-brand-pink border border-brand-pink/20">
+                                                                {doc.analysisProvider}
+                                                            </span>
+                                                        )}
+                                                        {doc.analysisModel && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-secondary border border-brand-primary/20">
+                                                                {doc.analysisModel}
+                                                            </span>
+                                                        )}
+                                                        {doc.detectedLanguage && (
+                                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                                {doc.detectedLanguage}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
 
                                                 <div className="flex items-center gap-4 mt-3 flex-wrap">
