@@ -1952,11 +1952,9 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
                 {activeTab === 'intelligence' && (() => {
                     // ── Completeness scoring ───────────────────────────────────
-                    const identityPts = [
                     const identityPts = Math.round([
                         profile.brandName, profile.industry, profile.description,
                         (profile.values?.length ?? 0) > 0, profile.country, profile.website,
-                    ].filter(Boolean).length * 5;
                         profile.valueProp, profile.brandPromise
                     ].filter(Boolean).length * 3.75);
 
