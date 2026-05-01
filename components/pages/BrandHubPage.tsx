@@ -1,18 +1,15 @@
 
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType, BrandGoal, BrandLanguage, BusinessModel } from '../../types';
-import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandGoal, BrandLanguage, BusinessModel } from '../../types';
+import { BrandHubProfile, NotificationType, BrandConsistencyEvaluation, BrandKnowledgeEntry, BrandKnowledgeType, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
 import { getBrandKnowledge, addKnowledgeEntry, updateKnowledgeEntry, deleteKnowledgeEntry } from '../../services/brandKnowledgeService';
-import { getBrandKnowledge } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
 import { getBrandSkillsReport } from '../../services/evaluationService';
 import { getBrandDocuments, deleteBrandDocument, BrandDocument, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
 import { BrandImportModal } from '../BrandImportModal';
 import { ScoreDonut } from '../shared/ScoreDonut';
-import { SkillStats } from '../../types';
 import { getMemoryEntries, deleteMemoryEntry, BrandMemoryEntry, MemoryType } from '../../services/brandMemoryService';
 import { getSocialAccounts } from '../../services/socialAccountService';
 
@@ -25,7 +22,6 @@ interface BrandHubPageProps {
 }
 
 type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'knowledge' | 'documents' | 'intelligence';
-type ActiveTab = 'identity' | 'voice' | 'audience' | 'ai-memory' | 'assets' | 'documents' | 'intelligence';
 
 // ONB-1: Multi-step AI First-Run Experience Wizard
 const TONE_OPTIONS = [
