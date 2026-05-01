@@ -751,11 +751,6 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         }
     }, [brandId]);
 
-    useEffect(() => {
-        if (activeTab === 'knowledge') loadKnowledge();
-        if (activeTab === 'documents') loadDocuments();
-    }, [activeTab, loadKnowledge, loadDocuments]);
-
     const loadDocuments = useCallback(async () => {
         if (!brandId) return;
         setIsLoadingDocs(true);
@@ -768,6 +763,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
             setIsLoadingDocs(false);
         }
     }, [brandId]);
+
+    useEffect(() => {
+        if (activeTab === 'knowledge') loadKnowledge();
+        if (activeTab === 'documents') loadDocuments();
+    }, [activeTab, loadKnowledge, loadDocuments]);
 
     const handleDeleteDocument = async (docId: string) => {
         try {
