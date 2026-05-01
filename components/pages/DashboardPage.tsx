@@ -42,12 +42,12 @@ const Panel: React.FC<{
     className?: string;
     children: React.ReactNode;
 }> = ({ title, subtitle, actions, className = '', children }) => (
-    <section className={`surface-panel rounded-[1.75rem] p-5 md:p-6 ${className}`}>
+    <section className={`rounded-[2rem] border border-light-border/60 bg-light-card/80 p-6 shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-md dark:border-dark-border/60 dark:bg-dark-card/80 ${className}`}>
         {(title || actions) && (
-            <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
                     {title && <h2 className="text-lg font-semibold text-light-text dark:text-dark-text">{title}</h2>}
-                    {subtitle && <p className="mt-1 text-sm text-light-text-secondary dark:text-dark-text-secondary">{subtitle}</p>}
+                    {subtitle && <p className="mt-1.5 text-sm text-light-text-secondary dark:text-dark-text-secondary">{subtitle}</p>}
                 </div>
                 {actions}
             </div>
@@ -76,18 +76,19 @@ interface NowItem {
     urgency: 'high' | 'medium' | 'low';
 }
 
-const NowTile: React.FC<NowItem & { onNavigate: (page: string) => void; ar: boolean }> = ({
-    icon, label, value, tone, bg, nav, urgency, onNavigate, ar,
+const NowTile: React.FC<NowItem & { onNavigate: (page: string) => void; ar: boolean; delayIdx: number }> = ({
+    icon, label, value, tone, bg, nav, urgency, onNavigate, ar, delayIdx
 }) => (
     <button
         onClick={() => onNavigate(nav)}
-        className={`group flex flex-col gap-3 rounded-[1.4rem] p-4 text-start transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-ambient)] active:scale-[0.98] ${bg} border ${urgency === 'high' ? 'border-rose-500/30' : urgency === 'medium' ? 'border-amber-500/25' : 'border-light-border/40 dark:border-dark-border/40'}`}
+        className={`group flex flex-col gap-3 rounded-[1.5rem] p-5 text-start transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] ${bg} border backdrop-blur-md animate-fade-in ${urgency === 'high' ? 'border-rose-500/40 shadow-rose-500/10' : urgency === 'medium' ? 'border-amber-500/30 shadow-amber-500/5' : 'border-light-border/50 dark:border-dark-border/50 hover:border-brand-primary/30'}`}
+        style={{ animationDelay: `${delayIdx * 75}ms` }}
     >
-        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${tone} bg-white/60 dark:bg-white/10`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone} bg-white/70 shadow-sm dark:bg-white/10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
             <i className={`fas ${icon} text-sm`} />
         </div>
         <div>
-            <p className="text-2xl font-black tracking-tight text-light-text dark:text-dark-text">{value}</p>
+            <p className="text-3xl font-black tracking-tight text-light-text dark:text-dark-text">{value}</p>
             <p className="mt-0.5 text-xs font-medium leading-5 text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
         </div>
     </button>
@@ -124,20 +125,20 @@ const getPriorityIconBg = (tone: string): string => {
 const PriorityCard: React.FC<Priority & { onNavigate: (page: string) => void }> = ({
     icon, title, description, tone, cta, nav, badge, onNavigate,
 }) => (
-    <div className={`surface-panel-soft flex items-start gap-4 rounded-[1.4rem] p-4 border ${tone}`}>
-        <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-white ${getPriorityIconBg(tone)}`}>
-            <i className={`fas ${icon} text-sm`} />
+    <div className={`flex items-start gap-4 rounded-[1.5rem] p-4 transition-all duration-300 hover:shadow-md border bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 ${tone}`}>
+        <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${getPriorityIconBg(tone)}`}>
+            <i className={`fas ${icon} text-base`} />
         </div>
         <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-bold text-light-text dark:text-dark-text">{title}</p>
-                {badge && <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">{badge}</span>}
+                {badge && <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 animate-pulse">{badge}</span>}
             </div>
             <p className="mt-1 text-xs leading-5 text-light-text-secondary dark:text-dark-text-secondary">{description}</p>
         </div>
         <button
             onClick={() => onNavigate(nav)}
-            className="shrink-0 rounded-xl bg-brand-primary/10 px-3 py-1.5 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white whitespace-nowrap"
+            className="shrink-0 rounded-xl bg-brand-primary/10 px-4 py-2 text-xs font-semibold text-brand-primary transition-all hover:bg-brand-primary hover:text-white hover:shadow-lg hover:shadow-brand-primary/20 whitespace-nowrap"
         >
             {cta}
         </button>
@@ -155,14 +156,17 @@ interface Insight {
     bg: string;
 }
 
-const InsightTile: React.FC<Insight> = ({ icon, label, value, sub, color, bg }) => (
-    <div className={`surface-panel-soft rounded-[1.4rem] p-4 ${bg} border border-transparent`}>
-        <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${color} bg-white/60 dark:bg-white/10`}>
+const InsightTile: React.FC<Insight & { delayIdx: number }> = ({ icon, label, value, sub, color, bg, delayIdx }) => (
+    <div
+        className={`rounded-[1.5rem] p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg backdrop-blur-md animate-fade-in ${bg} border border-light-border/40 dark:border-dark-border/40`}
+        style={{ animationDelay: `${delayIdx * 75}ms` }}
+    >
+        <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${color} bg-white/70 shadow-sm dark:bg-white/10`}>
             <i className={`fas ${icon} text-sm`} />
         </div>
-        <p className="text-xs font-semibold text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
-        <p className="mt-1 text-base font-bold leading-snug text-light-text dark:text-dark-text">{value}</p>
-        <p className="mt-1 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">{sub}</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
+        <p className="mt-1.5 text-lg font-black leading-snug text-light-text dark:text-dark-text">{value}</p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-light-text-secondary dark:text-dark-text-secondary opacity-80">{sub}</p>
     </div>
 );
 
@@ -177,28 +181,31 @@ interface Suggestion {
     nav: string;
 }
 
-const SuggestionCard: React.FC<Suggestion & { onNavigate: (page: string) => void; ar: boolean }> = ({
-    icon, title, reason, confidence, nav, onNavigate, ar,
+const SuggestionCard: React.FC<Suggestion & { onNavigate: (page: string) => void; ar: boolean; delayIdx: number }> = ({
+    icon, title, reason, confidence, nav, onNavigate, ar, delayIdx
 }) => (
-    <div className="surface-panel-soft flex flex-col gap-3 rounded-[1.4rem] p-4">
-        <div className="flex items-start justify-between gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
-                <i className={`fas ${icon} text-sm`} />
+    <div
+        className="flex flex-col gap-4 rounded-[1.5rem] p-5 transition-all duration-300 hover:shadow-lg border border-light-border/50 dark:border-dark-border/50 bg-gradient-to-b from-white/50 to-transparent dark:from-white/5 animate-fade-in"
+        style={{ animationDelay: `${delayIdx * 75}ms` }}
+    >
+        <div className="flex items-start justify-between gap-2">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary shadow-inner">
+                <i className={`fas ${icon} text-base`} />
             </div>
             <span className={`mt-0.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${confidence === 'high' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}`}>
                 {confidence === 'high' ? (ar ? 'ثقة عالية' : 'High confidence') : (ar ? 'يستحق المراجعة' : 'Review suggested')}
             </span>
         </div>
         <div>
-            <p className="text-sm font-bold text-light-text dark:text-dark-text">{title}</p>
-            <p className="mt-1 text-xs leading-5 text-light-text-secondary dark:text-dark-text-secondary">
+            <p className="text-sm font-black text-light-text dark:text-dark-text leading-snug">{title}</p>
+            <p className="mt-1.5 text-xs leading-relaxed text-light-text-secondary dark:text-dark-text-secondary opacity-90">
                 <i className="fas fa-circle-info text-[9px] text-brand-primary/60 mr-1" />
                 {reason}
             </p>
         </div>
         <button
             onClick={() => onNavigate(nav)}
-            className="mt-auto rounded-xl bg-brand-primary/8 px-3 py-2 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white text-center"
+            className="mt-auto rounded-xl bg-brand-primary/10 px-4 py-2.5 text-xs font-bold text-brand-primary transition-all hover:bg-brand-primary hover:text-white hover:shadow-md text-center"
         >
             {ar ? 'ابدأ الآن' : 'Start now'} <i className={`fas ${ar ? 'fa-arrow-left' : 'fa-arrow-right'} text-[9px]`} />
         </button>
@@ -211,14 +218,14 @@ const MetricTile: React.FC<{
     title: string; value: string; icon: string; trend?: string;
     positive?: boolean; comparedText?: string;
 }> = ({ title, value, icon, trend, positive, comparedText }) => (
-    <div className="surface-panel-soft rounded-[1.5rem] p-5 text-start transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-ambient)]">
+    <div className="rounded-[1.5rem] border border-light-border/50 bg-light-card/60 p-5 text-start backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-dark-border/50 dark:bg-dark-card/60">
         <div className="flex items-start justify-between gap-3">
             <div>
-                <p className="text-sm font-semibold text-light-text-secondary dark:text-dark-text-secondary">{title}</p>
-                <p className="metric-emphasis mt-2 text-3xl font-black tracking-tight text-light-text dark:text-dark-text">{value}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">{title}</p>
+                <p className="metric-emphasis mt-2 text-3xl font-black tracking-tight text-light-text dark:text-dark-text drop-shadow-sm">{value}</p>
             </div>
             <div className="flex flex-col items-center gap-2">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary shadow-inner">
                     <i className={`fas ${icon} text-base`} />
                 </div>
             </div>
@@ -241,9 +248,9 @@ const ScheduledPostItem: React.FC<{
     post: ScheduledPost; onEdit: () => void; onDelete?: () => void;
     locale: string; emptyTitleText: string;
 }> = ({ post, onEdit, onDelete, locale, emptyTitleText }) => (
-    <div className="surface-panel-soft flex items-center justify-between gap-3 rounded-[1.25rem] p-3">
+    <div className="group flex items-center justify-between gap-3 rounded-[1.25rem] border border-light-border/40 bg-white/50 p-3 transition-all hover:border-brand-primary/30 hover:bg-white dark:border-dark-border/40 dark:bg-black/10 dark:hover:bg-black/20">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-light-bg dark:bg-dark-bg">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-light-bg shadow-sm dark:bg-dark-bg">
                 {post.media.length > 0 ? (
                     <img src={post.media[0].url} className="h-full w-full object-cover" alt="post media" />
                 ) : (
@@ -253,10 +260,10 @@ const ScheduledPostItem: React.FC<{
                 )}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-light-text dark:text-dark-text">{post.content || emptyTitleText}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                <p className="truncate text-sm font-bold text-light-text dark:text-dark-text group-hover:text-brand-primary transition-colors">{post.content || emptyTitleText}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-light-text-secondary dark:text-dark-text-secondary">
                     {post.platforms.map((platform) => (
-                        <span key={platform} className="inline-flex items-center gap-1 rounded-full bg-light-bg px-2 py-1 dark:bg-dark-bg">
+                        <span key={platform} className="inline-flex items-center gap-1 rounded-full border border-light-border/50 bg-light-bg px-2 py-0.5 dark:border-dark-border/50 dark:bg-dark-bg">
                             <i className={`${PLATFORM_ASSETS[platform].icon} ${PLATFORM_ASSETS[platform].textColor}`} />
                             <span>{platform}</span>
                         </span>
@@ -268,11 +275,11 @@ const ScheduledPostItem: React.FC<{
             </div>
         </div>
         <div className="flex items-center gap-1">
-            <button onClick={onEdit} aria-label="Edit" className="flex h-10 w-10 items-center justify-center rounded-2xl text-light-text-secondary transition-colors hover:bg-light-bg hover:text-brand-primary dark:text-dark-text-secondary dark:hover:bg-dark-bg">
+            <button onClick={onEdit} aria-label="Edit" className="flex h-9 w-9 items-center justify-center rounded-xl text-light-text-secondary opacity-0 transition-all hover:bg-brand-primary/10 hover:text-brand-primary group-hover:opacity-100 dark:text-dark-text-secondary">
                 <i className="fas fa-pen text-xs" />
             </button>
             {onDelete && (
-                <button onClick={onDelete} aria-label="Delete" className="flex h-10 w-10 items-center justify-center rounded-2xl text-light-text-secondary transition-colors hover:bg-rose-500/10 hover:text-rose-500 dark:text-dark-text-secondary">
+                <button onClick={onDelete} aria-label="Delete" className="flex h-9 w-9 items-center justify-center rounded-xl text-light-text-secondary opacity-0 transition-all hover:bg-rose-500/10 hover:text-rose-500 group-hover:opacity-100 dark:text-dark-text-secondary">
                     <i className="fas fa-trash text-xs" />
                 </button>
             )}
@@ -281,21 +288,21 @@ const ScheduledPostItem: React.FC<{
 );
 
 const ConversationItem: React.FC<{ conversation: InboxConversation; locale: string }> = ({ conversation, locale }) => (
-    <div className="surface-panel-soft flex items-start gap-3 rounded-[1.25rem] p-3">
+    <div className="group flex items-start gap-3 rounded-[1.25rem] border border-light-border/40 bg-white/50 p-3 transition-all hover:border-brand-primary/30 hover:bg-white dark:border-dark-border/40 dark:bg-black/10 dark:hover:bg-black/20">
         <div className="relative shrink-0">
-            <img src={conversation.user.avatarUrl} alt={conversation.user.name} className="h-11 w-11 rounded-2xl object-cover" />
+            <img src={conversation.user.avatarUrl} alt={conversation.user.name} className="h-11 w-11 rounded-2xl object-cover shadow-sm" />
             <div className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-light-card text-[9px] text-white dark:border-dark-card ${PLATFORM_ASSETS[conversation.platform].color}`}>
                 <i className={PLATFORM_ASSETS[conversation.platform].icon} />
             </div>
         </div>
         <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
-                <p className="truncate text-sm font-semibold text-light-text dark:text-dark-text">{conversation.user.name}</p>
-                <span className="shrink-0 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                <p className="truncate text-sm font-bold text-light-text dark:text-dark-text group-hover:text-brand-primary transition-colors">{conversation.user.name}</p>
+                <span className="shrink-0 text-[10px] font-medium text-light-text-secondary dark:text-dark-text-secondary">
                     {new Date(conversation.lastMessageTimestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                 </span>
             </div>
-            <p className={`mt-1 truncate text-xs ${conversation.isRead ? 'text-light-text-secondary dark:text-dark-text-secondary' : 'font-semibold text-light-text dark:text-dark-text'}`}>
+            <p className={`mt-1.5 truncate text-xs ${conversation.isRead ? 'text-light-text-secondary dark:text-dark-text-secondary opacity-90' : 'font-bold text-light-text dark:text-dark-text'}`}>
                 {conversation.messages[conversation.messages.length - 1]?.text}
             </p>
         </div>
@@ -351,7 +358,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         if (!brandId) return;
         getIntegrationHealth(brandId).then(assets => {
             setExpiringTokens(assets.filter(a => a.tokenExpiringSoon));
-        }).catch(() => {});
+        }).catch(() => { });
     }, [brandId]);
 
     const handleSyncAnalytics = async () => {
@@ -370,15 +377,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             .filter((p) => p.status === PostStatus.Scheduled && p.scheduledAt && new Date(p.scheduledAt) > new Date())
             .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
             .slice(0, 4),
-    [scheduledPosts]);
+        [scheduledPosts]);
 
     const unreadConversations = useMemo(() =>
         conversations.filter((c) => !c.isRead).slice(0, 4),
-    [conversations]);
+        [conversations]);
 
     const criticalErrors = useMemo(() =>
         errors.filter((e) => e.status === 'New').slice(0, 3),
-    [errors]);
+        [errors]);
 
     const todayScheduledCount = useMemo(() => {
         const now = new Date();
@@ -577,74 +584,74 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             },
         ]
         : hasAnyData
-        ? [
-            {
-                icon: 'fa-chart-line',
-                label: ar ? 'أنماط المحتوى' : 'Content patterns',
-                value: ar ? `${postsCount} ${postsCount === 1 ? 'منشور' : 'منشورات'} حتى الآن` : `${postsCount} post${postsCount !== 1 ? 's' : ''} so far`,
-                sub: ar ? `نحتاج ١٠ على الأقل. ${10 - postsCount} متبقٍ لبدء التحليل.` : `Need at least 10. ${10 - postsCount} more to unlock insights.`,
-                color: 'text-blue-600',
-                bg: 'bg-blue-500/5',
-            },
-            {
-                icon: 'fa-clock',
-                label: ar ? 'أفضل وقت للنشر' : 'Best posting time',
-                value: ar ? 'جمع البيانات...' : 'Collecting...',
-                sub: ar ? 'يحتسب تلقائيًا مع تراكم المنشورات والتفاعلات' : 'Auto-calculated as posts and engagement accumulate',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-            {
-                icon: 'fa-comment-dots',
-                label: ar ? 'أنماط المحادثات' : 'Conversation patterns',
-                value: ar ? 'جمع البيانات...' : 'Collecting...',
-                sub: ar ? 'ردّ على عملائك عبر الـ Inbox لتراكم البيانات' : 'Reply to customers via Inbox to build conversation data',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-            {
-                icon: 'fa-star',
-                label: ar ? 'تقييم مخرجات AI' : 'AI output rating',
-                value: ar ? 'لا تقييمات بعد' : 'No ratings yet',
-                sub: ar ? 'قيّم المحتوى الذي يولّده النظام حتى يتحسن مع الوقت' : 'Rate system-generated content to improve it over time',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-        ]
-        : [
-            {
-                icon: 'fa-chart-line',
-                label: ar ? 'أداء المحتوى' : 'Content performance',
-                value: ar ? 'يحتاج بيانات' : 'Needs data',
-                sub: ar ? 'انشر محتوى واربط حساباتك لنتعلم من أدائك.' : 'Publish content and connect accounts to start learning.',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-            {
-                icon: 'fa-comment-dots',
-                label: ar ? 'أنماط المحادثات' : 'Conversation patterns',
-                value: ar ? 'يحتاج رسائل' : 'Needs messages',
-                sub: ar ? 'ردّ على عملائك عبر الـ Inbox حتى يبدأ النظام في رصد الأنماط.' : 'Reply to customers via Inbox to start detecting patterns.',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-            {
-                icon: 'fa-bullhorn',
-                label: ar ? 'كفاءة الإعلانات' : 'Ad efficiency',
-                value: ar ? 'غير مرتبط' : 'Not connected',
-                sub: ar ? 'ربط منصة الإعلانات سيكشف ROAS وCPA الحقيقي.' : 'Connect ad platform to reveal real ROAS and CPA.',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-            {
-                icon: 'fa-star',
-                label: ar ? 'تقييم مخرجات AI' : 'AI output rating',
-                value: ar ? 'لا تقييمات بعد' : 'No ratings yet',
-                sub: ar ? 'قيّم المحتوى الذي يولّده النظام حتى يتحسن مع الوقت.' : 'Rate system-generated content to improve it over time.',
-                color: 'text-light-text-secondary',
-                bg: 'bg-light-bg/50',
-            },
-        ];
+            ? [
+                {
+                    icon: 'fa-chart-line',
+                    label: ar ? 'أنماط المحتوى' : 'Content patterns',
+                    value: ar ? `${postsCount} ${postsCount === 1 ? 'منشور' : 'منشورات'} حتى الآن` : `${postsCount} post${postsCount !== 1 ? 's' : ''} so far`,
+                    sub: ar ? `نحتاج ١٠ على الأقل. ${10 - postsCount} متبقٍ لبدء التحليل.` : `Need at least 10. ${10 - postsCount} more to unlock insights.`,
+                    color: 'text-blue-600',
+                    bg: 'bg-blue-500/5',
+                },
+                {
+                    icon: 'fa-clock',
+                    label: ar ? 'أفضل وقت للنشر' : 'Best posting time',
+                    value: ar ? 'جمع البيانات...' : 'Collecting...',
+                    sub: ar ? 'يحتسب تلقائيًا مع تراكم المنشورات والتفاعلات' : 'Auto-calculated as posts and engagement accumulate',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+                {
+                    icon: 'fa-comment-dots',
+                    label: ar ? 'أنماط المحادثات' : 'Conversation patterns',
+                    value: ar ? 'جمع البيانات...' : 'Collecting...',
+                    sub: ar ? 'ردّ على عملائك عبر الـ Inbox لتراكم البيانات' : 'Reply to customers via Inbox to build conversation data',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+                {
+                    icon: 'fa-star',
+                    label: ar ? 'تقييم مخرجات AI' : 'AI output rating',
+                    value: ar ? 'لا تقييمات بعد' : 'No ratings yet',
+                    sub: ar ? 'قيّم المحتوى الذي يولّده النظام حتى يتحسن مع الوقت' : 'Rate system-generated content to improve it over time',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+            ]
+            : [
+                {
+                    icon: 'fa-chart-line',
+                    label: ar ? 'أداء المحتوى' : 'Content performance',
+                    value: ar ? 'يحتاج بيانات' : 'Needs data',
+                    sub: ar ? 'انشر محتوى واربط حساباتك لنتعلم من أدائك.' : 'Publish content and connect accounts to start learning.',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+                {
+                    icon: 'fa-comment-dots',
+                    label: ar ? 'أنماط المحادثات' : 'Conversation patterns',
+                    value: ar ? 'يحتاج رسائل' : 'Needs messages',
+                    sub: ar ? 'ردّ على عملائك عبر الـ Inbox حتى يبدأ النظام في رصد الأنماط.' : 'Reply to customers via Inbox to start detecting patterns.',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+                {
+                    icon: 'fa-bullhorn',
+                    label: ar ? 'كفاءة الإعلانات' : 'Ad efficiency',
+                    value: ar ? 'غير مرتبط' : 'Not connected',
+                    sub: ar ? 'ربط منصة الإعلانات سيكشف ROAS وCPA الحقيقي.' : 'Connect ad platform to reveal real ROAS and CPA.',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+                {
+                    icon: 'fa-star',
+                    label: ar ? 'تقييم مخرجات AI' : 'AI output rating',
+                    value: ar ? 'لا تقييمات بعد' : 'No ratings yet',
+                    sub: ar ? 'قيّم المحتوى الذي يولّده النظام حتى يتحسن مع الوقت.' : 'Rate system-generated content to improve it over time.',
+                    color: 'text-light-text-secondary',
+                    bg: 'bg-light-bg/50',
+                },
+            ];
 
     // ── Section D — ما الذي نقترحه ───────────────────────────────────────────
     const industryLabel = brandProfile?.industry || '';
@@ -708,10 +715,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     };
 
     const operatorMetrics = [
-        { label: 'MER',  sublabel: ar ? 'كفاءة التسويق الكلي'  : 'Marketing Efficiency Ratio', value: '3.2x', trend: '+0.4x', positive: true,  icon: 'fa-chart-line',   color: 'text-emerald-500', bg: 'bg-emerald-500/10', note: ar ? 'الإيراد ÷ الإنفاق التسويقي الكلي'     : 'Revenue ÷ total marketing spend' },
-        { label: 'ROAS', sublabel: ar ? 'عائد إنفاق الإعلانات' : 'Return on Ad Spend',           value: '4.8x', trend: '-0.2x', positive: false, icon: 'fa-dollar-sign',  color: 'text-blue-500',    bg: 'bg-blue-500/10',    note: ar ? 'إيراد الإعلانات ÷ إنفاق الإعلانات' : 'Ad revenue ÷ ad spend'           },
-        { label: 'CPA',  sublabel: ar ? 'تكلفة اكتساب العميل'  : 'Cost Per Acquisition',         value: ar ? '٤٢ ج' : '$42', trend: '-8%',    positive: true,  icon: 'fa-user-plus',    color: 'text-violet-500',  bg: 'bg-violet-500/10',  note: ar ? 'تكلفة اكتساب عميل جديد'            : 'Cost to acquire one new customer'},
-        { label: 'CVR',  sublabel: ar ? 'معدل التحويل'          : 'Conversion Rate',              value: '3.7%', trend: '+0.5%', positive: true,  icon: 'fa-funnel-dollar',color: 'text-amber-500',   bg: 'bg-amber-500/10',   note: ar ? 'من زائر إلى عميل'                  : 'From visitor to customer'        },
+        { label: 'MER', sublabel: ar ? 'كفاءة التسويق الكلي' : 'Marketing Efficiency Ratio', value: '3.2x', trend: '+0.4x', positive: true, icon: 'fa-chart-line', color: 'text-emerald-500', bg: 'bg-emerald-500/10', note: ar ? 'الإيراد ÷ الإنفاق التسويقي الكلي' : 'Revenue ÷ total marketing spend' },
+        { label: 'ROAS', sublabel: ar ? 'عائد إنفاق الإعلانات' : 'Return on Ad Spend', value: '4.8x', trend: '-0.2x', positive: false, icon: 'fa-dollar-sign', color: 'text-blue-500', bg: 'bg-blue-500/10', note: ar ? 'إيراد الإعلانات ÷ إنفاق الإعلانات' : 'Ad revenue ÷ ad spend' },
+        { label: 'CPA', sublabel: ar ? 'تكلفة اكتساب العميل' : 'Cost Per Acquisition', value: ar ? '٤٢ ج' : '$42', trend: '-8%', positive: true, icon: 'fa-user-plus', color: 'text-violet-500', bg: 'bg-violet-500/10', note: ar ? 'تكلفة اكتساب عميل جديد' : 'Cost to acquire one new customer' },
+        { label: 'CVR', sublabel: ar ? 'معدل التحويل' : 'Conversion Rate', value: '3.7%', trend: '+0.5%', positive: true, icon: 'fa-funnel-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10', note: ar ? 'من زائر إلى عميل' : 'From visitor to customer' },
     ];
 
     return (
@@ -793,9 +800,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             {/* ══ SECTION A: ماذا يحدث الآن ════════════════════════════════════ */}
             <div>
                 <SectionKicker icon="fa-circle-dot" label={ar ? 'ماذا يحدث الآن' : "What's happening now"} />
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {nowItems.map((item) => (
-                        <NowTile key={item.id} {...item} onNavigate={onNavigate} ar={ar} />
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {nowItems.map((item, idx) => (
+                        <NowTile key={item.id} {...item} onNavigate={onNavigate} ar={ar} delayIdx={idx} />
                     ))}
                 </div>
             </div>
@@ -844,7 +851,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         </button>
                     )}
                 >
-                    <div className="space-y-3">
+                    <div className="space-y-3.5">
                         {upcomingPosts.length > 0 ? (
                             upcomingPosts.map((post) => (
                                 <ScheduledPostItem
@@ -857,7 +864,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                                 />
                             ))
                         ) : (
-                            <div className="rounded-[1.25rem] border border-dashed border-light-border px-4 py-6 text-center text-sm text-light-text-secondary dark:border-dark-border dark:text-dark-text-secondary">
+                            <div className="rounded-[1.5rem] border-2 border-dashed border-light-border/60 px-4 py-8 text-center text-sm font-medium text-light-text-secondary dark:border-dark-border/60 dark:text-dark-text-secondary">
                                 {ar ? 'لا توجد منشورات مجدولة حاليًا.' : 'No scheduled posts right now.'}
                             </div>
                         )}
@@ -882,9 +889,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         </span>
                     )}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {insights.map((ins, i) => (
-                        <InsightTile key={i} {...ins} />
+                        <InsightTile key={i} {...ins} delayIdx={i} />
                     ))}
                 </div>
             </div>
@@ -892,9 +899,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             {/* ══ SECTION D: ما الذي نقترحه ════════════════════════════════════ */}
             <div>
                 <SectionKicker icon="fa-wand-magic-sparkles" label={ar ? 'ما الذي نقترحه' : "What we suggest"} accent="text-brand-primary" />
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {suggestions.map((s) => (
-                        <SuggestionCard key={s.id} {...s} onNavigate={onNavigate} ar={ar} />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {suggestions.map((s, i) => (
+                        <SuggestionCard key={s.id} {...s} onNavigate={onNavigate} ar={ar} delayIdx={i} />
                     ))}
                 </div>
             </div>
@@ -926,36 +933,36 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             {/* ── Operator metrics + chart + alerts + messages ─────────────── */}
             <Panel
                 title={ar ? 'مقاييس التشغيل' : 'Operator metrics'}
-                subtitle={ar ? 'مؤشرات أداء سريعة قبل الدخول للتفاصيل.' : 'Fast performance indicators before drilling into detail.'}
+                subtitle={ar ? 'مؤشرات أداء سريعة لمتخذي القرار.' : 'Fast performance indicators before drilling into detail.'}
             >
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {operatorMetrics.map((metric) => (
-                        <div key={metric.label} className="surface-panel-soft rounded-[1.5rem] p-4">
+                        <div key={metric.label} className="rounded-[1.5rem] border border-light-border/50 bg-light-bg/50 p-5 transition-all hover:bg-light-card hover:shadow-sm dark:border-dark-border/50 dark:bg-dark-bg/50 dark:hover:bg-dark-card">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-lg font-black text-light-text dark:text-dark-text">{metric.label}</span>
                                         <span className="rounded-full bg-slate-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Demo</span>
                                     </div>
-                                    <p className="truncate text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{metric.sublabel}</p>
+                                    <p className="mt-1 truncate text-xs font-medium text-light-text-secondary dark:text-dark-text-secondary">{metric.sublabel}</p>
                                 </div>
-                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${metric.bg} ${metric.color}`}>
+                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-sm ${metric.bg} ${metric.color}`}>
                                     <i className={`fas ${metric.icon} text-sm`} />
                                 </div>
                             </div>
-                            <div className="mt-3 flex items-end justify-between gap-2">
+                            <div className="mt-4 flex items-end justify-between gap-2">
                                 <span className="text-2xl font-bold text-light-text dark:text-dark-text">{metric.value}</span>
                                 <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${metric.positive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-300' : 'bg-rose-500/10 text-rose-600 dark:text-rose-300'}`}>
                                     {metric.trend}
                                 </span>
                             </div>
-                            <p className="mt-2 text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{metric.note}</p>
+                            <p className="mt-2.5 text-[11px] leading-relaxed text-light-text-secondary opacity-80 dark:text-dark-text-secondary">{metric.note}</p>
                         </div>
                     ))}
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-transparent px-5 py-3.5">
                     <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
-                        <i className="fas fa-triangle-exclamation text-[10px]" />
+                        <i className="fas fa-triangle-exclamation text-sm" />
                         {ar ? 'هذه بيانات توضيحية. اربط Google Ads من صفحة التكاملات للحصول على أرقام فعلية.' : 'All figures are demo data. Connect Google Ads from Integrations for live numbers.'}
                     </p>
                     {!hasLinkedAds && (
@@ -969,7 +976,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 </div>
             </Panel>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
                 <Panel
                     title={ar ? 'نمو الجمهور' : 'Audience growth'}
                     subtitle={ar ? 'قراءة سريعة لنمو الجمهور خلال الفترة المحددة.' : 'Quick read on audience growth in the selected period.'}
@@ -1008,10 +1015,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                             </button>
                         )}
                     >
-                        <div className="space-y-3">
+                        <div className="space-y-3.5">
                             {criticalErrors.length > 0
                                 ? criticalErrors.map((e) => <ErrorItem key={e.id} error={e} />)
-                                : <div className="rounded-[1.25rem] border border-dashed border-light-border px-4 py-6 text-center text-sm text-light-text-secondary dark:border-dark-border dark:text-dark-text-secondary">{ar ? 'لا توجد تنبيهات جديدة الآن.' : 'No new alerts right now.'}</div>
+                                : <div className="rounded-[1.5rem] border-2 border-dashed border-light-border/60 px-4 py-8 text-center text-sm font-medium text-light-text-secondary dark:border-dark-border/60 dark:text-dark-text-secondary">{ar ? 'لا توجد تنبيهات جديدة الآن.' : 'No new alerts right now.'}</div>
                             }
                         </div>
                     </Panel>
@@ -1025,10 +1032,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                             </button>
                         )}
                     >
-                        <div className="space-y-3">
+                        <div className="space-y-3.5">
                             {unreadConversations.length > 0
                                 ? unreadConversations.map((c) => <ConversationItem key={c.id} conversation={c} locale={locale} />)
-                                : <div className="rounded-[1.25rem] border border-dashed border-light-border px-4 py-6 text-center text-sm text-light-text-secondary dark:border-dark-border dark:text-dark-text-secondary">{ar ? 'لا توجد رسائل غير مقروءة.' : 'No unread messages right now.'}</div>
+                                : <div className="rounded-[1.5rem] border-2 border-dashed border-light-border/60 px-4 py-8 text-center text-sm font-medium text-light-text-secondary dark:border-dark-border/60 dark:text-dark-text-secondary">{ar ? 'لا توجد رسائل غير مقروءة.' : 'No unread messages right now.'}</div>
                             }
                         </div>
                     </Panel>

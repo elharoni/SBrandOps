@@ -27,56 +27,56 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
     };
 
     const productLinks = [
-        { label: isArabic ? 'كل المميزات'   : 'All Features',    href: publicPageToPath('features')      },
-        { label: 'Brand Hub',                                      href: `${publicPageToPath('home')}#product` },
-        { label: 'Content Ops',                                    href: `${publicPageToPath('home')}#product` },
-        { label: 'Social Publishing',                              href: `${publicPageToPath('home')}#product` },
-        { label: 'Ads Analytics',                                  href: `${publicPageToPath('home')}#product` },
-        { label: 'SEO Ops',                                        href: `${publicPageToPath('home')}#product` },
-        { label: 'Inbox Ops',                                      href: `${publicPageToPath('home')}#product` },
-        { label: 'Analytics Hub',                                  href: `${publicPageToPath('home')}#product` },
+        { label: isArabic ? 'كل المميزات' : 'All Features', href: publicPageToPath('features') },
+        { label: 'Brand Hub', href: `${publicPageToPath('home')}#product` },
+        { label: 'Content Ops', href: `${publicPageToPath('home')}#product` },
+        { label: 'Social Publishing', href: `${publicPageToPath('home')}#product` },
+        { label: 'Ads Analytics', href: `${publicPageToPath('home')}#product` },
+        { label: 'SEO Ops', href: `${publicPageToPath('home')}#product` },
+        { label: 'Inbox Ops', href: `${publicPageToPath('home')}#product` },
+        { label: 'Analytics Hub', href: `${publicPageToPath('home')}#product` },
     ];
 
     const companyLinks = [
-        { label: isArabic ? 'من نحن'               : 'About',        href: publicPageToPath('about')        },
-        { label: isArabic ? 'للوكالات'             : 'For Agencies', href: publicPageToPath('for-agencies') },
+        { label: isArabic ? 'من نحن' : 'About', href: publicPageToPath('about') },
+        { label: isArabic ? 'للوكالات' : 'For Agencies', href: publicPageToPath('for-agencies') },
         { label: isArabic ? 'للتجارة الإلكترونية' : 'For E-commerce', href: publicPageToPath('for-ecommerce') },
-        { label: isArabic ? 'تواصل معنا'           : 'Contact',      href: publicPageToPath('contact')      },
-        { label: isArabic ? 'الاسعار'              : 'Pricing',      href: publicPageToPath('pricing')      },
-        { label: isArabic ? 'طلب ديمو'             : 'Book Demo',    href: publicPageToPath('demo')         },
+        { label: isArabic ? 'تواصل معنا' : 'Contact', href: publicPageToPath('contact') },
+        { label: isArabic ? 'الاسعار' : 'Pricing', href: publicPageToPath('pricing') },
+        { label: isArabic ? 'طلب ديمو' : 'Book Demo', href: publicPageToPath('demo') },
     ];
 
     const resourceLinks = [
-        { label: isArabic ? 'مركز المساعدة'   : 'Help Center', href: `${publicPageToPath('contact')}#support` },
-        { label: isArabic ? 'الاسئلة الشائعة' : 'FAQ',         href: `${publicPageToPath('home')}#faq`        },
-        { label: isArabic ? 'المدونة'          : 'Blog',        href: publicPageToPath('home')                  },
-        { label: isArabic ? 'دليل الاستخدام'   : 'User Guide',  href: `${publicPageToPath('contact')}#support`  },
-        { label: isArabic ? 'الامان'           : 'Security',    href: publicPageToPath('security')               },
-        { label: isArabic ? 'الفوترة'          : 'Billing',     href: publicPageToPath('billing')                },
+        { label: isArabic ? 'مركز المساعدة' : 'Help Center', href: `${publicPageToPath('contact')}#support` },
+        { label: isArabic ? 'الاسئلة الشائعة' : 'FAQ', href: `${publicPageToPath('home')}#faq` },
+        { label: isArabic ? 'المدونة' : 'Blog', href: publicPageToPath('home') },
+        { label: isArabic ? 'دليل الاستخدام' : 'User Guide', href: `${publicPageToPath('contact')}#support` },
+        { label: isArabic ? 'الامان' : 'Security', href: publicPageToPath('security') },
+        { label: isArabic ? 'الفوترة' : 'Billing', href: publicPageToPath('billing') },
     ];
 
     const legalLinks = [
-        { label: isArabic ? 'الشروط'                  : 'Terms',   href: publicPageToPath('terms')   },
-        { label: isArabic ? 'الخصوصية'                : 'Privacy', href: publicPageToPath('privacy') },
-        { label: isArabic ? 'اتفاقية معالجة البيانات' : 'DPA',     href: publicPageToPath('dpa')     },
-        { label: isArabic ? 'سياسة الكوكيز'           : 'Cookies', href: publicPageToPath('cookies') },
-        { label: isArabic ? 'الاسترجاع'               : 'Refunds', href: publicPageToPath('refunds') },
+        { label: isArabic ? 'الشروط' : 'Terms', href: publicPageToPath('terms') },
+        { label: isArabic ? 'الخصوصية' : 'Privacy', href: publicPageToPath('privacy') },
+        { label: isArabic ? 'اتفاقية معالجة البيانات' : 'DPA', href: publicPageToPath('dpa') },
+        { label: isArabic ? 'سياسة الكوكيز' : 'Cookies', href: publicPageToPath('cookies') },
+        { label: isArabic ? 'الاسترجاع' : 'Refunds', href: publicPageToPath('refunds') },
     ];
 
     const footerColumns = [
-        { title: isArabic ? 'المنتج'    : 'Product',   links: productLinks   },
-        { title: isArabic ? 'الشركة'    : 'Company',   links: companyLinks   },
-        { title: isArabic ? 'الموارد'   : 'Resources', links: resourceLinks  },
-        { title: isArabic ? 'القانونية' : 'Legal',     links: legalLinks     },
+        { title: isArabic ? 'المنتج' : 'Product', links: productLinks },
+        { title: isArabic ? 'الشركة' : 'Company', links: companyLinks },
+        { title: isArabic ? 'الموارد' : 'Resources', links: resourceLinks },
+        { title: isArabic ? 'القانونية' : 'Legal', links: legalLinks },
     ];
 
     const socialLinks = [
-        { icon: 'fa-brands fa-facebook-f',  href: '#', label: 'Facebook'  },
-        { icon: 'fa-brands fa-instagram',   href: '#', label: 'Instagram' },
-        { icon: 'fa-brands fa-linkedin-in', href: '#', label: 'LinkedIn'  },
-        { icon: 'fa-brands fa-x-twitter',   href: '#', label: 'X'         },
-        { icon: 'fa-brands fa-youtube',     href: '#', label: 'YouTube'   },
-        { icon: 'fa-brands fa-tiktok',      href: '#', label: 'TikTok'    },
+        { icon: 'fa-brands fa-facebook-f', href: '#', label: 'Facebook' },
+        { icon: 'fa-brands fa-instagram', href: '#', label: 'Instagram' },
+        { icon: 'fa-brands fa-linkedin-in', href: '#', label: 'LinkedIn' },
+        { icon: 'fa-brands fa-x-twitter', href: '#', label: 'X' },
+        { icon: 'fa-brands fa-youtube', href: '#', label: 'YouTube' },
+        { icon: 'fa-brands fa-tiktok', href: '#', label: 'TikTok' },
     ];
 
     return (
@@ -99,7 +99,7 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
 
                 {/* ── CTA Card ─────────────────────────────────────────────────────── */}
                 <div
-                    className="relative mt-14 mb-14 overflow-hidden rounded-2xl px-8 py-10"
+                    className="relative my-8 overflow-hidden rounded-2xl px-5 py-8 md:my-14 md:px-8 md:py-10"
                     style={{ background: '#161B33', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
                     {/* Card gradient fill */}
@@ -150,11 +150,11 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
 
                 {/* ── Main Grid ────────────────────────────────────────────────────── */}
                 <div
-                    className="grid gap-10 border-t pt-12 pb-12 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]"
+                    className="grid grid-cols-2 gap-8 border-t py-8 md:gap-10 md:py-12 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]"
                     style={{ borderColor: 'rgba(255,255,255,0.08)' }}
                 >
                     {/* Brand block */}
-                    <div className="sm:col-span-2 lg:col-span-1">
+                    <div className="col-span-2 lg:col-span-1">
                         <div className="mb-4 flex items-center gap-2.5">
                             <SBrandOpsLogo variant="gradient" layout="mark" size="sm" alt="SBrandOps" />
                             <span className="text-xl font-black tracking-tight text-white">SBrandOps</span>
@@ -195,10 +195,10 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
                     {/* Link columns */}
                     {footerColumns.map(col => (
                         <div key={col.title}>
-                            <h4 className="mb-4 text-xs font-semibold uppercase tracking-[0.14em] text-white">
+                            <h4 className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-white md:mb-4">
                                 {col.title}
                             </h4>
-                            <ul className="space-y-3">
+                            <ul className="space-y-2.5 md:space-y-3">
                                 {col.links.map(link => (
                                     <li key={link.label}>
                                         <FooterLink
@@ -216,7 +216,7 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
 
                 {/* ── Contact + Social ─────────────────────────────────────────────── */}
                 <div
-                    className="flex flex-col gap-6 border-t py-8 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-5 border-t py-6 sm:flex-row sm:items-center sm:justify-between md:py-8"
                     style={{ borderColor: 'rgba(255,255,255,0.08)' }}
                 >
                     <div className="flex flex-wrap items-center gap-5">
@@ -252,15 +252,15 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
 
                 {/* ── Trust Badges ─────────────────────────────────────────────────── */}
                 <div
-                    className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t py-4"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t py-4 sm:gap-x-6"
                     style={{ borderColor: 'rgba(255,255,255,0.08)' }}
                 >
                     {[
-                        { icon: 'fa-lock',         text: 'SSL Secured'     },
-                        { icon: 'fa-shield-halved', text: 'Data Encrypted'  },
-                        { icon: 'fa-user-shield',  text: 'GDPR Compliant'  },
-                        { icon: 'fa-circle-check', text: '99.9% Uptime'    },
-                        { icon: 'fa-language',     text: 'Arabic-First'    },
+                        { icon: 'fa-lock', text: 'SSL Secured' },
+                        { icon: 'fa-shield-halved', text: 'Data Encrypted' },
+                        { icon: 'fa-user-shield', text: 'GDPR Compliant' },
+                        { icon: 'fa-circle-check', text: '99.9% Uptime' },
+                        { icon: 'fa-language', text: 'Arabic-First' },
                     ].map(badge => (
                         <div key={badge.text} className="flex items-center gap-1.5">
                             <i className={`fas ${badge.icon} text-[10px] text-sbo-cyan`} />
@@ -271,7 +271,7 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
 
                 {/* ── Bottom bar ───────────────────────────────────────────────────── */}
                 <div
-                    className="flex flex-col gap-3 border-t py-6 md:flex-row md:items-center md:justify-between"
+                    className="flex flex-col gap-4 border-t py-5 md:flex-row md:items-center md:justify-between md:py-6"
                     style={{ borderColor: 'rgba(255,255,255,0.08)' }}
                 >
                     <span className="text-xs text-sbo-gray">
@@ -291,9 +291,8 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
                         >
                             <button
                                 onClick={() => setLanguage('ar')}
-                                className={`rounded px-2 py-0.5 text-xs font-medium transition-all duration-200 ${
-                                    language === 'ar' ? 'text-white' : 'text-sbo-gray hover:text-white'
-                                }`}
+                                className={`rounded px-2 py-0.5 text-xs font-medium transition-all duration-200 ${language === 'ar' ? 'text-white' : 'text-sbo-gray hover:text-white'
+                                    }`}
                                 style={language === 'ar' ? { background: 'rgba(37,99,235,0.35)' } : undefined}
                             >
                                 AR
@@ -301,9 +300,8 @@ const SiteFooter: React.FC<SiteFooterProps> = ({ isAuthenticated }) => {
                             <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
                             <button
                                 onClick={() => setLanguage('en')}
-                                className={`rounded px-2 py-0.5 text-xs font-medium transition-all duration-200 ${
-                                    language === 'en' ? 'text-white' : 'text-sbo-gray hover:text-white'
-                                }`}
+                                className={`rounded px-2 py-0.5 text-xs font-medium transition-all duration-200 ${language === 'en' ? 'text-white' : 'text-sbo-gray hover:text-white'
+                                    }`}
                                 style={language === 'en' ? { background: 'rgba(37,99,235,0.35)' } : undefined}
                             >
                                 EN

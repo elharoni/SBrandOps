@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { publicPageToPath } from '../../config/routes';
 import SiteFooter from './SiteFooter';
 import { SBrandOpsLogo } from '../SBrandOpsLogo';
@@ -13,52 +14,52 @@ interface MarketingSiteProps { pageId: MarketingPageId; isAuthenticated: boolean
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
 const MODULES = [
-    { icon: 'fa-fingerprint',            color: 'bg-cyan-500/15 text-cyan-400',    title: 'Brand Hub',          arDesc: 'هوية البراند، الصوت، الجمهور، وأصول الماركة في مرجع ذكي واحد.', enDesc: 'Brand identity, voice, audiences, and assets in one AI-powered reference.' },
-    { icon: 'fa-brain',                  color: 'bg-indigo-500/15 text-indigo-400', title: 'Campaign Brain',     arDesc: 'من الهدف إلى الاستراتيجية إلى تقويم المحتوى في تدفق واحد مدعوم بالذكاء.', enDesc: 'From goal to strategy to content calendar in one AI-driven flow.' },
-    { icon: 'fa-pen-nib',                color: 'bg-blue-500/15 text-blue-400',    title: 'Content Studio',     arDesc: 'توليد المحتوى بالذكاء الاصطناعي مع Kanban للسير من الفكرة إلى النشر.', enDesc: 'AI-powered content creation with Kanban pipeline from idea to publish.' },
-    { icon: 'fa-share-nodes',            color: 'bg-violet-500/15 text-violet-400', title: 'Social Publishing', arDesc: 'جدولة ونشر متعدد القنوات عبر Instagram وTikTok وMeta وLinkedIn.', enDesc: 'Multi-channel scheduling and publishing across Instagram, TikTok, Meta, and LinkedIn.' },
-    { icon: 'fa-rectangle-ad',           color: 'bg-orange-500/15 text-orange-400', title: 'Ads Ops',           arDesc: 'مراقبة أداء الإعلانات وتوصيات التوسع ونسخ الإعلانات المولودة بالذكاء.', enDesc: 'Ad performance monitoring, scaling recommendations, and AI-generated ad copy.' },
-    { icon: 'fa-magnifying-glass-chart', color: 'bg-emerald-500/15 text-emerald-400', title: 'SEO Ops',         arDesc: 'توليد briefs لـ SEO وتتبع أداء المقالات وأدوات المحتوى الموجه للبحث.', enDesc: 'Generate SEO briefs, track article performance, and optimize search content.' },
-    { icon: 'fa-inbox',                  color: 'bg-cyan-500/15 text-cyan-400',    title: 'Inbox Ops',          arDesc: 'بريد وارد موحد لكل القنوات مع تحليل المشاعر وتوجيه ذكي للردود.', enDesc: 'Unified inbox across all channels with sentiment analysis and smart routing.' },
-    { icon: 'fa-robot',                  color: 'bg-purple-500/15 text-purple-400', title: 'Smart Bot',         arDesc: 'بوت مبيعات ذكي بـ 6 سيناريوهات جاهزة يرد بصوت البراند على العملاء.', enDesc: 'Intelligent sales bot with 6 ready scenarios responding in your brand voice.' },
-    { icon: 'fa-chart-mixed',            color: 'bg-blue-500/15 text-blue-400',    title: 'Analytics Hub',      arDesc: 'تحليلات موحدة لكل القنوات مع رؤى AI وتقارير ROAS وتقسيم الأداء.', enDesc: 'Unified cross-channel analytics with AI insights, ROAS reports, and performance attribution.' },
-    { icon: 'fa-circle-nodes',           color: 'bg-slate-400/15 text-slate-400',  title: 'Integrations OS',    arDesc: 'ربط ذكي بالمنصات مع تسجيل نوع الأصل ووظيفته وحالة المزامنة.', enDesc: 'Smart platform connections with asset type, purpose, and sync status registry.' },
+    { icon: 'fa-fingerprint', color: 'bg-cyan-500/15 text-cyan-400', title: 'Brand Hub', arDesc: 'هوية البراند، الصوت، الجمهور، وأصول الماركة في مرجع ذكي واحد.', enDesc: 'Brand identity, voice, audiences, and assets in one AI-powered reference.' },
+    { icon: 'fa-brain', color: 'bg-indigo-500/15 text-indigo-400', title: 'Campaign Brain', arDesc: 'من الهدف إلى الاستراتيجية إلى تقويم المحتوى في تدفق واحد مدعوم بالذكاء.', enDesc: 'From goal to strategy to content calendar in one AI-driven flow.' },
+    { icon: 'fa-pen-nib', color: 'bg-blue-500/15 text-blue-400', title: 'Content Studio', arDesc: 'توليد المحتوى بالذكاء الاصطناعي مع Kanban للسير من الفكرة إلى النشر.', enDesc: 'AI-powered content creation with Kanban pipeline from idea to publish.' },
+    { icon: 'fa-share-nodes', color: 'bg-violet-500/15 text-violet-400', title: 'Social Publishing', arDesc: 'جدولة ونشر متعدد القنوات عبر Instagram وTikTok وMeta وLinkedIn.', enDesc: 'Multi-channel scheduling and publishing across Instagram, TikTok, Meta, and LinkedIn.' },
+    { icon: 'fa-rectangle-ad', color: 'bg-orange-500/15 text-orange-400', title: 'Ads Ops', arDesc: 'مراقبة أداء الإعلانات وتوصيات التوسع ونسخ الإعلانات المولودة بالذكاء.', enDesc: 'Ad performance monitoring, scaling recommendations, and AI-generated ad copy.' },
+    { icon: 'fa-magnifying-glass-chart', color: 'bg-emerald-500/15 text-emerald-400', title: 'SEO Ops', arDesc: 'توليد briefs لـ SEO وتتبع أداء المقالات وأدوات المحتوى الموجه للبحث.', enDesc: 'Generate SEO briefs, track article performance, and optimize search content.' },
+    { icon: 'fa-inbox', color: 'bg-cyan-500/15 text-cyan-400', title: 'Inbox Ops', arDesc: 'بريد وارد موحد لكل القنوات مع تحليل المشاعر وتوجيه ذكي للردود.', enDesc: 'Unified inbox across all channels with sentiment analysis and smart routing.' },
+    { icon: 'fa-robot', color: 'bg-purple-500/15 text-purple-400', title: 'Smart Bot', arDesc: 'بوت مبيعات ذكي بـ 6 سيناريوهات جاهزة يرد بصوت البراند على العملاء.', enDesc: 'Intelligent sales bot with 6 ready scenarios responding in your brand voice.' },
+    { icon: 'fa-chart-mixed', color: 'bg-blue-500/15 text-blue-400', title: 'Analytics Hub', arDesc: 'تحليلات موحدة لكل القنوات مع رؤى AI وتقارير ROAS وتقسيم الأداء.', enDesc: 'Unified cross-channel analytics with AI insights, ROAS reports, and performance attribution.' },
+    { icon: 'fa-circle-nodes', color: 'bg-slate-400/15 text-slate-400', title: 'Integrations OS', arDesc: 'ربط ذكي بالمنصات مع تسجيل نوع الأصل ووظيفته وحالة المزامنة.', enDesc: 'Smart platform connections with asset type, purpose, and sync status registry.' },
 ];
 
 const AI_CAPABILITIES = [
-    { icon: 'fa-compass-drafting',     ar: 'تخطيط الاستراتيجية', en: 'Strategy Planning',     dAr: 'من الهدف التسويقي إلى خطة قابلة للتنفيذ.', dEn: 'From marketing goal to executable plan.' },
-    { icon: 'fa-wand-magic-sparkles',  ar: 'توليد المحتوى',      en: 'Content Generation',    dAr: '14 مهارة محتوى بصوت البراند تلقائيًا.', dEn: '14 content skills powered by brand voice.' },
-    { icon: 'fa-bullseye-arrow',       ar: 'تحسين الحملات',      en: 'Campaign Optimization', dAr: 'توصيات مبنية على أداء الحملات.', dEn: 'Recommendations built on campaign performance.' },
-    { icon: 'fa-comment-dots',         ar: 'ردود المحادثة',      en: 'Conversation Replies',  dAr: 'ردود البوت الذكي محكومة بسيناريوهات المبيعات.', dEn: 'Smart bot replies governed by sales scenarios.' },
-    { icon: 'fa-magnifying-glass-plus', ar: 'توصيات SEO',        en: 'SEO Recommendations',   dAr: 'محتوى محسّن للبحث من أول مسودة.', dEn: 'Search-optimized content from the first draft.' },
-    { icon: 'fa-chart-line',           ar: 'رؤى الأداء',         en: 'Performance Insights',  dAr: 'البيانات تُفسَّر تلقائيًا في توصيات تنفيذية.', dEn: 'Data auto-interpreted into actionable decisions.' },
+    { icon: 'fa-compass-drafting', ar: 'تخطيط الاستراتيجية', en: 'Strategy Planning', dAr: 'من الهدف التسويقي إلى خطة قابلة للتنفيذ.', dEn: 'From marketing goal to executable plan.' },
+    { icon: 'fa-wand-magic-sparkles', ar: 'توليد المحتوى', en: 'Content Generation', dAr: '14 مهارة محتوى بصوت البراند تلقائيًا.', dEn: '14 content skills powered by brand voice.' },
+    { icon: 'fa-bullseye-arrow', ar: 'تحسين الحملات', en: 'Campaign Optimization', dAr: 'توصيات مبنية على أداء الحملات.', dEn: 'Recommendations built on campaign performance.' },
+    { icon: 'fa-comment-dots', ar: 'ردود المحادثة', en: 'Conversation Replies', dAr: 'ردود البوت الذكي محكومة بسيناريوهات المبيعات.', dEn: 'Smart bot replies governed by sales scenarios.' },
+    { icon: 'fa-magnifying-glass-plus', ar: 'توصيات SEO', en: 'SEO Recommendations', dAr: 'محتوى محسّن للبحث من أول مسودة.', dEn: 'Search-optimized content from the first draft.' },
+    { icon: 'fa-chart-line', ar: 'رؤى الأداء', en: 'Performance Insights', dAr: 'البيانات تُفسَّر تلقائيًا في توصيات تنفيذية.', dEn: 'Data auto-interpreted into actionable decisions.' },
 ];
 
 const WORKFLOW_STEPS = [
-    { num: '01', icon: 'fa-fingerprint',         ar: 'أضف البراند',        en: 'Add Brand',            aSub: 'صف البراند أو ارفع مستند ويولد الذكاء الاصطناعي هويته.', eSub: 'Describe your brand or upload a doc — AI builds its identity.' },
-    { num: '02', icon: 'fa-circle-nodes',        ar: 'اربط القنوات',        en: 'Connect Channels',     aSub: 'اربط Meta وInstagram وTikTok وLinkedIn من مكان واحد.', eSub: 'Connect Meta, Instagram, TikTok, and LinkedIn from one place.' },
-    { num: '03', icon: 'fa-brain',               ar: 'خطط بعقل البراند',   en: 'Plan with Brand Brain', aSub: 'الذكاء يبني الاستراتيجية والتقويم بناءً على هدفك.', eSub: 'AI builds strategy and content calendar from your goal.' },
-    { num: '04', icon: 'fa-wand-magic-sparkles', ar: 'ولّد المحتوى',       en: 'Generate Content',     aSub: 'نسخة، إعلانات، ريلز، بريف SEO — بصوت البراند دائمًا.', eSub: 'Captions, ads, reels, SEO briefs — always in brand voice.' },
-    { num: '05', icon: 'fa-paper-plane',         ar: 'انشر وجدوِل',         en: 'Publish & Schedule',   aSub: 'نشر فوري أو مجدول لكل القنوات من لوحة تحكم واحدة.', eSub: 'Instant or scheduled publishing across all channels from one board.' },
-    { num: '06', icon: 'fa-chart-mixed',         ar: 'حلل وحسّن',           en: 'Analyze & Optimize',   aSub: 'رؤى AI تحوّل البيانات إلى قرارات تشغيلية واضحة.', eSub: 'AI insights turn data into clear operational decisions.' },
+    { num: '01', icon: 'fa-fingerprint', ar: 'أضف البراند', en: 'Add Brand', aSub: 'صف البراند أو ارفع مستند ويولد الذكاء الاصطناعي هويته.', eSub: 'Describe your brand or upload a doc — AI builds its identity.' },
+    { num: '02', icon: 'fa-circle-nodes', ar: 'اربط القنوات', en: 'Connect Channels', aSub: 'اربط Meta وInstagram وTikTok وLinkedIn من مكان واحد.', eSub: 'Connect Meta, Instagram, TikTok, and LinkedIn from one place.' },
+    { num: '03', icon: 'fa-brain', ar: 'خطط بعقل البراند', en: 'Plan with Brand Brain', aSub: 'الذكاء يبني الاستراتيجية والتقويم بناءً على هدفك.', eSub: 'AI builds strategy and content calendar from your goal.' },
+    { num: '04', icon: 'fa-wand-magic-sparkles', ar: 'ولّد المحتوى', en: 'Generate Content', aSub: 'نسخة، إعلانات، ريلز، بريف SEO — بصوت البراند دائمًا.', eSub: 'Captions, ads, reels, SEO briefs — always in brand voice.' },
+    { num: '05', icon: 'fa-paper-plane', ar: 'انشر وجدوِل', en: 'Publish & Schedule', aSub: 'نشر فوري أو مجدول لكل القنوات من لوحة تحكم واحدة.', eSub: 'Instant or scheduled publishing across all channels from one board.' },
+    { num: '06', icon: 'fa-chart-mixed', ar: 'حلل وحسّن', en: 'Analyze & Optimize', aSub: 'رؤى AI تحوّل البيانات إلى قرارات تشغيلية واضحة.', eSub: 'AI insights turn data into clear operational decisions.' },
 ];
 
 const BEFORE_AFTER = [
-    { icon: 'fa-pen',                    bAr: 'أفكار المحتوى في Google Docs',         bEn: 'Content ideas scattered in Google Docs',       aAr: 'Brand Hub + Content Studio', aEn: 'Brand Hub + Content Studio' },
-    { icon: 'fa-calendar',               bAr: 'جدولة عبر Hootsuite / Buffer',          bEn: 'Scheduling through Hootsuite / Buffer',         aAr: 'Social Publisher متعدد القنوات', aEn: 'Multi-channel Social Publisher' },
-    { icon: 'fa-rectangle-ad',           bAr: 'إدارة إعلانات في Meta Ads Manager',     bEn: 'Ads managed in Meta Ads Manager separately',   aAr: 'Ads Ops مدمج مع التحليلات', aEn: 'Ads Ops integrated with analytics' },
-    { icon: 'fa-chart-bar',              bAr: 'تحليلات كل منصة بشكل منفصل',            bEn: 'Platform analytics in separate dashboards',     aAr: 'Analytics Hub موحد + رؤى AI', aEn: 'Unified Analytics Hub with AI insights' },
-    { icon: 'fa-fingerprint',            bAr: 'دليل البراند محفوظ في PDF',             bEn: 'Brand guidelines locked in PDFs',               aAr: 'Brand Brain: ذاكرة AI حية للبراند', aEn: 'Brand Brain: live AI brand memory' },
-    { icon: 'fa-inbox',                  bAr: 'الرد على عملاء يدويًا في كل منصة',      bEn: 'Manual customer replies per platform',          aAr: 'Inbox موحد + Smart Bot بسيناريوهات', aEn: 'Unified Inbox + Smart Bot with scenarios' },
-    { icon: 'fa-brain',                  bAr: 'Briefs الحملات في جداول Excel',          bEn: 'Campaign briefs tracked in Excel sheets',       aAr: 'Campaign Brain: من الهدف للجدول الكامل', aEn: 'Campaign Brain: from goal to full content calendar' },
-    { icon: 'fa-magnifying-glass-chart', bAr: 'أدوات SEO منفصلة عن تدفق المحتوى',     bEn: 'SEO tools disconnected from content flow',      aAr: 'SEO Ops: Brief → إنتاج → تتبع', aEn: 'SEO Ops: Brief → Production → Tracking' },
+    { icon: 'fa-pen', bAr: 'أفكار المحتوى في Google Docs', bEn: 'Content ideas scattered in Google Docs', aAr: 'Brand Hub + Content Studio', aEn: 'Brand Hub + Content Studio' },
+    { icon: 'fa-calendar', bAr: 'جدولة عبر Hootsuite / Buffer', bEn: 'Scheduling through Hootsuite / Buffer', aAr: 'Social Publisher متعدد القنوات', aEn: 'Multi-channel Social Publisher' },
+    { icon: 'fa-rectangle-ad', bAr: 'إدارة إعلانات في Meta Ads Manager', bEn: 'Ads managed in Meta Ads Manager separately', aAr: 'Ads Ops مدمج مع التحليلات', aEn: 'Ads Ops integrated with analytics' },
+    { icon: 'fa-chart-bar', bAr: 'تحليلات كل منصة بشكل منفصل', bEn: 'Platform analytics in separate dashboards', aAr: 'Analytics Hub موحد + رؤى AI', aEn: 'Unified Analytics Hub with AI insights' },
+    { icon: 'fa-fingerprint', bAr: 'دليل البراند محفوظ في PDF', bEn: 'Brand guidelines locked in PDFs', aAr: 'Brand Brain: ذاكرة AI حية للبراند', aEn: 'Brand Brain: live AI brand memory' },
+    { icon: 'fa-inbox', bAr: 'الرد على عملاء يدويًا في كل منصة', bEn: 'Manual customer replies per platform', aAr: 'Inbox موحد + Smart Bot بسيناريوهات', aEn: 'Unified Inbox + Smart Bot with scenarios' },
+    { icon: 'fa-brain', bAr: 'Briefs الحملات في جداول Excel', bEn: 'Campaign briefs tracked in Excel sheets', aAr: 'Campaign Brain: من الهدف للجدول الكامل', aEn: 'Campaign Brain: from goal to full content calendar' },
+    { icon: 'fa-magnifying-glass-chart', bAr: 'أدوات SEO منفصلة عن تدفق المحتوى', bEn: 'SEO tools disconnected from content flow', aAr: 'SEO Ops: Brief → إنتاج → تتبع', aEn: 'SEO Ops: Brief → Production → Tracking' },
 ];
 
 const USE_CASES = [
-    { icon: 'fa-building',  color: 'bg-indigo-500/15 text-indigo-400',  ar: 'الوكالات التسويقية',    en: 'Marketing Agencies',  pAr: 'إدارة عشرات العملاء عبر أدوات متفرقة يبطئ التسليم ويضعف الاتساق.', pEn: 'Managing multiple clients across scattered tools slows delivery and weakens brand consistency.', sAr: 'مساحة عمل منفصلة لكل براند مع أدوار وموافقات وتقارير للعملاء.', sEn: 'Separate workspace per brand with roles, approvals, and client reporting from one panel.' },
-    { icon: 'fa-store',     color: 'bg-orange-500/15 text-orange-400',  ar: 'التجارة الإلكترونية',   en: 'E-commerce Brands',   pAr: 'الإعلانات والمحتوى والتحليلات منفصلة ولا يمكن ربطها بقرار تشغيلي.', pEn: 'Ads, content, and analytics are disconnected and impossible to link into one decision.', sAr: 'Ads Ops + Analytics Hub + Content Pipeline في نظام مترابط بالإيرادات.', sEn: 'Ads Ops + Analytics Hub + Content Pipeline in one revenue-linked system.' },
-    { icon: 'fa-user-tie',  color: 'bg-cyan-500/15 text-cyan-400',      ar: 'مدراء البراند',          en: 'Brand Managers',      pAr: 'ضمان اتساق صوت البراند عبر الفرق والمنصات مهمة شبه مستحيلة.', pEn: 'Keeping brand voice consistent across teams and platforms is nearly impossible.', sAr: 'Brand Hub + Brand Brain يبنيان ذاكرة حية تُستخدم في كل طلب AI.', sEn: 'Brand Hub + Brand Brain build a live brand memory used in every AI request.' },
-    { icon: 'fa-rocket',    color: 'bg-emerald-500/15 text-emerald-400', ar: 'الشركات الناشئة',       en: 'Growing Startups',    pAr: 'التسويق فوضوي والفريق الصغير لا يتحمل إدارة أدوات متعددة بموارد محدودة.', pEn: 'Marketing is chaotic and small teams cannot manage multiple tools with limited resources.', sAr: 'نظام تشغيل واحد يركّز الفريق على التنفيذ لا على الإدارة.', sEn: 'One operating system that focuses the team on execution, not administration.' },
+    { icon: 'fa-building', color: 'bg-indigo-500/15 text-indigo-400', ar: 'الوكالات التسويقية', en: 'Marketing Agencies', pAr: 'إدارة عشرات العملاء عبر أدوات متفرقة يبطئ التسليم ويضعف الاتساق.', pEn: 'Managing multiple clients across scattered tools slows delivery and weakens brand consistency.', sAr: 'مساحة عمل منفصلة لكل براند مع أدوار وموافقات وتقارير للعملاء.', sEn: 'Separate workspace per brand with roles, approvals, and client reporting from one panel.' },
+    { icon: 'fa-store', color: 'bg-orange-500/15 text-orange-400', ar: 'التجارة الإلكترونية', en: 'E-commerce Brands', pAr: 'الإعلانات والمحتوى والتحليلات منفصلة ولا يمكن ربطها بقرار تشغيلي.', pEn: 'Ads, content, and analytics are disconnected and impossible to link into one decision.', sAr: 'Ads Ops + Analytics Hub + Content Pipeline في نظام مترابط بالإيرادات.', sEn: 'Ads Ops + Analytics Hub + Content Pipeline in one revenue-linked system.' },
+    { icon: 'fa-user-tie', color: 'bg-cyan-500/15 text-cyan-400', ar: 'مدراء البراند', en: 'Brand Managers', pAr: 'ضمان اتساق صوت البراند عبر الفرق والمنصات مهمة شبه مستحيلة.', pEn: 'Keeping brand voice consistent across teams and platforms is nearly impossible.', sAr: 'Brand Hub + Brand Brain يبنيان ذاكرة حية تُستخدم في كل طلب AI.', sEn: 'Brand Hub + Brand Brain build a live brand memory used in every AI request.' },
+    { icon: 'fa-rocket', color: 'bg-emerald-500/15 text-emerald-400', ar: 'الشركات الناشئة', en: 'Growing Startups', pAr: 'التسويق فوضوي والفريق الصغير لا يتحمل إدارة أدوات متعددة بموارد محدودة.', pEn: 'Marketing is chaotic and small teams cannot manage multiple tools with limited resources.', sAr: 'نظام تشغيل واحد يركّز الفريق على التنفيذ لا على الإدارة.', sEn: 'One operating system that focuses the team on execution, not administration.' },
 ];
 
 const INTEGRATIONS = [
@@ -268,11 +269,17 @@ const formatMoney = (amount: number | null, currency = 'USD') => {
 // ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 
 const HeroDashboardMock: React.FC = () => {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        const timer = setTimeout(() => setMounted(true), 150);
+        return () => clearTimeout(timer);
+    }, []);
+
     const bars = [35, 52, 41, 68, 45, 82, 60, 88, 72, 57, 78, 92];
     return (
-        <div className="relative select-none">
-            <div className="absolute -inset-8 rounded-[3rem] bg-blue-600/10 blur-[60px]" />
-            <div className="absolute -inset-12 rounded-[4rem] bg-cyan-500/6 blur-[80px]" />
+        <div className={`relative select-none transition-all duration-1000 ease-out ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'}`}>
+            <div className="absolute -inset-8 rounded-[3rem] bg-blue-600/10 blur-[60px] animate-pulse" />
+            <div className="absolute -inset-12 rounded-[4rem] bg-cyan-500/6 blur-[80px] animate-pulse" style={{ animationDelay: '1.5s' }} />
             <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0D1329] shadow-[0_40px_80px_rgba(0,0,0,0.7)]">
                 {/* Browser bar */}
                 <div className="flex items-center gap-2 border-b border-white/5 bg-black/20 px-4 py-3">
@@ -325,7 +332,7 @@ const HeroDashboardMock: React.FC = () => {
                                 { icon: 'fa-bullhorn', val: '3', lbl: 'Campaigns', cls: 'bg-indigo-500/20 text-indigo-400' },
                                 { icon: 'fa-circle-check', val: '28', lbl: 'Published', cls: 'bg-emerald-500/20 text-emerald-400' },
                             ].map((kpi, i) => (
-                                <div key={i} className="rounded-xl bg-white/5 p-2.5">
+                                <div key={i} className={`rounded-xl bg-white/5 p-2.5 transition-all duration-500 ease-out ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`} style={{ transitionDelay: `${i * 100 + 400}ms` }}>
                                     <div className={`mb-1.5 inline-flex h-6 w-6 items-center justify-center rounded-lg text-[10px] ${kpi.cls}`}>
                                         <i className={`fas ${kpi.icon}`} />
                                     </div>
@@ -343,23 +350,23 @@ const HeroDashboardMock: React.FC = () => {
                                 </div>
                                 <div className="flex h-[95px] items-end gap-1">
                                     {bars.map((h, i) => (
-                                        <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: i >= 10 ? 'linear-gradient(to top, #2563EB, #06B6D4)' : 'rgba(255,255,255,0.07)' }} />
+                                        <div key={i} className="flex-1 rounded-t-sm transition-all duration-700 ease-out" style={{ height: mounted ? `${h}%` : '0%', background: i >= 10 ? 'linear-gradient(to top, #2563EB, #06B6D4)' : 'rgba(255,255,255,0.07)', transitionDelay: `${i * 50 + 600}ms` }} />
                                     ))}
                                 </div>
                             </div>
                             <div className="rounded-xl bg-white/5 p-3">
                                 <div className="mb-3 h-2 w-16 rounded-full bg-white/20" />
                                 {[85, 65, 90].map((w, i) => (
-                                    <div key={i} className="mb-2.5 last:mb-0 flex items-center gap-2">
+                                    <div key={i} className={`mb-2.5 last:mb-0 flex items-center gap-2 transition-all duration-500 ease-out ${mounted ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-0'}`} style={{ transitionDelay: `${i * 150 + 900}ms` }}>
                                         <div className={`h-5 w-5 flex-shrink-0 rounded-lg ${['bg-blue-500/25', 'bg-cyan-500/25', 'bg-indigo-500/25'][i]}`} />
                                         <div className="min-w-0 flex-1 space-y-1">
-                                            <div className="h-1.5 rounded-full bg-white/15" style={{ width: `${w}%` }} />
-                                            <div className="h-1 rounded-full bg-white/10" style={{ width: `${w - 20}%` }} />
+                                            <div className="h-1.5 rounded-full bg-white/15 transition-all duration-1000 ease-out" style={{ width: mounted ? `${w}%` : '0%', transitionDelay: `${i * 150 + 1100}ms` }} />
+                                            <div className="h-1 rounded-full bg-white/10 transition-all duration-1000 ease-out" style={{ width: mounted ? `${w - 20}%` : '0%', transitionDelay: `${i * 150 + 1200}ms` }} />
                                         </div>
                                     </div>
                                 ))}
-                                <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-indigo-500/15 px-2 py-1.5">
-                                    <span className="text-[8px] font-bold text-indigo-400">AI</span>
+                                <div className={`mt-2.5 flex items-center gap-1.5 rounded-lg bg-indigo-500/15 px-2 py-1.5 transition-all duration-500 ease-out ${mounted ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`} style={{ transitionDelay: '1400ms' }}>
+                                    <span className="text-[8px] font-bold text-indigo-400 animate-pulse">AI</span>
                                     <div className="h-1.5 flex-1 rounded-full bg-white/10" />
                                 </div>
                             </div>
@@ -401,32 +408,66 @@ const RouteLink: React.FC<{ href: string; className?: string; children: React.Re
 
 const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }) => {
     const navigate = useNavigate();
-    const { language } = useLanguage();
+    const { language, setLanguage } = useLanguage();
     const isArabic = language === 'ar';
+    const { theme, toggleTheme } = useTheme();
     const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
     const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
     const [checkoutError, setCheckoutError] = useState<string | null>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [openFaq, setOpenFaq] = useState<number | null>(null);
+    const headerRef = useRef<HTMLElement>(null);
+    const [isScrolled, setIsScrolled] = useState(false);
 
     useEffect(() => {
+        // تفعيل الانزلاق السلس وإضافة مسافة علوية لتعويض مساحة الهيدر الثابت
+        document.documentElement.classList.add('scroll-smooth', 'scroll-pt-20');
+        return () => {
+            document.documentElement.classList.remove('scroll-smooth', 'scroll-pt-20');
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            if (mobileMenuOpen && headerRef.current && !headerRef.current.contains(event.target as Node)) {
+                setMobileMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [mobileMenuOpen]);
+
+    useEffect(() => {
+        const handleScroll = () => setIsScrolled(window.scrollY > 20);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    useEffect(() => {
+        // انزلاق سلس لأعلى الصفحة عند الانتقال من صفحة لأخرى في القائمة
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
         const titles: Record<MarketingPageId, { ar: string; en: string }> = {
-            home:           { ar: 'SBrandOps — نظام تشغيل البراند الذكي',    en: 'SBrandOps — AI-Powered Brand Operating System' },
-            about:          { ar: 'من نحن — SBrandOps',                       en: 'About Us — SBrandOps' },
-            features:       { ar: 'المميزات — SBrandOps',                     en: 'Features — SBrandOps' },
-            'for-agencies': { ar: 'للوكالات التسويقية — SBrandOps',           en: 'For Marketing Agencies — SBrandOps' },
-            'for-ecommerce':{ ar: 'للتجارة الإلكترونية — SBrandOps',          en: 'For E-commerce — SBrandOps' },
-            pricing:        { ar: 'الأسعار — SBrandOps',                      en: 'Pricing — SBrandOps' },
-            billing:        { ar: 'الفوترة — SBrandOps',                      en: 'Billing — SBrandOps' },
-            contact:        { ar: 'تواصل معنا — SBrandOps',                   en: 'Contact — SBrandOps' },
-            demo:           { ar: 'احجز عرضاً — SBrandOps',                   en: 'Book a Demo — SBrandOps' },
-            'thank-you':    { ar: 'شكراً لك — SBrandOps',                     en: 'Thank You — SBrandOps' },
-            security:       { ar: 'الأمان — SBrandOps',                       en: 'Security — SBrandOps' },
-            terms:          { ar: 'شروط الاستخدام — SBrandOps',               en: 'Terms of Service — SBrandOps' },
-            privacy:        { ar: 'سياسة الخصوصية — SBrandOps',              en: 'Privacy Policy — SBrandOps' },
-            dpa:            { ar: 'اتفاقية معالجة البيانات — SBrandOps',      en: 'DPA — SBrandOps' },
-            refunds:        { ar: 'سياسة الاسترجاع — SBrandOps',             en: 'Refund Policy — SBrandOps' },
-            cookies:        { ar: 'سياسة ملفات الارتباط — SBrandOps',        en: 'Cookie Policy — SBrandOps' },
+            home: { ar: 'SBrandOps — نظام تشغيل البراند الذكي', en: 'SBrandOps — AI-Powered Brand Operating System' },
+            about: { ar: 'من نحن — SBrandOps', en: 'About Us — SBrandOps' },
+            features: { ar: 'المميزات — SBrandOps', en: 'Features — SBrandOps' },
+            'for-agencies': { ar: 'للوكالات التسويقية — SBrandOps', en: 'For Marketing Agencies — SBrandOps' },
+            'for-ecommerce': { ar: 'للتجارة الإلكترونية — SBrandOps', en: 'For E-commerce — SBrandOps' },
+            pricing: { ar: 'الأسعار — SBrandOps', en: 'Pricing — SBrandOps' },
+            billing: { ar: 'الفوترة — SBrandOps', en: 'Billing — SBrandOps' },
+            contact: { ar: 'تواصل معنا — SBrandOps', en: 'Contact — SBrandOps' },
+            demo: { ar: 'احجز عرضاً — SBrandOps', en: 'Book a Demo — SBrandOps' },
+            'thank-you': { ar: 'شكراً لك — SBrandOps', en: 'Thank You — SBrandOps' },
+            security: { ar: 'الأمان — SBrandOps', en: 'Security — SBrandOps' },
+            terms: { ar: 'شروط الاستخدام — SBrandOps', en: 'Terms of Service — SBrandOps' },
+            privacy: { ar: 'سياسة الخصوصية — SBrandOps', en: 'Privacy Policy — SBrandOps' },
+            dpa: { ar: 'اتفاقية معالجة البيانات — SBrandOps', en: 'DPA — SBrandOps' },
+            refunds: { ar: 'سياسة الاسترجاع — SBrandOps', en: 'Refund Policy — SBrandOps' },
+            cookies: { ar: 'سياسة ملفات الارتباط — SBrandOps', en: 'Cookie Policy — SBrandOps' },
         };
         document.title = isArabic ? titles[pageId].ar : titles[pageId].en;
     }, [pageId, isArabic]);
@@ -447,17 +488,17 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
     }, [pageId, isArabic]);
 
     const publicPlans = useMemo(() => PRICING_PLANS.filter(plan => DEFAULT_PUBLIC_PRICING_PLAN_IDS.includes(plan.id)), []);
-    const primaryLabel = isAuthenticated ? (isArabic ? 'افتح التطبيق' : 'Open App') : (isArabic ? 'ابدأ التجربة المجانية' : 'Start Free Trial');
-    const appLabel = isAuthenticated ? (isArabic ? 'اذهب إلى مساحة العمل' : 'Go to Workspace') : primaryLabel;
+    const primaryLabel = isAuthenticated ? (isArabic ? 'الذهاب للوحة التحكم' : 'Go to Dashboard') : (isArabic ? 'ابدأ التجربة المجانية' : 'Start Free Trial');
+    const appLabel = isAuthenticated ? (isArabic ? 'الذهاب للوحة التحكم' : 'Go to Dashboard') : primaryLabel;
     const contactLabel = isArabic ? 'تواصل معنا' : 'Contact Us';
     const primaryCtaAction = () => navigate(isAuthenticated ? '/app' : '/register');
 
     const navItems = [
-        { id: 'home' as const,     label: isArabic ? 'الرئيسية' : 'Home',     href: publicPageToPath('home') },
-        { id: 'features' as const, label: isArabic ? 'المميزات' : 'Features',  href: publicPageToPath('features') },
-        { id: 'pricing' as const,  label: isArabic ? 'الأسعار' : 'Pricing',   href: publicPageToPath('pricing') },
-        { id: 'about' as const,    label: isArabic ? 'من نحن' : 'About',      href: publicPageToPath('about') },
-        { id: 'contact' as const,  label: isArabic ? 'تواصل معنا' : 'Contact', href: publicPageToPath('contact') },
+        { id: 'home' as const, label: isArabic ? 'الرئيسية' : 'Home', href: publicPageToPath('home') },
+        { id: 'features' as const, label: isArabic ? 'المميزات' : 'Features', href: publicPageToPath('features') },
+        { id: 'pricing' as const, label: isArabic ? 'الأسعار' : 'Pricing', href: publicPageToPath('pricing') },
+        { id: 'about' as const, label: isArabic ? 'من نحن' : 'About', href: publicPageToPath('about') },
+        { id: 'contact' as const, label: isArabic ? 'تواصل معنا' : 'Contact', href: publicPageToPath('contact') },
     ];
 
     const handlePlanCheckout = async (planId: string) => {
@@ -479,7 +520,7 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
     const renderHome = () => (
         <>
             {/* HERO */}
-            <section className="relative overflow-hidden rounded-[2rem] bg-[#070B1F] px-8 py-20 lg:py-28" style={{ margin: '1.5rem -1.5rem 0' }}>
+            <section className="relative overflow-hidden sm:rounded-[2rem] bg-[#070B1F] px-6 py-12 lg:px-8 lg:py-28 -mx-6 mt-4 sm:mx-0 sm:mt-6">
                 <div className="pointer-events-none absolute inset-0">
                     <div className="absolute left-[-15%] top-[-5%] h-[500px] w-[500px] rounded-full bg-blue-600/12 blur-[100px]" />
                     <div className="absolute right-[-5%] top-[15%] h-[400px] w-[400px] rounded-full bg-indigo-600/8 blur-[90px]" />
@@ -495,25 +536,25 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                                     {isArabic ? 'نظام التشغيل للبراند' : 'AI-Powered Brand Operating System'}
                                 </span>
                             </div>
-                            <h1 className="mt-6 max-w-xl text-5xl font-black leading-[1.05] tracking-tight text-white md:text-6xl lg:text-[62px]">
+                            <h1 className="mt-6 max-w-xl text-4xl font-black leading-[1.05] tracking-tight text-white md:text-6xl lg:text-[62px]">
                                 {isArabic ? (
                                     <>شغّل البراند<br /><span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">من نظام واحد</span></>
                                 ) : (
                                     <>One System.<br /><span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">Smarter Growth.</span></>
                                 )}
                             </h1>
-                            <p className="mt-6 max-w-lg text-lg leading-8 text-white/55">
+                            <p className="mt-4 lg:mt-6 max-w-lg text-base lg:text-lg leading-relaxed lg:leading-8 text-white/55">
                                 {isArabic
-                                    ? 'خطط للمحتوى، انشر عبر القنوات، راقب الأداء، وأدر الفريق من مساحة تشغيل واحدة مدعومة بالذكاء الاصطناعي.'
-                                    : 'Plan content, publish across channels, monitor performance, and operate your team from one AI-powered workspace — instead of scattered tools.'}
+                                    ? 'أدر المحتوى، النشر، والأداء من مساحة عمل واحدة مدعومة بالذكاء الاصطناعي.'
+                                    : 'Operate content, publishing, and performance from one AI-powered workspace.'}
                             </p>
                             <div className="mt-8 flex flex-wrap gap-3">
-                                <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 hover:bg-blue-500">
+                                <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-5 py-3 lg:px-6 lg:py-3.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 hover:bg-blue-500 animate-bounce hover:animate-none">
                                     {primaryLabel}
                                     <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
                                 </button>
-                                <Link to={publicPageToPath('contact')} className="inline-flex items-center gap-2 rounded-[14px] border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:border-white/30 hover:bg-white/10">
-                                    <i className="fas fa-calendar-check text-xs text-cyan-400" />
+                                <Link to={publicPageToPath('contact')} className="inline-flex items-center gap-2 rounded-[14px] border border-white/15 bg-white/5 px-5 py-3 lg:px-6 lg:py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:border-white/30 hover:bg-white/10">
+                                    <i className="fas fa-calendar-check text-xs text-cyan-400 animate-pulse" />
                                     {contactLabel}
                                 </Link>
                             </div>
@@ -522,9 +563,9 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                             </p>
                             <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
                                 {[
-                                    { val: '+200',  lAr: 'براند نشط',      lEn: 'Active Brands' },
-                                    { val: '50K+',  lAr: 'منشور جُدوِل',   lEn: 'Posts Scheduled' },
-                                    { val: '10',    lAr: 'وحدة متكاملة',   lEn: 'Integrated Modules' },
+                                    { val: '+200', lAr: 'براند نشط', lEn: 'Active Brands' },
+                                    { val: '50K+', lAr: 'منشور جُدوِل', lEn: 'Posts Scheduled' },
+                                    { val: '10', lAr: 'وحدة متكاملة', lEn: 'Integrated Modules' },
                                 ].map(stat => (
                                     <div key={stat.val}>
                                         <p className="text-xl font-black text-white">{stat.val}</p>
@@ -539,80 +580,83 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                     </div>
                 </div>
             </section>
-            <div className="pointer-events-none -mt-6 h-12 bg-gradient-to-b from-[#070B1F]/20 to-transparent dark:from-[#070B1F]/40" />
+            <div className="pointer-events-none -mt-6 h-24 w-full bg-gradient-to-b from-[#070B1F] via-[#070B1F]/50 to-transparent opacity-80 dark:opacity-100" />
 
             {/* PROBLEM */}
-            <section className="py-20">
+            <section className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-                    <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المشكلة' : 'The Problem'}</p>
-                        <h2 className="mt-4 text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
-                            {isArabic ? 'المشكلة ليست نقص الأدوات. بل تشتت التشغيل.' : 'The problem is not missing tools. It is fragmented execution.'}
-                        </h2>
-                        <p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">
-                            {isArabic ? 'الفرق تعمل بأدوات كثيرة لكنها مشتتة — ويضيع الوقت في الانتقال لا في التنفيذ.' : 'Teams operate across too many tools — time is lost in switching, not executing.'}
-                        </p>
-                    </div>
-                    <div className="space-y-2.5">
-                        {[
-                            { icon: 'fa-puzzle-piece', ar: 'المحتوى في أداة، والإعلانات في أخرى، والتحليلات في مكان ثالث.', en: 'Content is in one tool, ads in another, and analytics somewhere else.' },
-                            { icon: 'fa-arrows-spin', ar: 'الوقت يضيع في الانتقال بين المنصات بدل التنفيذ الفعلي.', en: 'Execution time is lost jumping between disconnected platforms.' },
-                            { icon: 'fa-memory', ar: 'لا توجد ذاكرة موحدة لصوت البراند والرسائل الأساسية عبر الفريق.', en: 'No shared memory for brand voice and core messaging across the team.' },
-                            { icon: 'fa-link-slash', ar: 'من الصعب ربط الأداء التسويقي بالإيرادات والقرارات اليومية.', en: 'Connecting marketing performance to revenue and daily decisions is nearly impossible.' },
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-start gap-4 rounded-[20px] border border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
-                                <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-sm text-red-500">
-                                    <i className={`fas ${item.icon}`} />
+                    <div className="grid gap-8 lg:gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المشكلة' : 'The Problem'}</p>
+                            <h2 className="mt-4 text-2xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
+                                {isArabic ? 'المشكلة ليست نقص الأدوات. بل تشتت التشغيل.' : 'The problem is not missing tools. It is fragmented execution.'}
+                            </h2>
+                            <p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">
+                                {isArabic ? 'الفرق تعمل بأدوات كثيرة لكنها مشتتة — ويضيع الوقت في الانتقال لا في التنفيذ.' : 'Teams operate across too many tools — time is lost in switching, not executing.'}
+                            </p>
+                        </div>
+                        <div className="space-y-2.5">
+                            {[
+                                { icon: 'fa-puzzle-piece', ar: 'المحتوى في أداة، والإعلانات في أخرى، والتحليلات في مكان ثالث.', en: 'Content is in one tool, ads in another, and analytics somewhere else.' },
+                                { icon: 'fa-arrows-spin', ar: 'الوقت يضيع في الانتقال بين المنصات بدل التنفيذ الفعلي.', en: 'Execution time is lost jumping between disconnected platforms.' },
+                                { icon: 'fa-memory', ar: 'لا توجد ذاكرة موحدة لصوت البراند والرسائل الأساسية عبر الفريق.', en: 'No shared memory for brand voice and core messaging across the team.' },
+                                { icon: 'fa-link-slash', ar: 'من الصعب ربط الأداء التسويقي بالإيرادات والقرارات اليومية.', en: 'Connecting marketing performance to revenue and daily decisions is nearly impossible.' },
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-start gap-4 rounded-[20px] border border-slate-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-sm text-red-500">
+                                        <i className={`fas ${item.icon}`} />
+                                    </div>
+                                    <p className="text-sm leading-7 text-slate-700 dark:text-slate-300">{isArabic ? item.ar : item.en}</p>
                                 </div>
-                                <p className="text-sm leading-7 text-slate-700 dark:text-slate-300">{isArabic ? item.ar : item.en}</p>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
                 </FadeInSection>
             </section>
 
             {/* MODULES GRID */}
-            <section id="product" className="py-20">
+            <section id="product" className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="mb-12">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'النظام' : 'The System'}</p>
-                    <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
-                        <h2 className="max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
-                            {isArabic ? 'كل وظائف النمو تحت نموذج تشغيل واحد' : 'All growth operations under one operating model.'}
-                        </h2>
-                        <p className="max-w-md text-sm leading-7 text-slate-500 dark:text-slate-400">
-                            {isArabic ? '10 وحدات متكاملة — كل واحدة تحل مشكلة حقيقية، وكلها مترابطة في سياق البراند الواحد.' : '10 integrated modules — each solving a real problem, all connected within one brand context.'}
-                        </p>
-                    </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {MODULES.map(mod => (
-                        <div key={mod.title} className="group rounded-[20px] border border-slate-200 bg-white p-6 transition-all hover:border-blue-500/30 hover:shadow-[0_16px_50px_rgba(6,182,212,0.10)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/30">
-                            <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-base ${mod.color}`}>
-                                <i className={`fas ${mod.icon}`} />
-                            </div>
-                            <h3 className="mt-4 text-base font-bold text-slate-950 dark:text-white">{mod.title}</h3>
-                            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? mod.arDesc : mod.enDesc}</p>
+                    <div className="mb-12">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'النظام' : 'The System'}</p>
+                        <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
+                            <h2 className="max-w-2xl text-2xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
+                                {isArabic ? 'كل وظائف النمو بمسار تشغيل واحد' : 'All growth operations under one model.'}
+                            </h2>
+                            <p className="max-w-md text-sm leading-relaxed lg:leading-7 text-slate-500 dark:text-slate-400">
+                                {isArabic ? '10 وحدات متكاملة لحل مشاكل التشغيل، مترابطة بسياق البراند.' : '10 integrated modules solving real problems, connected within one brand context.'}
+                            </p>
                         </div>
-                    ))}
-                </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {MODULES.map(mod => (
+                            <div key={mod.title} className="group flex flex-col rounded-[20px] border border-slate-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/30 hover:shadow-[0_16px_50px_rgba(6,182,212,0.10)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/30">
+                                <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-base transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 ${mod.color}`}>
+                                    <i className={`fas ${mod.icon}`} />
+                                </div>
+                                <h3 className="mt-4 text-base font-bold text-slate-950 dark:text-white">{mod.title}</h3>
+                                <p className="mb-4 mt-2 flex-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? mod.arDesc : mod.enDesc}</p>
+                                <div className="mt-auto flex items-center text-sm font-semibold text-blue-600 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100 dark:text-blue-400">
+                                    {isArabic ? 'اكتشف الميزة' : 'Explore feature'} <i className={`fas ${isArabic ? 'fa-arrow-left group-hover:-translate-x-1' : 'fa-arrow-right group-hover:translate-x-1'} ms-1.5 text-xs transition-transform`} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </FadeInSection>
             </section>
 
             {/* ARABIC-FIRST */}
-            <div className="mb-4 overflow-hidden rounded-[20px] border border-blue-500/20 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-cyan-500/5 px-8 py-8 dark:border-blue-500/15 dark:from-blue-500/8 dark:via-indigo-500/5 dark:to-cyan-500/5">
+            <div className="mb-4 overflow-hidden rounded-[20px] border border-blue-500/20 bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-cyan-500/5 px-5 py-6 sm:px-8 sm:py-8 dark:border-blue-500/15 dark:from-blue-500/8 dark:via-indigo-500/5 dark:to-cyan-500/5">
                 <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1">
-                            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
                             <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-600 dark:text-blue-400">Arabic-First</span>
                         </div>
-                        <h3 className="mt-3 text-2xl font-bold leading-snug text-slate-950 dark:text-white">
+                        <h3 className="mt-3 text-xl sm:text-2xl font-bold leading-snug text-slate-950 dark:text-white">
                             {isArabic
-                                ? 'مبني للسوق العربي — لا مجرد ترجمة لأداة غربية.'
-                                : 'Built for the Arab market — not a translated Western tool.'}
+                                ? 'مبني للسوق العربي — وليس مجرد ترجمة.'
+                                : 'Built for the Arab market — not just a translation.'}
                         </h3>
                         <p className="mt-2 max-w-xl text-sm leading-7 text-slate-500 dark:text-slate-400">
                             {isArabic
@@ -622,9 +666,9 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                     </div>
                     <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
                         {[
-                            { icon: 'fa-language',     ar: 'Arabic + English UI',      en: 'Arabic + English UI' },
-                            { icon: 'fa-globe',        ar: 'دعم أسواق MENA',           en: 'MENA market support' },
-                            { icon: 'fa-building-2',   ar: 'تعدد البراندات',           en: 'Multi-brand workspace' },
+                            { icon: 'fa-language', ar: 'Arabic + English UI', en: 'Arabic + English UI' },
+                            { icon: 'fa-globe', ar: 'دعم أسواق MENA', en: 'MENA market support' },
+                            { icon: 'fa-building-2', ar: 'تعدد البراندات', en: 'Multi-brand workspace' },
                             { icon: 'fa-wand-sparkles', ar: 'محتوى عربي بصوت البراند', en: 'Arabic brand-voice AI' },
                         ].map(chip => (
                             <span key={chip.en} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
@@ -637,7 +681,7 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
             </div>
 
             {/* AI LAYER */}
-            <section className="relative overflow-hidden rounded-[2rem] bg-[#070B1F] px-8 py-20" style={{ margin: '0 -1.5rem' }}>
+            <section className="relative overflow-hidden sm:rounded-[2rem] bg-[#070B1F] px-6 py-12 lg:px-8 lg:py-20 -mx-6 sm:mx-0">
                 <div className="pointer-events-none absolute inset-0">
                     <div className="absolute right-[10%] top-[10%] h-64 w-64 rounded-full bg-indigo-600/10 blur-[80px]" />
                     <div className="absolute left-[5%] bottom-[10%] h-56 w-56 rounded-full bg-cyan-500/8 blur-[70px]" />
@@ -645,18 +689,18 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                 <div className="relative mx-auto max-w-7xl grid gap-14 lg:grid-cols-2 lg:items-center">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-4 py-1.5">
-                            <i className="fas fa-microchip text-xs text-indigo-400" />
+                            <i className="fas fa-microchip text-xs text-indigo-400 animate-pulse" />
                             <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-indigo-400">{isArabic ? 'طبقة الذكاء الاصطناعي' : 'AI Layer'}</span>
                         </div>
-                        <h2 className="mt-5 text-3xl font-bold leading-snug text-white md:text-4xl">
+                        <h2 className="mt-5 text-2xl font-bold leading-snug text-white md:text-4xl">
                             {isArabic
-                                ? 'الذكاء الاصطناعي هنا للتخطيط والتنفيذ والتحسين — لا للكتابة فقط.'
-                                : 'AI that plans, executes, and improves — not just a writing tool.'}
+                                ? 'الذكاء الاصطناعي للتخطيط، التنفيذ، والتحسين.'
+                                : 'AI that plans, executes, and improves.'}
                         </h2>
-                        <p className="mt-4 text-sm leading-7 text-white/50">
+                        <p className="mt-4 text-sm leading-relaxed lg:leading-7 text-white/50">
                             {isArabic
-                                ? 'كل طلب AI يمر عبر Brand Brain الذي يحمل صوت البراند وقيمه وجمهوره — ليضمن مخرجات تعكس هوية البراند دائمًا عبر 14 مهارة تسويقية متخصصة.'
-                                : 'Every AI request flows through Brand Brain — carrying brand voice, values, and audiences — guaranteeing outputs that always reflect your brand identity across 14 specialized marketing skills.'}
+                                ? 'يمر كل طلب عبر Brand Brain ليضمن مخرجات تعكس هوية البراند بدقة عبر 14 مهارة تسويقية.'
+                                : 'Every AI request flows through Brand Brain, guaranteeing outputs that reflect your brand identity across 14 skills.'}
                         </p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -674,170 +718,171 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
             </section>
 
             {/* HOW IT WORKS */}
-            <section id="workflow" className="py-20">
+            <section id="workflow" className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="mb-12">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'طريقة العمل' : 'How It Works'}</p>
-                    <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
-                        {isArabic ? 'من إضافة البراند إلى التحسين المستمر في 6 خطوات' : 'From brand setup to continuous optimization in 6 steps.'}
-                    </h2>
-                </div>
-                <div className="flex flex-col">
-                    {WORKFLOW_STEPS.map((step, i) => (
-                        <React.Fragment key={i}>
-                            <div className="grid gap-4 rounded-[20px] border border-slate-200 bg-white p-5 transition-all hover:border-blue-500/30 dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[64px_1fr_2fr] lg:items-center lg:gap-6">
-                                <div className="flex items-center gap-3 lg:block lg:text-center">
-                                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)]">
-                                        <i className={`fas ${step.icon} text-sm`} />
+                    <div className="mb-12">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'طريقة العمل' : 'How It Works'}</p>
+                        <h2 className="mt-4 max-w-2xl text-2xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
+                            {isArabic ? 'من الإعداد إلى التحسين في 6 خطوات' : 'From setup to optimization in 6 steps.'}
+                        </h2>
+                    </div>
+                    <div className="flex flex-col">
+                        {WORKFLOW_STEPS.map((step, i) => (
+                            <React.Fragment key={i}>
+                                <div className="grid gap-4 rounded-[20px] border border-slate-200 bg-white p-5 transition-all hover:border-blue-500/30 dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[64px_1fr_2fr] lg:items-center lg:gap-6">
+                                    <div className="flex items-center gap-3 lg:block lg:text-center">
+                                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)]">
+                                            <i className={`fas ${step.icon} text-sm`} />
+                                        </div>
+                                        <span className="text-[10px] font-bold text-slate-400 lg:mt-1 lg:block">{step.num}</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-400 lg:mt-1 lg:block">{step.num}</span>
+                                    <h3 className="text-base font-bold text-slate-950 dark:text-white">{isArabic ? step.ar : step.en}</h3>
+                                    <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? step.aSub : step.eSub}</p>
                                 </div>
-                                <h3 className="text-base font-bold text-slate-950 dark:text-white">{isArabic ? step.ar : step.en}</h3>
-                                <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? step.aSub : step.eSub}</p>
-                            </div>
-                            {i < WORKFLOW_STEPS.length - 1 && (
-                                <div className="flex items-center gap-1 py-1 ps-6">
-                                    <div className="h-4 w-px bg-gradient-to-b from-blue-500/40 to-blue-500/10" />
-                                    <i className="fas fa-chevron-down -ms-px text-[8px] text-blue-500/40" />
-                                </div>
-                            )}
-                        </React.Fragment>
-                    ))}
-                </div>
+                                {i < WORKFLOW_STEPS.length - 1 && (
+                                    <div className="flex flex-col py-2 ps-[43px] lg:ps-[51px]">
+                                        <div className="relative h-8 w-0.5 rounded-full bg-gradient-to-b from-blue-500/40 to-cyan-400/10 dark:from-blue-500/60 dark:to-cyan-400/20">
+                                            <div className="absolute left-0 top-0 h-1/2 w-full animate-pulse rounded-full bg-blue-400 blur-[2px]"></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
                 </FadeInSection>
             </section>
 
             {/* BEFORE / AFTER */}
-            <section className="py-20">
+            <section className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="mb-12">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'قبل وبعد' : 'Before vs After'}</p>
-                    <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
-                        {isArabic ? 'من فوضى الأدوات إلى نظام تشغيل واحد' : 'From scattered tools to one operating system.'}
-                    </h2>
-                </div>
-                <div className="overflow-x-auto rounded-[20px] border border-slate-200 dark:border-slate-800">
-                  <div className="min-w-[520px]">
-                    <div className="grid grid-cols-[44px_1fr_1fr] bg-slate-50 dark:bg-[#0c1321]">
-                        <div />
-                        <div className="border-x border-slate-200 px-5 py-3 dark:border-slate-800">
-                            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{isArabic ? 'الوضع الحالي' : 'Before'}</span></div>
-                        </div>
-                        <div className="px-5 py-3">
-                            <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-cyan-400" /><span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">SBrandOps</span></div>
-                        </div>
+                    <div className="mb-12">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'قبل وبعد' : 'Before vs After'}</p>
+                        <h2 className="mt-4 max-w-2xl text-2xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
+                            {isArabic ? 'من فوضى الأدوات إلى نظام تشغيل واحد' : 'From scattered tools to one operating system.'}
+                        </h2>
                     </div>
-                    {BEFORE_AFTER.map((row, i) => (
-                        <div key={i} className={`grid grid-cols-[44px_1fr_1fr] border-t border-slate-200 dark:border-slate-800 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900/50' : 'bg-slate-50/60 dark:bg-slate-900/30'}`}>
-                            <div className="flex items-center justify-center py-4">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400 dark:bg-slate-800"><i className={`fas ${row.icon}`} /></div>
-                            </div>
-                            <div className="flex items-center border-x border-slate-200 px-5 py-4 dark:border-slate-800">
-                                <p className="text-sm text-slate-500">{isArabic ? row.bAr : row.bEn}</p>
-                            </div>
-                            <div className="flex items-center px-5 py-4">
-                                <div className="flex items-center gap-2">
-                                    <i className="fas fa-check-circle text-xs text-cyan-500" />
-                                    <p className="text-sm font-medium text-slate-900 dark:text-white">{isArabic ? row.aAr : row.aEn}</p>
+                    <div className="overflow-x-auto rounded-[20px] border border-slate-200 dark:border-slate-800">
+                        <div className="min-w-[520px]">
+                            <div className="grid grid-cols-[44px_1fr_1fr] bg-slate-50 dark:bg-[#0c1321]">
+                                <div />
+                                <div className="border-x border-slate-200 px-5 py-3 dark:border-slate-800">
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-400" /><span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{isArabic ? 'الوضع الحالي' : 'Before'}</span></div>
+                                </div>
+                                <div className="px-5 py-3">
+                                    <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-cyan-400" /><span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">SBrandOps</span></div>
                                 </div>
                             </div>
+                            {BEFORE_AFTER.map((row, i) => (
+                                <div key={i} className={`grid grid-cols-[44px_1fr_1fr] border-t border-slate-200 dark:border-slate-800 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900/50' : 'bg-slate-50/60 dark:bg-slate-900/30'}`}>
+                                    <div className="flex items-center justify-center py-4">
+                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400 dark:bg-slate-800"><i className={`fas ${row.icon}`} /></div>
+                                    </div>
+                                    <div className="flex items-center border-x border-slate-200 px-5 py-4 dark:border-slate-800">
+                                        <p className="text-sm text-slate-500">{isArabic ? row.bAr : row.bEn}</p>
+                                    </div>
+                                    <div className="flex items-center px-5 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <i className="fas fa-check-circle text-xs text-cyan-500" />
+                                            <p className="text-sm font-medium text-slate-900 dark:text-white">{isArabic ? row.aAr : row.aEn}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
                 </FadeInSection>
             </section>
 
             {/* USE CASES */}
-            <section className="py-20">
+            <section className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="mb-12">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'حالات الاستخدام' : 'Use Cases'}</p>
-                    <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
-                        {isArabic ? 'مبني للفرق التي تحتاج تنفيذًا حقيقيًا' : 'Built for teams that need real execution.'}
-                    </h2>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {USE_CASES.map(uc => (
-                        <div key={uc.en} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                            <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-base ${uc.color}`}>
-                                <i className={`fas ${uc.icon}`} />
+                    <div className="mb-12">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'حالات الاستخدام' : 'Use Cases'}</p>
+                        <h2 className="mt-4 max-w-2xl text-2xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
+                            {isArabic ? 'مبني للفرق التي تحتاج تنفيذًا حقيقيًا' : 'Built for teams that need real execution.'}
+                        </h2>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {USE_CASES.map(uc => (
+                            <div key={uc.en} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-base ${uc.color}`}>
+                                    <i className={`fas ${uc.icon}`} />
+                                </div>
+                                <h3 className="mt-4 text-base font-bold text-slate-950 dark:text-white">{isArabic ? uc.ar : uc.en}</h3>
+                                <p className="mt-2 text-sm leading-6 text-red-500/80 dark:text-red-400/70">{isArabic ? uc.pAr : uc.pEn}</p>
+                                <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+                                    <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{isArabic ? uc.sAr : uc.sEn}</p>
+                                </div>
                             </div>
-                            <h3 className="mt-4 text-base font-bold text-slate-950 dark:text-white">{isArabic ? uc.ar : uc.en}</h3>
-                            <p className="mt-2 text-sm leading-6 text-red-500/80 dark:text-red-400/70">{isArabic ? uc.pAr : uc.pEn}</p>
-                            <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
-                                <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{isArabic ? uc.sAr : uc.sEn}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
                 </FadeInSection>
             </section>
 
             {/* INTEGRATIONS */}
-            <section className="rounded-[20px] border border-slate-200 bg-white px-8 py-14 dark:border-slate-800 dark:bg-slate-900">
+            <section className="rounded-[20px] border border-slate-200 bg-white px-5 py-10 lg:px-8 lg:py-14 dark:border-slate-800 dark:bg-slate-900">
                 <FadeInSection>
-                <div className="mb-8 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'التكاملات' : 'Integrations'}</p>
-                    <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'اربط الأدوات التي تستخدمها بالفعل' : 'Connect the tools you already use.'}</h2>
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                    {INTEGRATIONS.map(int => (
-                        <div key={int.name} className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
-                            <i className={`fab ${int.fab} text-sm ${int.color}`} />
-                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{int.name}</span>
-                        </div>
-                    ))}
-                    <div className="rounded-full border border-dashed border-slate-300 px-4 py-2 dark:border-slate-700">
-                        <span className="text-sm text-slate-400">{isArabic ? '+ المزيد قريبًا' : '+ More coming'}</span>
+                    <div className="mb-8 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'التكاملات' : 'Integrations'}</p>
+                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'اربط الأدوات التي تستخدمها بالفعل' : 'Connect the tools you already use.'}</h2>
                     </div>
-                </div>
+                    <div className="flex flex-wrap items-center justify-center gap-3">
+                        {INTEGRATIONS.map(int => (
+                            <div key={int.name} className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 dark:border-slate-700 dark:bg-slate-800">
+                                <i className={`fab ${int.fab} text-sm ${int.color}`} />
+                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{int.name}</span>
+                            </div>
+                        ))}
+                        <div className="rounded-full border border-dashed border-slate-300 px-4 py-2 dark:border-slate-700">
+                            <span className="text-sm text-slate-400">{isArabic ? '+ المزيد قريبًا' : '+ More coming'}</span>
+                        </div>
+                    </div>
                 </FadeInSection>
             </section>
 
             {/* SOCIAL PROOF */}
-            <section className="py-20">
+            <section className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="mb-12">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'أثر تشغيلي واضح' : 'Operational Proof'}</p>
-                    <h2 className="mt-4 max-w-2xl text-3xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
-                        {isArabic ? 'قيمة واضحة في السرعة والقرار والتنفيذ' : 'Clear value in speed, decision quality, and execution.'}
-                    </h2>
-                </div>
-                <div className="grid gap-4 lg:grid-cols-3">
-                    {CASE_STUDIES.map(item => (
-                        <div key={item.enTitle} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                            <p className="text-4xl font-black text-blue-600 dark:text-blue-400">{item.metric}</p>
-                            <h3 className="mt-3 text-base font-bold text-slate-950 dark:text-white">{isArabic ? item.arTitle : item.enTitle}</h3>
-                            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? item.arBody : item.enBody}</p>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                    {TESTIMONIALS.map((item, i) => (
-                        <div key={i} className="rounded-[20px] bg-[#070B1F] p-6">
-                            <p className="text-sm leading-7 text-white/65">&ldquo;{isArabic ? item.quoteAr : item.quoteEn}&rdquo;</p>
-                            <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
-                                <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${item.gFrom} ${item.gTo} text-xs font-bold text-white`}>
-                                    {item.initials}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-white">{item.name}</p>
-                                    <p className="text-[11px] uppercase tracking-[0.15em] text-white/30">{isArabic ? item.roleAr : item.roleEn}</p>
+                    <div className="mb-12">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'أثر تشغيلي واضح' : 'Operational Proof'}</p>
+                        <h2 className="mt-4 max-w-2xl text-2xl font-bold leading-snug text-slate-950 dark:text-white md:text-4xl">
+                            {isArabic ? 'قيمة واضحة في السرعة والقرار والتنفيذ' : 'Clear value in speed, decision quality, and execution.'}
+                        </h2>
+                    </div>
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        {CASE_STUDIES.map(item => (
+                            <div key={item.enTitle} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                <p className="text-4xl font-black text-blue-600 dark:text-blue-400">{item.metric}</p>
+                                <h3 className="mt-3 text-base font-bold text-slate-950 dark:text-white">{isArabic ? item.arTitle : item.enTitle}</h3>
+                                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? item.arBody : item.enBody}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                        {TESTIMONIALS.map((item, i) => (
+                            <div key={i} className="rounded-[20px] bg-[#070B1F] p-6">
+                                <p className="text-sm leading-7 text-white/65">&ldquo;{isArabic ? item.quoteAr : item.quoteEn}&rdquo;</p>
+                                <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
+                                    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${item.gFrom} ${item.gTo} text-xs font-bold text-white`}>
+                                        {item.initials}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-white">{item.name}</p>
+                                        <p className="text-[11px] uppercase tracking-[0.15em] text-white/30">{isArabic ? item.roleAr : item.roleEn}</p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
                 </FadeInSection>
             </section>
 
             {/* PRICING PREVIEW */}
-            <section className="py-20">
-                <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+            <section className="py-12 lg:py-20">
+                <div className="mb-8 lg:mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'الأسعار' : 'Pricing'}</p>
-                        <h2 className="mt-4 text-3xl font-bold text-slate-950 dark:text-white">{isArabic ? 'خطط واضحة تناسب كل مرحلة نمو' : 'Straightforward plans for every growth stage.'}</h2>
+                        <h2 className="mt-4 text-2xl lg:text-3xl font-bold text-slate-950 dark:text-white">{isArabic ? 'خطط واضحة تناسب نموك' : 'Plans for every growth stage.'}</h2>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
@@ -847,7 +892,10 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                                 </button>
                             ))}
                         </div>
-                        <Link to={publicPageToPath('pricing')} className="text-sm font-semibold text-blue-600 dark:text-blue-400">{isArabic ? 'عرض كل الخطط ←' : 'See full pricing →'}</Link>
+                        <Link to={publicPageToPath('pricing')} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                            {isArabic ? 'عرض كل الخطط' : 'See full pricing'}
+                            <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                        </Link>
                     </div>
                 </div>
                 <div className="grid gap-4 lg:grid-cols-3">
@@ -862,7 +910,7 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                                     </div>
                                     {plan.badge && <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">{plan.badge}</span>}
                                 </div>
-                                <p className="mt-6 text-4xl font-black text-slate-950 dark:text-white">
+                                <p className="mt-6 text-3xl lg:text-4xl font-black text-slate-950 dark:text-white">
                                     {formatMoney(price, plan.currency)}
                                     {price !== null && <span className="text-sm font-medium text-slate-400">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>}
                                 </p>
@@ -885,45 +933,45 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
             </section>
 
             {/* FAQ */}
-            <section id="faq" className="py-20">
+            <section id="faq" className="py-12 lg:py-20">
                 <FadeInSection>
-                <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
-                    <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'الأسئلة الشائعة' : 'FAQ'}</p>
-                        <h2 className="mt-4 text-3xl font-bold leading-snug text-slate-950 dark:text-white">{isArabic ? 'الأسئلة الأساسية قبل الاشتراك' : 'Core questions before you sign up.'}</h2>
-                        <p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'لم تجد إجابة؟ تواصل معنا مباشرة.' : "Didn't find your answer? Talk to us directly."}</p>
-                        <Link to={publicPageToPath('contact')} className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
-                            {isArabic ? 'تواصل معنا' : 'Contact us'} <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs`} />
-                        </Link>
+                    <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'الأسئلة الشائعة' : 'FAQ'}</p>
+                            <h2 className="mt-4 text-2xl lg:text-3xl font-bold leading-snug text-slate-950 dark:text-white">{isArabic ? 'الأسئلة الأساسية قبل الاشتراك' : 'Core questions before you sign up.'}</h2>
+                            <p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'لم تجد إجابة؟ تواصل معنا مباشرة.' : "Didn't find your answer? Talk to us directly."}</p>
+                            <Link to={publicPageToPath('contact')} className="group mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                {isArabic ? 'تواصل معنا' : 'Contact us'} <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                            </Link>
+                        </div>
+                        <div className="space-y-2">
+                            {FAQ_ITEMS.map((item, i) => (
+                                <div key={i} className="overflow-hidden rounded-[20px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+                                    <button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i} className="flex w-full items-center justify-between px-5 py-4" style={{ textAlign: isArabic ? 'right' : 'left' }}>
+                                        <span className="text-sm font-semibold text-slate-950 dark:text-white">{isArabic ? item.arQ : item.enQ}</span>
+                                        <i className={`fas fa-chevron-down ms-3 flex-shrink-0 text-xs text-slate-400 transition-transform duration-200 ${openFaq === i ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {openFaq === i && (
+                                        <div className="border-t border-slate-200 px-5 pb-4 pt-3 dark:border-slate-800">
+                                            <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">{isArabic ? item.arA : item.enA}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        {FAQ_ITEMS.map((item, i) => (
-                            <div key={i} className="overflow-hidden rounded-[20px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-                                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i} className="flex w-full items-center justify-between px-5 py-4" style={{ textAlign: isArabic ? 'right' : 'left' }}>
-                                    <span className="text-sm font-semibold text-slate-950 dark:text-white">{isArabic ? item.arQ : item.enQ}</span>
-                                    <i className={`fas fa-chevron-down ms-3 flex-shrink-0 text-xs text-slate-400 transition-transform duration-200 ${openFaq === i ? 'rotate-180' : ''}`} />
-                                </button>
-                                {openFaq === i && (
-                                    <div className="border-t border-slate-200 px-5 pb-4 pt-3 dark:border-slate-800">
-                                        <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">{isArabic ? item.arA : item.enA}</p>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
                 </FadeInSection>
             </section>
 
             {/* BOTTOM CTA */}
-            <section className="relative overflow-hidden rounded-[2rem] bg-[#070B1F] px-8 py-20 text-center" style={{ margin: '0 -1.5rem 1.5rem' }}>
+            <section className="relative overflow-hidden sm:rounded-[2rem] bg-[#070B1F] px-6 py-12 lg:px-8 lg:py-20 text-center -mx-6 mb-6 sm:mx-0 sm:mb-8">
                 <div className="pointer-events-none absolute inset-0">
                     <div className="absolute left-[20%] top-[10%] h-64 w-64 rounded-full bg-blue-600/12 blur-[90px]" />
                     <div className="absolute right-[15%] bottom-[10%] h-56 w-56 rounded-full bg-indigo-600/10 blur-[80px]" />
                 </div>
                 <div className="relative mx-auto max-w-2xl">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-cyan-400">{isArabic ? 'ابدأ الآن' : 'Get Started'}</p>
-                    <h2 className="mt-4 text-4xl font-black leading-tight text-white md:text-5xl">
+                    <h2 className="mt-4 text-3xl font-black leading-tight text-white md:text-5xl">
                         {isArabic ? (
                             <>جاهز لتشغيل البراند<br /><span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">من نظام واحد؟</span></>
                         ) : (
@@ -934,10 +982,10 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
                         {isArabic ? 'انضم إلى البراندات التي حوّلت فوضى التسويق إلى نظام تشغيل ذكي وقابل للتوسع.' : 'Join brands that have turned marketing chaos into one intelligent, scalable operating system.'}
                     </p>
                     <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                        <button onClick={primaryCtaAction} className="inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 hover:bg-blue-500">
-                            {primaryLabel} <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs`} />
+                        <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-5 py-3 sm:px-7 sm:py-3.5 text-sm font-semibold text-white shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:-translate-y-0.5 hover:bg-blue-500 animate-bounce hover:animate-none">
+                            {primaryLabel} <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
                         </button>
-                        <Link to={publicPageToPath('contact')} className="inline-flex items-center gap-2 rounded-[14px] border border-white/15 px-7 py-3.5 text-sm font-semibold text-white transition-all hover:border-white/30 hover:bg-white/5">
+                        <Link to={publicPageToPath('contact')} className="inline-flex items-center gap-2 rounded-[14px] border border-white/15 px-5 py-3 sm:px-7 sm:py-3.5 text-sm font-semibold text-white transition-all hover:border-white/30 hover:bg-white/5">
                             {contactLabel}
                         </Link>
                     </div>
@@ -952,170 +1000,197 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
     // ── ABOUT ─────────────────────────────────────────────────────────────────
     const renderAbout = () => {
         const sections = [
-            { title: isArabic ? 'قصتنا' : 'Our story', body: isArabic ? 'بُني SBrandOps لأن فرق التسويق كانت تعمل عبر أدوات كثيرة، والبيانات كانت مشتتة، والتنفيذ أبطأ من المطلوب.' : 'SBrandOps was built because marketing teams were operating across too many tools, with fragmented data and slow execution.' },
-            { title: isArabic ? 'مهمتنا' : 'Our mission', body: isArabic ? 'توحيد تشغيل نمو البراند داخل نظام ذكي واحد يدعم التخطيط والتنفيذ والتحسين.' : 'To unify brand growth operations inside one intelligent system for planning, execution, and optimization.' },
-            { title: isArabic ? 'ما نؤمن به' : 'What we believe', body: isArabic ? 'النظام قبل الفوضى، والبيانات قبل القرارات، والذكاء الاصطناعي يجب أن يخدم التنفيذ.' : 'Systems before chaos, data before decisions, and AI that serves execution.' },
-            { title: isArabic ? 'ما يميزنا' : 'What makes us different', body: isArabic ? 'Arabic-first مع دعم إنجليزي، تشغيل متعدد البراندات، وربط فعلي بين التسويق والعمليات والنمو.' : 'Arabic-first with English support, multi-brand operations, and a tighter link between marketing, operations, and growth.' },
+            { icon: 'fa-book-open', gFrom: 'from-blue-500', gTo: 'to-cyan-400', shadow: 'shadow-blue-500/30', title: isArabic ? 'قصتنا' : 'Our story', body: isArabic ? 'بُني SBrandOps لأن فرق التسويق كانت تعمل عبر أدوات كثيرة، والبيانات كانت مشتتة، والتنفيذ أبطأ من المطلوب.' : 'SBrandOps was built because marketing teams were operating across too many tools, with fragmented data and slow execution.' },
+            { icon: 'fa-bullseye', gFrom: 'from-indigo-500', gTo: 'to-purple-500', shadow: 'shadow-indigo-500/30', title: isArabic ? 'مهمتنا' : 'Our mission', body: isArabic ? 'توحيد تشغيل نمو البراند داخل نظام ذكي واحد يدعم التخطيط والتنفيذ والتحسين.' : 'To unify brand growth operations inside one intelligent system for planning, execution, and optimization.' },
+            { icon: 'fa-lightbulb', gFrom: 'from-emerald-500', gTo: 'to-teal-400', shadow: 'shadow-emerald-500/30', title: isArabic ? 'ما نؤمن به' : 'What we believe', body: isArabic ? 'النظام قبل الفوضى، والبيانات قبل القرارات، والذكاء الاصطناعي يجب أن يخدم التنفيذ.' : 'Systems before chaos, data before decisions, and AI that serves execution.' },
+            { icon: 'fa-gem', gFrom: 'from-orange-500', gTo: 'to-red-500', shadow: 'shadow-orange-500/30', title: isArabic ? 'ما يميزنا' : 'What makes us different', body: isArabic ? 'Arabic-first مع دعم إنجليزي، تشغيل متعدد البراندات، وربط فعلي بين التسويق والعمليات والنمو.' : 'Arabic-first with English support, multi-brand operations, and a tighter link between marketing, operations, and growth.' },
         ];
         return (
-            <section className="py-16">
-                <div className="max-w-3xl">
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'من نحن' : 'About SBrandOps'}</p>
-                    <h1 className="mt-4 text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'نحن نبني نظام تشغيل عملي للبراند' : 'We are building a real operating system for brands.'}</h1>
-                </div>
-                <div className="mt-12 grid gap-6 lg:grid-cols-2">
-                    {sections.map(section => (
-                        <div key={section.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                            <h2 className="text-xl font-bold text-slate-950 dark:text-white">{section.title}</h2>
-                            <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{section.body}</p>
-                        </div>
-                    ))}
-                </div>
+            <section className="py-10 lg:py-16">
+                <FadeInSection>
+                    <div className="max-w-3xl">
+                        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'من نحن' : 'About SBrandOps'}</p>
+                        <h1 className="mt-4 text-3xl lg:text-5xl font-black tracking-tight text-slate-950 dark:text-white">
+                            {isArabic ? (
+                                <>نبني نظام تشغيل <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">عملي للبراند</span></>
+                            ) : (
+                                <>Building a <span className="bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">real operating system</span> for brands.</>
+                            )}
+                        </h1>
+                    </div>
+                    <div className="mt-12 grid gap-6 lg:grid-cols-2">
+                        {sections.map(section => (
+                            <div key={section.title} className="group rounded-[1.75rem] border border-slate-200 bg-white p-6 transition-all hover:border-blue-500/30 hover:shadow-[0_8px_30px_rgba(37,99,235,0.08)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/30">
+                                <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${section.gFrom} ${section.gTo} text-white shadow-lg ${section.shadow} transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
+                                    <i className={`fas ${section.icon} text-lg`} />
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-950 dark:text-white">{section.title}</h2>
+                                <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{section.body}</p>
+                            </div>
+                        ))}
+                    </div>
+                </FadeInSection>
             </section>
         );
     };
 
     // ── PRICING ───────────────────────────────────────────────────────────────
     const renderPricing = () => (
-        <section className="py-16">
-            <div className="max-w-3xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'الأسعار' : 'Pricing'}</p>
-                <h1 className="mt-4 text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'اختر الخطة المناسبة لمرحلة نموك' : 'Choose the plan that matches your growth stage'}</h1>
-                <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'ابدأ بخطة مناسبة الآن، ثم وسّع الفريق والبراندات والفوترة والإدارة مع نمو التشغيل.' : 'Start with the right operating baseline now, then expand brands, team, billing, and governance as you grow.'}</p>
-            </div>
-            <div className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
-                {(['monthly', 'yearly'] as BillingCycle[]).map(cycle => (
-                    <button key={cycle} onClick={() => setBillingCycle(cycle)} className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${billingCycle === cycle ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}>
-                        {cycle === 'monthly' ? (isArabic ? 'شهري' : 'Monthly') : (isArabic ? 'سنوي' : 'Yearly')}
-                    </button>
-                ))}
-            </div>
-            <div className="mt-12 grid gap-5 lg:grid-cols-3">
-                {publicPlans.map(plan => {
-                    const price = getBillingAmount(plan, billingCycle);
-                    const annualSaving = billingCycle === 'yearly' && plan.monthlyPrice !== null && plan.yearlyPrice !== null ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
-                    return (
-                        <div key={plan.id} className={`rounded-[2rem] border p-7 ${plan.highlighted ? 'border-blue-500/40 bg-blue-500/5 dark:bg-blue-500/10' : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'}`}>
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold text-slate-950 dark:text-white">{plan.name}</h2>
-                                {plan.badge && <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">{plan.badge}</span>}
+        <section className="py-10 lg:py-16">
+            <FadeInSection>
+                <div className="max-w-3xl">
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'الأسعار' : 'Pricing'}</p>
+                    <h1 className="mt-4 text-3xl lg:text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'اختر الخطة المناسبة لنموك' : 'Choose the right plan for your growth'}</h1>
+                    <p className="mt-4 lg:mt-5 text-base lg:text-lg leading-relaxed lg:leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'ابدأ بخطة تناسبك الآن، ثم وسّع التشغيل مع نمو أعمالك.' : 'Start with the right baseline now, then expand as you grow.'}</p>
+                </div>
+                <div className="mt-8 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
+                    {(['monthly', 'yearly'] as BillingCycle[]).map(cycle => (
+                        <button key={cycle} onClick={() => setBillingCycle(cycle)} className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${billingCycle === cycle ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'}`}>
+                            {cycle === 'monthly' ? (isArabic ? 'شهري' : 'Monthly') : (isArabic ? 'سنوي' : 'Yearly')}
+                        </button>
+                    ))}
+                </div>
+                <div className="mt-12 grid gap-5 lg:grid-cols-3">
+                    {publicPlans.map(plan => {
+                        const price = getBillingAmount(plan, billingCycle);
+                        const annualSaving = billingCycle === 'yearly' && plan.monthlyPrice !== null && plan.yearlyPrice !== null ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
+                        return (
+                            <div key={plan.id} className={`relative rounded-[2rem] border p-7 transition-all duration-300 ${plan.highlighted ? 'border-blue-400/50 bg-gradient-to-b from-blue-50/80 to-white shadow-[0_10px_40px_rgba(37,99,235,0.15)] dark:from-blue-900/20 dark:to-slate-900 lg:-translate-y-2 lg:scale-105 z-10' : 'border-slate-200 bg-white hover:border-blue-500/30 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-500/30'}`}>
+                                {plan.highlighted && (
+                                    <div className="absolute -top-[1px] left-10 right-10 h-[2px] bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500" />
+                                )}
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-2xl font-bold text-slate-950 dark:text-white">{plan.name}</h2>
+                                    {plan.badge && <span className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${plan.highlighted ? 'bg-gradient-to-r from-blue-600 to-cyan-500 shadow-sm' : 'bg-slate-800 dark:bg-slate-700'}`}>{plan.badge}</span>}
+                                </div>
+                                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{plan.description}</p>
+                                <p className="mt-6 lg:mt-8 text-4xl lg:text-5xl font-black text-slate-950 dark:text-white">
+                                    {formatMoney(price, plan.currency)}
+                                    {price !== null && <span className="text-base font-medium text-slate-400">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>}
+                                </p>
+                                {annualSaving > 0 && <p className="mt-3 text-sm font-medium text-blue-600 dark:text-blue-400">{isArabic ? `وفّر ${formatMoney(annualSaving, plan.currency)} سنويًا` : `Save ${formatMoney(annualSaving, plan.currency)} annually`}</p>}
+                                <ul className="mt-8 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                                    {plan.features.map(feature => (
+                                        <li key={feature} className="flex items-start gap-2">
+                                            <i className="fas fa-check mt-1 text-xs text-cyan-500" />
+                                            <span>{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button onClick={() => handlePlanCheckout(plan.id)} disabled={pendingPlanId === plan.id} className={`mt-8 w-full rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-300 ${plan.highlighted ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_8px_20px_rgba(6,182,212,0.3)] hover:-translate-y-0.5 hover:shadow-[0_10px_25px_rgba(6,182,212,0.4)]' : 'border border-slate-300 bg-transparent text-slate-950 hover:border-blue-500 hover:text-blue-600 dark:border-slate-700 dark:text-white dark:hover:border-blue-400 dark:hover:text-blue-400'}`}>
+                                    {pendingPlanId === plan.id ? (isArabic ? 'جارٍ تجهيز الدفع...' : 'Preparing checkout...') : plan.id === 'starter' ? (isArabic ? 'ابدأ بـ Starter' : plan.ctaLabel) : plan.id === 'growth' ? (isArabic ? 'ابدأ بـ Growth' : plan.ctaLabel) : (isArabic ? 'ابدأ بـ Agency' : plan.ctaLabel)}
+                                </button>
                             </div>
-                            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{plan.description}</p>
-                            <p className="mt-8 text-5xl font-black text-slate-950 dark:text-white">
-                                {formatMoney(price, plan.currency)}
-                                {price !== null && <span className="text-base font-medium text-slate-400">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>}
-                            </p>
-                            {annualSaving > 0 && <p className="mt-3 text-sm font-medium text-blue-600 dark:text-blue-400">{isArabic ? `وفّر ${formatMoney(annualSaving, plan.currency)} سنويًا` : `Save ${formatMoney(annualSaving, plan.currency)} annually`}</p>}
-                            <ul className="mt-8 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                                {plan.features.map(feature => (
-                                    <li key={feature} className="flex items-start gap-2">
-                                        <i className="fas fa-check mt-1 text-xs text-cyan-500" />
-                                        <span>{feature}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                            <button onClick={() => handlePlanCheckout(plan.id)} disabled={pendingPlanId === plan.id} className={`mt-8 w-full rounded-2xl px-5 py-3 text-sm font-semibold ${plan.highlighted ? 'bg-blue-600 text-white' : 'border border-slate-300 bg-transparent text-slate-950 dark:border-slate-700 dark:text-white'}`}>
-                                {pendingPlanId === plan.id ? (isArabic ? 'جارٍ تجهيز الدفع...' : 'Preparing checkout...') : plan.id === 'starter' ? (isArabic ? 'ابدأ بـ Starter' : plan.ctaLabel) : plan.id === 'growth' ? (isArabic ? 'ابدأ بـ Growth' : plan.ctaLabel) : (isArabic ? 'ابدأ بـ Agency' : plan.ctaLabel)}
-                            </button>
-                        </div>
-                    );
-                })}
-            </div>
-            {checkoutError && <div className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">{checkoutError}</div>}
+                        );
+                    })}
+                </div>
+                {checkoutError && <div className="mt-6 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">{checkoutError}</div>}
+            </FadeInSection>
         </section>
     );
 
     // ── BILLING ───────────────────────────────────────────────────────────────
     const renderBilling = () => (
-        <section className="py-16">
-            <div className="max-w-3xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'الفوترة' : 'Billing'}</p>
-                <h1 className="mt-4 text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'فهم أوضح للاشتراك والفواتير من أول يوم' : 'Clear subscription and invoice operations from day one'}</h1>
-                <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'كل خطة لها دورة فوترة واضحة، وفواتير قابلة للتتبع، وإدارة للإلغاء أو الترقية أو الإيقاف من نفس مساحة العمل.' : 'Every plan has a clear billing cycle, traceable invoices, and in-app cancellation, upgrade, and pause controls.'}</p>
-            </div>
-            <div className="mt-12 grid gap-5 lg:grid-cols-3">
-                {[
-                    { title: isArabic ? 'الدفع والاشتراك' : 'Checkout and subscriptions', body: isArabic ? 'تبدأ الخطة عبر Checkout آمن، ثم تُدار حالات الترقية والتخفيض والإيقاف من داخل تجربة الفوترة نفسها.' : 'Plans start in secure checkout, then upgrades, downgrades, and pauses are managed inside the same billing flow.' },
-                    { title: isArabic ? 'الفواتير والامتثال المالي' : 'Invoices and finance ops', body: isArabic ? 'يمكن للفرق المالية مراجعة الفواتير، تواريخ التحصيل، ودورات السداد بدون الرجوع إلى دعم يدوي لكل حركة.' : 'Finance teams can review invoices, collection dates, and billing cycles without needing manual support for every change.' },
-                    { title: isArabic ? 'دعم الفوترة' : 'Billing support', body: isArabic ? 'الأسئلة المتعلقة بالمدفوعات أو الاسترجاع أو تحديث جهة التعاقد تذهب إلى billing@sbrandops.com.' : 'Questions about payments, refunds, or billing entity changes are routed through billing@sbrandops.com.' },
-                ].map(item => (
-                    <div key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                        <h2 className="text-xl font-bold text-slate-950 dark:text-white">{item.title}</h2>
-                        <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.body}</p>
-                    </div>
-                ))}
-            </div>
-            <div className="mt-8 flex flex-wrap gap-3">
-                <Link to={publicPageToPath('pricing')} className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white">{isArabic ? 'قارن الخطط' : 'Compare plans'}</Link>
-                <a href="mailto:billing@sbrandops.com" className="rounded-2xl border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">{isArabic ? 'تواصل مع دعم الفوترة' : 'Contact billing support'}</a>
-            </div>
+        <section className="py-10 lg:py-16">
+            <FadeInSection>
+                <div className="max-w-3xl">
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'الفوترة' : 'Billing'}</p>
+                    <h1 className="mt-4 text-3xl lg:text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'اشتراكات وفواتير واضحة من اليوم الأول' : 'Clear subscription and billing from day one'}</h1>
+                    <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'كل خطة لها دورة فوترة واضحة، وفواتير قابلة للتتبع، وإدارة للإلغاء أو الترقية أو الإيقاف من نفس مساحة العمل.' : 'Every plan has a clear billing cycle, traceable invoices, and in-app cancellation, upgrade, and pause controls.'}</p>
+                </div>
+                <div className="mt-12 grid gap-5 lg:grid-cols-3">
+                    {[
+                        { title: isArabic ? 'الدفع والاشتراك' : 'Checkout and subscriptions', body: isArabic ? 'تبدأ الخطة عبر Checkout آمن، ثم تُدار حالات الترقية والتخفيض والإيقاف من داخل تجربة الفوترة نفسها.' : 'Plans start in secure checkout, then upgrades, downgrades, and pauses are managed inside the same billing flow.' },
+                        { title: isArabic ? 'الفواتير والامتثال المالي' : 'Invoices and finance ops', body: isArabic ? 'يمكن للفرق المالية مراجعة الفواتير، تواريخ التحصيل، ودورات السداد بدون الرجوع إلى دعم يدوي لكل حركة.' : 'Finance teams can review invoices, collection dates, and billing cycles without needing manual support for every change.' },
+                        { title: isArabic ? 'دعم الفوترة' : 'Billing support', body: isArabic ? 'الأسئلة المتعلقة بالمدفوعات أو الاسترجاع أو تحديث جهة التعاقد تذهب إلى billing@sbrandops.com.' : 'Questions about payments, refunds, or billing entity changes are routed through billing@sbrandops.com.' },
+                    ].map(item => (
+                        <div key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                            <h2 className="text-xl font-bold text-slate-950 dark:text-white">{item.title}</h2>
+                            <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.body}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-8 flex flex-wrap gap-3">
+                    <Link to={publicPageToPath('pricing')} className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white">{isArabic ? 'قارن الخطط' : 'Compare plans'}</Link>
+                    <a href="mailto:billing@sbrandops.com" className="rounded-2xl border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">{isArabic ? 'تواصل مع دعم الفوترة' : 'Contact billing support'}</a>
+                </div>
+            </FadeInSection>
         </section>
     );
 
     // ── SECURITY ──────────────────────────────────────────────────────────────
     const renderSecurity = () => (
-        <section className="py-16">
-            <div className="max-w-3xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'الأمان' : 'Security'}</p>
-                <h1 className="mt-4 text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'طبقة تشغيل آمنة للفرق والبراندات والبيانات المتصلة' : 'A secure operating layer for teams, brands, and connected data'}</h1>
-                <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'نعامل الأمان كمسار تشغيل أساسي: صلاحيات، سجلات، حماية جلسات، وربط مزودين خارجيين ضمن حدود واضحة.' : 'We treat security as a core operating track: permissions, auditability, session protection, and tightly-scoped external integrations.'}</p>
-            </div>
-            <div className="mt-12 grid gap-5 lg:grid-cols-2">
-                {[
-                    { title: isArabic ? 'التحكم في الوصول' : 'Access control', body: isArabic ? 'تُدار العضويات والصلاحيات داخل مساحة العمل، مع فصل واضح بين الإدارة، التشغيل، والموافقة.' : 'Workspace membership and permissions are managed with a clear split between admin, operator, and approver responsibilities.' },
-                    { title: isArabic ? 'سلامة البيانات والربط' : 'Data and integration safety', body: isArabic ? 'رموز الوصول والتكاملات تُحفظ لإعادة الاستخدام التشغيلي، مع تتبع حالة الاتصال ومؤشرات الخطأ والمزامنة.' : 'Access tokens and connected systems are stored for operational reuse with connection health, sync state, and error visibility.' },
-                    { title: isArabic ? 'الاستجابة والمراجعة' : 'Review and response', body: isArabic ? 'يستطيع الفريق مراجعة صفحات الأمن والخصوصية وDPA، ورفع الأسئلة الحساسة مباشرة إلى security@sbrandops.com.' : 'Teams can review security, privacy, and DPA information and route sensitive questions directly to security@sbrandops.com.' },
-                    { title: isArabic ? 'الأثر التشغيلي' : 'Operational assurance', body: isArabic ? 'الفكرة ليست صفحة سياسات فقط، بل مسار تشغيل يقلل الفوضى عند إدارة الحسابات، الأصول، والتحليلات المتصلة.' : 'This is not only a policy page. It is an operating track that reduces ambiguity when teams manage connected accounts, assets, and analytics.' },
-                ].map(item => (
-                    <div key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                        <h2 className="text-xl font-bold text-slate-950 dark:text-white">{item.title}</h2>
-                        <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.body}</p>
-                    </div>
-                ))}
-            </div>
-            <div className="mt-8 flex flex-wrap gap-3">
-                <Link to={publicPageToPath('privacy')} className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white">{isArabic ? 'راجع الخصوصية' : 'Review privacy'}</Link>
-                <Link to={publicPageToPath('dpa')} className="rounded-2xl border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">{isArabic ? 'راجع DPA' : 'Review DPA'}</Link>
-            </div>
+        <section className="py-10 lg:py-16">
+            <FadeInSection>
+                <div className="max-w-3xl">
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'الأمان' : 'Security'}</p>
+                    <h1 className="mt-4 text-3xl lg:text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'تشغيل آمن لفرقك وبياناتك المتصلة' : 'Secure operation for teams and data'}</h1>
+                    <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'نعامل الأمان كمسار تشغيل أساسي: صلاحيات، سجلات، حماية جلسات، وربط مزودين خارجيين ضمن حدود واضحة.' : 'We treat security as a core operating track: permissions, auditability, session protection, and tightly-scoped external integrations.'}</p>
+                </div>
+                <div className="mt-12 grid gap-5 lg:grid-cols-2">
+                    {[
+                        { title: isArabic ? 'التحكم في الوصول' : 'Access control', body: isArabic ? 'تُدار العضويات والصلاحيات داخل مساحة العمل، مع فصل واضح بين الإدارة، التشغيل، والموافقة.' : 'Workspace membership and permissions are managed with a clear split between admin, operator, and approver responsibilities.' },
+                        { title: isArabic ? 'سلامة البيانات والربط' : 'Data and integration safety', body: isArabic ? 'رموز الوصول والتكاملات تُحفظ لإعادة الاستخدام التشغيلي، مع تتبع حالة الاتصال ومؤشرات الخطأ والمزامنة.' : 'Access tokens and connected systems are stored for operational reuse with connection health, sync state, and error visibility.' },
+                        { title: isArabic ? 'الاستجابة والمراجعة' : 'Review and response', body: isArabic ? 'يستطيع الفريق مراجعة صفحات الأمن والخصوصية وDPA، ورفع الأسئلة الحساسة مباشرة إلى security@sbrandops.com.' : 'Teams can review security, privacy, and DPA information and route sensitive questions directly to security@sbrandops.com.' },
+                        { title: isArabic ? 'الأثر التشغيلي' : 'Operational assurance', body: isArabic ? 'الفكرة ليست صفحة سياسات فقط، بل مسار تشغيل يقلل الفوضى عند إدارة الحسابات، الأصول، والتحليلات المتصلة.' : 'This is not only a policy page. It is an operating track that reduces ambiguity when teams manage connected accounts, assets, and analytics.' },
+                    ].map(item => (
+                        <div key={item.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                            <h2 className="text-xl font-bold text-slate-950 dark:text-white">{item.title}</h2>
+                            <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.body}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-8 flex flex-wrap gap-3">
+                    <Link to={publicPageToPath('privacy')} className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white">{isArabic ? 'راجع الخصوصية' : 'Review privacy'}</Link>
+                    <Link to={publicPageToPath('dpa')} className="rounded-2xl border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">{isArabic ? 'راجع DPA' : 'Review DPA'}</Link>
+                </div>
+            </FadeInSection>
         </section>
     );
 
     // ── CONTACT ───────────────────────────────────────────────────────────────
     const renderContact = () => (
-        <section id="support" className="grid gap-8 py-16 lg:grid-cols-[0.95fr_1.05fr]">
-            <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'التواصل' : 'Contact'}</p>
-                <h1 className="mt-4 text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'هل تريد تشغيل أكثر من براند أو فريق كامل؟' : 'Need to operate multiple brands or a full team?'}</h1>
-                <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'تواصل معنا لنعرض لك أفضل إعداد لـ SBrandOps حسب عدد البراندات والقنوات والأدوار داخل الفريق.' : 'Talk to us to define the right SBrandOps setup for your brands, channels, and team structure.'}</p>
-            </div>
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-8 dark:border-slate-800 dark:bg-slate-900">
-                <div className="space-y-5 text-sm text-slate-600 dark:text-slate-300">
+        <section id="support" className="py-10 lg:py-16">
+            <FadeInSection>
+                <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isArabic ? 'المبيعات' : 'Sales'}</p>
-                        <p className="mt-2 text-base font-semibold text-slate-950 dark:text-white">demo@sbrandops.com</p>
+                        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'التواصل' : 'Contact'}</p>
+                        <h1 className="mt-4 text-3xl lg:text-5xl font-black tracking-tight text-slate-950 dark:text-white">{isArabic ? 'تريد تشغيل فريق كامل أو عدة براندات؟' : 'Need to operate multiple brands or a team?'}</h1>
+                        <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{isArabic ? 'تواصل معنا لنعرض لك أفضل إعداد لـ SBrandOps حسب عدد البراندات والقنوات والأدوار داخل الفريق.' : 'Talk to us to define the right SBrandOps setup for your brands, channels, and team structure.'}</p>
                     </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isArabic ? 'الدعم' : 'Support'}</p>
-                        <p className="mt-2 text-base font-semibold text-slate-950 dark:text-white">support@sbrandops.com</p>
-                    </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isArabic ? 'وقت الرد' : 'Response time'}</p>
-                        <p className="mt-2 leading-7">{isArabic ? 'خلال يوم عمل واحد عادةً.' : 'Usually within one business day.'}</p>
+                    <div className="rounded-[2rem] border border-slate-200 bg-white p-5 lg:p-8 dark:border-slate-800 dark:bg-slate-900">
+                        <div className="space-y-5 text-sm text-slate-600 dark:text-slate-300">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isArabic ? 'المبيعات' : 'Sales'}</p>
+                                <p className="mt-2 text-base font-semibold text-slate-950 dark:text-white">demo@sbrandops.com</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isArabic ? 'الدعم' : 'Support'}</p>
+                                <p className="mt-2 text-base font-semibold text-slate-950 dark:text-white">support@sbrandops.com</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isArabic ? 'وقت الرد' : 'Response time'}</p>
+                                <p className="mt-2 leading-7">{isArabic ? 'خلال يوم عمل واحد عادةً.' : 'Usually within one business day.'}</p>
+                            </div>
+                        </div>
+                        <div className="mt-8 flex flex-wrap gap-3">
+                            <a href="mailto:demo@sbrandops.com" className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white">{isArabic ? 'تواصل مع المبيعات' : 'Contact Sales'}</a>
+                            <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-2xl border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white hover:border-blue-500 hover:text-blue-600 transition-colors">
+                                {isArabic ? 'ابدأ التجربة' : 'Start Free Trial'}
+                                <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                            </button>
+                        </div>
+                        <div className="mt-8 grid gap-3">
+                            {SUPPORT_PATHS.map(item => (
+                                <a key={item.enTitle} href={item.href} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-blue-500/40 hover:bg-blue-500/5 dark:border-slate-800 dark:bg-slate-950">
+                                    <p className="text-sm font-semibold text-slate-950 dark:text-white">{isArabic ? item.arTitle : item.enTitle}</p>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{isArabic ? item.arBody : item.enBody}</p>
+                                </a>
+                            ))}
+                        </div>
                     </div>
                 </div>
-                <div className="mt-8 flex flex-wrap gap-3">
-                    <a href="mailto:demo@sbrandops.com" className="rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white">{isArabic ? 'تواصل مع المبيعات' : 'Contact Sales'}</a>
-                    <button onClick={primaryCtaAction} className="rounded-2xl border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">{isArabic ? 'ابدأ التجربة' : 'Start Free Trial'}</button>
-                </div>
-                <div className="mt-8 grid gap-3">
-                    {SUPPORT_PATHS.map(item => (
-                        <a key={item.enTitle} href={item.href} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-blue-500/40 hover:bg-blue-500/5 dark:border-slate-800 dark:bg-slate-950">
-                            <p className="text-sm font-semibold text-slate-950 dark:text-white">{isArabic ? item.arTitle : item.enTitle}</p>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{isArabic ? item.arBody : item.enBody}</p>
-                        </a>
-                    ))}
-                </div>
-            </div>
+            </FadeInSection>
         </section>
     );
 
@@ -1131,54 +1206,56 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
             { label: isArabic ? 'الكوكيز' : 'Cookies', page: 'cookies' },
         ];
         return (
-            <section className="py-16">
-                <div className="max-w-4xl">
-                    {/* Header */}
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'القانونية' : 'Legal'}</p>
-                    <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
-                        {isArabic ? legalPage.arTitle : legalPage.enTitle}
-                    </h1>
-                    <p className="mt-2 text-sm text-slate-400">
-                        {isArabic ? `تاريخ السريان: ${legalPage.effective}` : `Effective date: ${legalPage.effective}`}
-                    </p>
+            <section className="py-10 lg:py-16">
+                <FadeInSection>
+                    <div className="max-w-4xl">
+                        {/* Header */}
+                        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">{isArabic ? 'القانونية' : 'Legal'}</p>
+                        <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 dark:text-white">
+                            {isArabic ? legalPage.arTitle : legalPage.enTitle}
+                        </h1>
+                        <p className="mt-2 text-sm text-slate-400">
+                            {isArabic ? `تاريخ السريان: ${legalPage.effective}` : `Effective date: ${legalPage.effective}`}
+                        </p>
 
-                    {/* Legal page nav */}
-                    <div className="mt-6 flex flex-wrap gap-2">
-                        {legalLinks.map(l => (
-                            <Link
-                                key={l.page}
-                                to={publicPageToPath(l.page)}
-                                className={`rounded-xl px-4 py-1.5 text-xs font-semibold transition-colors ${pageId === l.page ? 'bg-brand-primary text-white' : 'border border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:text-slate-300'}`}
-                            >
-                                {l.label}
-                            </Link>
-                        ))}
-                    </div>
-
-                    {/* Content card */}
-                    <div className="mt-8 rounded-[2rem] border border-slate-200 bg-white p-8 dark:border-slate-800 dark:bg-slate-900">
-                        <div className="space-y-6">
-                            {blocks.map((block, i) => (
-                                <div key={i}>
-                                    {block.heading && (
-                                        <h2 className="mb-2 text-base font-bold text-slate-950 dark:text-white">{block.heading}</h2>
-                                    )}
-                                    <p className="text-sm leading-8 text-slate-600 dark:text-slate-300">{block.text}</p>
-                                </div>
+                        {/* Legal page nav */}
+                        <div className="mt-6 flex flex-wrap gap-2">
+                            {legalLinks.map(l => (
+                                <Link
+                                    key={l.page}
+                                    to={publicPageToPath(l.page)}
+                                    className={`rounded-xl px-4 py-1.5 text-xs font-semibold transition-colors ${pageId === l.page ? 'bg-brand-primary text-white' : 'border border-slate-200 text-slate-600 hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:text-slate-300'}`}
+                                >
+                                    {l.label}
+                                </Link>
                             ))}
                         </div>
-                    </div>
 
-                    {/* CTA row */}
-                    <div className="mt-6 flex flex-wrap gap-3">
-                        <a href="mailto:legal@sbrandops.com" className="rounded-2xl bg-brand-primary px-6 py-3 text-sm font-semibold text-white">
-                            {isArabic ? 'تواصل مع الفريق القانوني' : 'Contact Legal Team'}
-                        </a>
-                        <Link to={publicPageToPath('security')} className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">
-                            {isArabic ? 'صفحة الأمان' : 'Security'}
-                        </Link>
+                        {/* Content card */}
+                        <div className="mt-8 rounded-[2rem] border border-slate-200 bg-white p-8 dark:border-slate-800 dark:bg-slate-900">
+                            <div className="space-y-6">
+                                {blocks.map((block, i) => (
+                                    <div key={i}>
+                                        {block.heading && (
+                                            <h2 className="mb-2 text-base font-bold text-slate-950 dark:text-white">{block.heading}</h2>
+                                        )}
+                                        <p className="text-sm leading-8 text-slate-600 dark:text-slate-300">{block.text}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* CTA row */}
+                        <div className="mt-6 flex flex-wrap gap-3">
+                            <a href="mailto:legal@sbrandops.com" className="rounded-2xl bg-brand-primary px-6 py-3 text-sm font-semibold text-white">
+                                {isArabic ? 'تواصل مع الفريق القانوني' : 'Contact Legal Team'}
+                            </a>
+                            <Link to={publicPageToPath('security')} className="rounded-2xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-950 dark:border-slate-700 dark:text-white">
+                                {isArabic ? 'صفحة الأمان' : 'Security'}
+                            </Link>
+                        </div>
                     </div>
-                </div>
+                </FadeInSection>
             </section>
         );
     };
@@ -1198,16 +1275,16 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
             { icon: 'fa-circle-nodes', color: 'bg-slate-400/15 text-slate-400', title: 'Integrations OS', arFeatures: ['ربط المنصات مع تسجيل نوع الأصل ووظيفته', 'مراقبة صحة كل تكامل في الوقت الفعلي', 'تحديث Tokens تلقائي بدون انقطاع', 'دعم 11+ منصة: Meta, TikTok, Google, Shopify وأكثر'], enFeatures: ['Connect platforms with asset type & purpose registry', 'Real-time integration health monitoring', 'Auto token refresh without downtime', '11+ platforms: Meta, TikTok, Google, Shopify & more'] },
         ];
         const COMPARE_ROWS = [
-            { feature: isArabic ? 'دعم العربية RTL' : 'Arabic RTL support',      sbo: true,  hootsuite: false, buffer: false },
-            { feature: isArabic ? 'Brand Brain AI' : 'Brand Brain AI memory',     sbo: true,  hootsuite: false, buffer: false },
-            { feature: isArabic ? 'Campaign Brain' : 'Campaign Brain planning',   sbo: true,  hootsuite: false, buffer: false },
-            { feature: isArabic ? 'Smart Bot مبيعات' : 'Sales smart bot',         sbo: true,  hootsuite: false, buffer: false },
-            { feature: isArabic ? 'SEO Ops مدمج' : 'Built-in SEO Ops',           sbo: true,  hootsuite: false, buffer: false },
-            { feature: isArabic ? 'CRM داخلي' : 'Built-in CRM',                  sbo: true,  hootsuite: false, buffer: false },
+            { feature: isArabic ? 'دعم العربية RTL' : 'Arabic RTL support', sbo: true, hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Brand Brain AI' : 'Brand Brain AI memory', sbo: true, hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Campaign Brain' : 'Campaign Brain planning', sbo: true, hootsuite: false, buffer: false },
+            { feature: isArabic ? 'Smart Bot مبيعات' : 'Sales smart bot', sbo: true, hootsuite: false, buffer: false },
+            { feature: isArabic ? 'SEO Ops مدمج' : 'Built-in SEO Ops', sbo: true, hootsuite: false, buffer: false },
+            { feature: isArabic ? 'CRM داخلي' : 'Built-in CRM', sbo: true, hootsuite: false, buffer: false },
             { feature: isArabic ? 'Ads Analytics مدمج' : 'Integrated Ads Analytics', sbo: true, hootsuite: true, buffer: false },
             { feature: isArabic ? 'جدولة متعددة القنوات' : 'Multi-channel scheduling', sbo: true, hootsuite: true, buffer: true },
-            { feature: isArabic ? 'تحليلات الأداء' : 'Performance analytics',    sbo: true,  hootsuite: true,  buffer: true },
-            { feature: isArabic ? 'تعاون الفريق' : 'Team collaboration',         sbo: true,  hootsuite: true,  buffer: true },
+            { feature: isArabic ? 'تحليلات الأداء' : 'Performance analytics', sbo: true, hootsuite: true, buffer: true },
+            { feature: isArabic ? 'تعاون الفريق' : 'Team collaboration', sbo: true, hootsuite: true, buffer: true },
         ];
         const Check = ({ v }: { v: boolean }) => v
             ? <i className="fas fa-check text-cyan-400" />
@@ -1215,81 +1292,95 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
         return (
             <>
                 {/* Hero */}
-                <section className="py-16">
-                    <div className="text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المميزات الكاملة' : 'Full Feature Set'}</p>
-                        <h1 className="mt-4 text-4xl font-black text-slate-950 dark:text-white md:text-5xl">{isArabic ? 'كل ما تحتاجه لتشغيل البراند' : 'Everything you need to run your brand'}</h1>
-                        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? '10 وحدات متكاملة، كل واحدة مبنية لتحل مشكلة تشغيلية حقيقية — وكلها تعمل معاً بدون تنسيق يدوي.' : '10 integrated modules, each built to solve a real operational problem — all working together without manual coordination.'}</p>
-                        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                            <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">{primaryLabel}</button>
-                            <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'شاهد العرض التجريبي' : 'Watch Demo'}</Link>
+                <section className="py-10 lg:py-16">
+                    <FadeInSection>
+                        <div className="text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المميزات الكاملة' : 'Full Feature Set'}</p>
+                            <h1 className="mt-4 text-3xl lg:text-5xl font-black text-slate-950 dark:text-white">{isArabic ? 'كل ما تحتاجه لتشغيل البراند' : 'Everything you need to run your brand'}</h1>
+                            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? '10 وحدات متكاملة، كل واحدة مبنية لتحل مشكلة تشغيلية حقيقية — وكلها تعمل معاً بدون تنسيق يدوي.' : '10 integrated modules, each built to solve a real operational problem — all working together without manual coordination.'}</p>
+                            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                                <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">
+                                    {primaryLabel}
+                                    <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                                </button>
+                                <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'شاهد العرض التجريبي' : 'Watch Demo'}</Link>
+                            </div>
                         </div>
-                    </div>
+                    </FadeInSection>
                 </section>
 
                 {/* Modules grid */}
                 <section className="py-8">
-                    <div className="grid gap-5 md:grid-cols-2">
-                        {DETAILED_MODULES.map(mod => (
-                            <div key={mod.title} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-                                <div className="mb-4 flex items-center gap-3">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${mod.color}`}>
-                                        <i className={`fas ${mod.icon} text-lg`} />
+                    <FadeInSection>
+                        <div className="grid gap-5 md:grid-cols-2">
+                            {DETAILED_MODULES.map(mod => (
+                                <div key={mod.title} className="rounded-[20px] border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="mb-4 flex items-center gap-3">
+                                        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${mod.color}`}>
+                                            <i className={`fas ${mod.icon} text-lg`} />
+                                        </div>
+                                        <h3 className="text-base font-bold text-slate-950 dark:text-white">{mod.title}</h3>
                                     </div>
-                                    <h3 className="text-base font-bold text-slate-950 dark:text-white">{mod.title}</h3>
+                                    <ul className="space-y-2">
+                                        {(isArabic ? mod.arFeatures : mod.enFeatures).map(f => (
+                                            <li key={f} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                                <i className="fas fa-circle-check mt-0.5 flex-shrink-0 text-xs text-cyan-500" />
+                                                {f}
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
-                                <ul className="space-y-2">
-                                    {(isArabic ? mod.arFeatures : mod.enFeatures).map(f => (
-                                        <li key={f} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-                                            <i className="fas fa-circle-check mt-0.5 flex-shrink-0 text-xs text-cyan-500" />
-                                            {f}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    </FadeInSection>
                 </section>
 
                 {/* Comparison table */}
-                <section className="py-16">
-                    <div className="mb-8 text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المقارنة' : 'Comparison'}</p>
-                        <h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">{isArabic ? 'SBrandOps مقابل البدائل' : 'SBrandOps vs. Alternatives'}</h2>
-                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{isArabic ? 'لماذا الفرق العربية تختار SBrandOps؟' : 'Why teams choose SBrandOps over existing tools'}</p>
-                    </div>
-                    <div className="overflow-x-auto rounded-[20px] border border-slate-200 dark:border-slate-800">
-                        <table className="w-full min-w-[560px] text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
-                                    <th className="px-5 py-3.5 text-start font-semibold text-slate-700 dark:text-slate-200 w-1/2">{isArabic ? 'الميزة' : 'Feature'}</th>
-                                    <th className="px-5 py-3.5 text-center font-bold text-blue-600 dark:text-blue-400">SBrandOps</th>
-                                    <th className="px-5 py-3.5 text-center font-semibold text-slate-500">Hootsuite</th>
-                                    <th className="px-5 py-3.5 text-center font-semibold text-slate-500">Buffer</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {COMPARE_ROWS.map((row, i) => (
-                                    <tr key={row.feature} className={`border-b border-slate-100 dark:border-slate-800/60 ${i % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-900/30'}`}>
-                                        <td className="px-5 py-3 text-slate-700 dark:text-slate-200">{row.feature}</td>
-                                        <td className="px-5 py-3 text-center"><Check v={row.sbo} /></td>
-                                        <td className="px-5 py-3 text-center"><Check v={row.hootsuite} /></td>
-                                        <td className="px-5 py-3 text-center"><Check v={row.buffer} /></td>
+                <section className="py-10 lg:py-16">
+                    <FadeInSection>
+                        <div className="mb-8 text-center">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'المقارنة' : 'Comparison'}</p>
+                            <h2 className="mt-3 text-3xl font-bold text-slate-950 dark:text-white">{isArabic ? 'SBrandOps مقابل البدائل' : 'SBrandOps vs. Alternatives'}</h2>
+                            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{isArabic ? 'لماذا الفرق العربية تختار SBrandOps؟' : 'Why teams choose SBrandOps over existing tools'}</p>
+                        </div>
+                        <div className="overflow-x-auto rounded-[20px] border border-slate-200 dark:border-slate-800">
+                            <table className="w-full min-w-[560px] text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+                                        <th className="px-5 py-3.5 text-start font-semibold text-slate-700 dark:text-slate-200 w-1/2">{isArabic ? 'الميزة' : 'Feature'}</th>
+                                        <th className="px-5 py-3.5 text-center font-bold text-blue-600 dark:text-blue-400">SBrandOps</th>
+                                        <th className="px-5 py-3.5 text-center font-semibold text-slate-500">Hootsuite</th>
+                                        <th className="px-5 py-3.5 text-center font-semibold text-slate-500">Buffer</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody>
+                                    {COMPARE_ROWS.map((row, i) => (
+                                        <tr key={row.feature} className={`border-b border-slate-100 dark:border-slate-800/60 ${i % 2 === 0 ? '' : 'bg-slate-50/50 dark:bg-slate-900/30'}`}>
+                                            <td className="px-5 py-3 text-slate-700 dark:text-slate-200">{row.feature}</td>
+                                            <td className="px-5 py-3 text-center"><Check v={row.sbo} /></td>
+                                            <td className="px-5 py-3 text-center"><Check v={row.hootsuite} /></td>
+                                            <td className="px-5 py-3 text-center"><Check v={row.buffer} /></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </FadeInSection>
                 </section>
 
                 {/* Bottom CTA */}
-                <section className="mb-8 rounded-[2rem] bg-[#070B1F] px-8 py-14 text-center">
-                    <h2 className="text-3xl font-black text-white">{isArabic ? 'جاهز لتجربة الفرق؟' : 'Ready to experience the difference?'}</h2>
-                    <p className="mt-3 text-sm text-white/50">{isArabic ? 'انضم اليوم — لا بطاقة ائتمانية مطلوبة.' : 'Join today — no credit card required.'}</p>
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition-colors">{primaryLabel}</button>
-                        <Link to={publicPageToPath('pricing')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض الأسعار' : 'View Pricing'}</Link>
-                    </div>
+                <section className="mb-8 rounded-none sm:rounded-[2rem] bg-[#070B1F] px-6 py-12 lg:px-8 lg:py-14 text-center -mx-6 sm:mx-0">
+                    <FadeInSection>
+                        <h2 className="text-2xl lg:text-3xl font-black text-white">{isArabic ? 'جاهز لتجربة الفرق؟' : 'Ready to experience the difference?'}</h2>
+                        <p className="mt-3 text-sm text-white/50">{isArabic ? 'انضم اليوم — لا بطاقة ائتمانية مطلوبة.' : 'Join today — no credit card required.'}</p>
+                        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                            <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">
+                                {primaryLabel}
+                                <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                            </button>
+                            <Link to={publicPageToPath('pricing')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض الأسعار' : 'View Pricing'}</Link>
+                        </div>
+                    </FadeInSection>
                 </section>
             </>
         );
@@ -1311,77 +1402,91 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
         ];
         return (
             <>
-                <section className="py-16">
-                    <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'للوكالات التسويقية' : 'For Marketing Agencies'}</p>
-                            <h1 className="mt-4 text-4xl font-black leading-tight text-slate-950 dark:text-white md:text-5xl">
-                                {isArabic ? <>أدر عشرات العملاء<br /><span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">من نظام تشغيل واحد</span></> : <>Manage dozens of clients<br /><span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">from one operating system</span></>}
-                            </h1>
-                            <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'SBrandOps صُمّم للوكالات التي تدير براندات متعددة — كل عميل له مساحة عمل منفصلة، وكل المحتوى يُنتج بصوت البراند الصحيح.' : 'SBrandOps is built for agencies managing multiple brands — each client has a separate workspace, and all content is generated in the right brand voice.'}</p>
-                            <div className="mt-8 flex flex-wrap gap-3">
-                                <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">{primaryLabel}</button>
-                                <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'احجز عرضاً' : 'Book Demo'}</Link>
+                <section className="py-10 lg:py-16">
+                    <FadeInSection>
+                        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'للوكالات التسويقية' : 'For Marketing Agencies'}</p>
+                                <h1 className="mt-4 text-3xl lg:text-5xl font-black leading-tight text-slate-950 dark:text-white">
+                                    {isArabic ? <>أدر عشرات العملاء<br /><span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">من نظام تشغيل واحد</span></> : <>Manage dozens of clients<br /><span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">from one operating system</span></>}
+                                </h1>
+                                <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'SBrandOps صُمّم للوكالات التي تدير براندات متعددة — كل عميل له مساحة عمل منفصلة، وكل المحتوى يُنتج بصوت البراند الصحيح.' : 'SBrandOps is built for agencies managing multiple brands — each client has a separate workspace, and all content is generated in the right brand voice.'}</p>
+                                <div className="mt-8 flex flex-wrap gap-3">
+                                    <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">
+                                        {primaryLabel}
+                                        <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                                    </button>
+                                    <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'احجز عرضاً' : 'Book Demo'}</Link>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {[{ num: '+200', ar: 'براند مدار', en: 'brands managed' }, { num: '10×', ar: 'سرعة الإنتاج', en: 'faster production' }, { num: '5 دقائق', ar: 'لتقرير العميل', en: 'client report' }, { num: '100%', ar: 'اتساق البراند', en: 'brand consistency' }].map(s => (
+                                    <div key={s.num} className="rounded-[20px] border border-slate-200 bg-white p-5 text-center dark:border-slate-800 dark:bg-slate-900">
+                                        <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{s.num}</p>
+                                        <p className="mt-1 text-xs text-slate-500">{isArabic ? s.ar : s.en}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {[{ num: '+200', ar: 'براند مدار', en: 'brands managed' }, { num: '10×', ar: 'سرعة الإنتاج', en: 'faster production' }, { num: '5 دقائق', ar: 'لتقرير العميل', en: 'client report' }, { num: '100%', ar: 'اتساق البراند', en: 'brand consistency' }].map(s => (
-                                <div key={s.num} className="rounded-[20px] border border-slate-200 bg-white p-5 text-center dark:border-slate-800 dark:bg-slate-900">
-                                    <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{s.num}</p>
-                                    <p className="mt-1 text-xs text-slate-500">{isArabic ? s.ar : s.en}</p>
+                    </FadeInSection>
+                </section>
+
+                <section className="py-8">
+                    <FadeInSection>
+                        <div className="mb-8">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-red-500">{isArabic ? 'المشكلة' : 'The Problem'}</p>
+                            <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'ما تعاني منه الوكالات اليوم' : 'What agencies struggle with today'}</h2>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {PAIN_POINTS.map(p => (
+                                <div key={p.en} className="flex gap-4 rounded-[20px] border border-red-100 bg-red-50/50 p-5 dark:border-red-900/30 dark:bg-red-900/10">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                                        <i className={`fas ${p.icon} text-red-500`} />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? p.ar : p.en}</p>
+                                        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? p.dAr : p.dEn}</p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </FadeInSection>
                 </section>
 
                 <section className="py-8">
-                    <div className="mb-8">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-red-500">{isArabic ? 'المشكلة' : 'The Problem'}</p>
-                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'ما تعاني منه الوكالات اليوم' : 'What agencies struggle with today'}</h2>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {PAIN_POINTS.map(p => (
-                            <div key={p.en} className="flex gap-4 rounded-[20px] border border-red-100 bg-red-50/50 p-5 dark:border-red-900/30 dark:bg-red-900/10">
-                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
-                                    <i className={`fas ${p.icon} text-red-500`} />
+                    <FadeInSection>
+                        <div className="mb-8">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-cyan-500">{isArabic ? 'الحل' : 'The Solution'}</p>
+                            <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'كيف يحل SBrandOps المشكلة' : 'How SBrandOps solves it'}</h2>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {SOLUTIONS.map(s => (
+                                <div key={s.en} className="flex gap-4 rounded-[20px] border border-cyan-100 bg-cyan-50/40 p-5 dark:border-cyan-900/30 dark:bg-cyan-900/10">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-900/40">
+                                        <i className={`fas ${s.icon} text-cyan-600 dark:text-cyan-400`} />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? s.ar : s.en}</p>
+                                        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? s.dAr : s.dEn}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? p.ar : p.en}</p>
-                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? p.dAr : p.dEn}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    </FadeInSection>
                 </section>
 
-                <section className="py-8">
-                    <div className="mb-8">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-cyan-500">{isArabic ? 'الحل' : 'The Solution'}</p>
-                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'كيف يحل SBrandOps المشكلة' : 'How SBrandOps solves it'}</h2>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {SOLUTIONS.map(s => (
-                            <div key={s.en} className="flex gap-4 rounded-[20px] border border-cyan-100 bg-cyan-50/40 p-5 dark:border-cyan-900/30 dark:bg-cyan-900/10">
-                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-cyan-100 dark:bg-cyan-900/40">
-                                    <i className={`fas ${s.icon} text-cyan-600 dark:text-cyan-400`} />
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? s.ar : s.en}</p>
-                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? s.dAr : s.dEn}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                <section className="mb-8 rounded-[2rem] bg-[#070B1F] px-8 py-14 text-center">
-                    <h2 className="text-3xl font-black text-white">{isArabic ? 'ابدأ إدارة عملائك بنظام واحد' : 'Start managing all your clients in one system'}</h2>
-                    <p className="mt-3 text-sm text-white/50">{isArabic ? 'وفّر ساعات أسبوعية لفريقك واضبط معايير البراند لكل عميل.' : 'Save hours weekly for your team and set brand standards for every client.'}</p>
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-7 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition-colors">{primaryLabel}</button>
-                        <Link to={publicPageToPath('pricing')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض الأسعار' : 'View Pricing'}</Link>
-                    </div>
+                <section className="mb-8 rounded-none sm:rounded-[2rem] bg-[#070B1F] px-6 py-12 lg:px-8 lg:py-14 text-center -mx-6 sm:mx-0">
+                    <FadeInSection>
+                        <h2 className="text-2xl lg:text-3xl font-black text-white">{isArabic ? 'ابدأ إدارة عملائك بنظام واحد' : 'Start managing all your clients in one system'}</h2>
+                        <p className="mt-3 text-sm text-white/50">{isArabic ? 'وفّر ساعات أسبوعية لفريقك واضبط معايير البراند لكل عميل.' : 'Save hours weekly for your team and set brand standards for every client.'}</p>
+                        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                            <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 hover:bg-blue-500 transition-all">
+                                {primaryLabel}
+                                <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                            </button>
+                            <Link to={publicPageToPath('pricing')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض الأسعار' : 'View Pricing'}</Link>
+                        </div>
+                    </FadeInSection>
                 </section>
             </>
         );
@@ -1403,77 +1508,91 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
         ];
         return (
             <>
-                <section className="py-16">
-                    <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{isArabic ? 'للتجارة الإلكترونية' : 'For E-commerce'}</p>
-                            <h1 className="mt-4 text-4xl font-black leading-tight text-slate-950 dark:text-white md:text-5xl">
-                                {isArabic ? <>حوّل الإنفاق الإعلاني<br /><span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">إلى إيرادات قابلة للقياس</span></> : <>Turn ad spend into<br /><span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">measurable revenue</span></>}
-                            </h1>
-                            <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'ربط الإعلانات بالمحتوى بالتحليلات بالعملاء في نظام واحد — هذا ما يحتاجه متجرك لاتخاذ قرارات أسرع وتحقيق نمو أعلى.' : 'Connecting ads to content to analytics to customers in one system — that\'s what your store needs to make faster decisions and achieve higher growth.'}</p>
-                            <div className="mt-8 flex flex-wrap gap-3">
-                                <button onClick={primaryCtaAction} className="rounded-[14px] bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 hover:bg-orange-400 transition-all">{primaryLabel}</button>
-                                <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'احجز عرضاً' : 'Book Demo'}</Link>
+                <section className="py-10 lg:py-16">
+                    <FadeInSection>
+                        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{isArabic ? 'للتجارة الإلكترونية' : 'For E-commerce'}</p>
+                                <h1 className="mt-4 text-3xl lg:text-5xl font-black leading-tight text-slate-950 dark:text-white">
+                                    {isArabic ? <>حوّل الإنفاق الإعلاني<br /><span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">إلى إيرادات قابلة للقياس</span></> : <>Turn ad spend into<br /><span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">measurable revenue</span></>}
+                                </h1>
+                                <p className="mt-5 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'ربط الإعلانات بالمحتوى بالتحليلات بالعملاء في نظام واحد — هذا ما يحتاجه متجرك لاتخاذ قرارات أسرع وتحقيق نمو أعلى.' : 'Connecting ads to content to analytics to customers in one system — that\'s what your store needs to make faster decisions and achieve higher growth.'}</p>
+                                <div className="mt-8 flex flex-wrap gap-3">
+                                    <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 hover:bg-orange-400 transition-all">
+                                        {primaryLabel}
+                                        <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                                    </button>
+                                    <Link to={publicPageToPath('demo')} className="rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-orange-400 hover:text-orange-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'احجز عرضاً' : 'Book Demo'}</Link>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                {[{ num: '3.2×', ar: 'متوسط تحسين ROAS', en: 'avg. ROAS improvement' }, { num: '-60%', ar: 'وقت إنتاج المحتوى', en: 'content production time' }, { num: '24/7', ar: 'Smart Bot نشط', en: 'Smart Bot active' }, { num: '1 لوحة', ar: 'للإعلانات والتحليلات', en: 'for ads & analytics' }].map(s => (
+                                    <div key={s.num} className="rounded-[20px] border border-slate-200 bg-white p-5 text-center dark:border-slate-800 dark:bg-slate-900">
+                                        <p className="text-3xl font-black text-orange-500">{s.num}</p>
+                                        <p className="mt-1 text-xs text-slate-500">{isArabic ? s.ar : s.en}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            {[{ num: '3.2×', ar: 'متوسط تحسين ROAS', en: 'avg. ROAS improvement' }, { num: '-60%', ar: 'وقت إنتاج المحتوى', en: 'content production time' }, { num: '24/7', ar: 'Smart Bot نشط', en: 'Smart Bot active' }, { num: '1 لوحة', ar: 'للإعلانات والتحليلات', en: 'for ads & analytics' }].map(s => (
-                                <div key={s.num} className="rounded-[20px] border border-slate-200 bg-white p-5 text-center dark:border-slate-800 dark:bg-slate-900">
-                                    <p className="text-3xl font-black text-orange-500">{s.num}</p>
-                                    <p className="mt-1 text-xs text-slate-500">{isArabic ? s.ar : s.en}</p>
+                    </FadeInSection>
+                </section>
+
+                <section className="py-8">
+                    <FadeInSection>
+                        <div className="mb-8">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-red-500">{isArabic ? 'المشكلة' : 'The Problem'}</p>
+                            <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'ما يعاني منه متجرك اليوم' : 'What your store struggles with today'}</h2>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {PAIN_POINTS.map(p => (
+                                <div key={p.en} className="flex gap-4 rounded-[20px] border border-red-100 bg-red-50/50 p-5 dark:border-red-900/30 dark:bg-red-900/10">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
+                                        <i className={`fas ${p.icon} text-red-500`} />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? p.ar : p.en}</p>
+                                        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? p.dAr : p.dEn}</p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </FadeInSection>
                 </section>
 
                 <section className="py-8">
-                    <div className="mb-8">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-red-500">{isArabic ? 'المشكلة' : 'The Problem'}</p>
-                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'ما يعاني منه متجرك اليوم' : 'What your store struggles with today'}</h2>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {PAIN_POINTS.map(p => (
-                            <div key={p.en} className="flex gap-4 rounded-[20px] border border-red-100 bg-red-50/50 p-5 dark:border-red-900/30 dark:bg-red-900/10">
-                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/30">
-                                    <i className={`fas ${p.icon} text-red-500`} />
+                    <FadeInSection>
+                        <div className="mb-8">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{isArabic ? 'الحل' : 'The Solution'}</p>
+                            <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'كيف يُضاعف SBrandOps نمو متجرك' : 'How SBrandOps multiplies your store\'s growth'}</h2>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {SOLUTIONS.map(s => (
+                                <div key={s.en} className="flex gap-4 rounded-[20px] border border-orange-100 bg-orange-50/40 p-5 dark:border-orange-900/30 dark:bg-orange-900/10">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/40">
+                                        <i className={`fas ${s.icon} text-orange-500`} />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? s.ar : s.en}</p>
+                                        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? s.dAr : s.dEn}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? p.ar : p.en}</p>
-                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? p.dAr : p.dEn}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    </FadeInSection>
                 </section>
 
-                <section className="py-8">
-                    <div className="mb-8">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-500">{isArabic ? 'الحل' : 'The Solution'}</p>
-                        <h2 className="mt-3 text-2xl font-bold text-slate-950 dark:text-white">{isArabic ? 'كيف يُضاعف SBrandOps نمو متجرك' : 'How SBrandOps multiplies your store\'s growth'}</h2>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {SOLUTIONS.map(s => (
-                            <div key={s.en} className="flex gap-4 rounded-[20px] border border-orange-100 bg-orange-50/40 p-5 dark:border-orange-900/30 dark:bg-orange-900/10">
-                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/40">
-                                    <i className={`fas ${s.icon} text-orange-500`} />
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-950 dark:text-white">{isArabic ? s.ar : s.en}</p>
-                                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{isArabic ? s.dAr : s.dEn}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                <section className="mb-8 rounded-[2rem] bg-[#070B1F] px-8 py-14 text-center">
-                    <h2 className="text-3xl font-black text-white">{isArabic ? 'ابدأ تحسين ROAS متجرك اليوم' : 'Start improving your store\'s ROAS today'}</h2>
-                    <p className="mt-3 text-sm text-white/50">{isArabic ? 'لا بطاقة ائتمانية — ابدأ التجربة المجانية وشاهد الفرق في أول أسبوع.' : 'No credit card — start free and see the difference in your first week.'}</p>
-                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                        <button onClick={primaryCtaAction} className="rounded-[14px] bg-orange-500 px-7 py-3 text-sm font-semibold text-white hover:bg-orange-400 transition-colors">{primaryLabel}</button>
-                        <Link to={publicPageToPath('features')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض كل المميزات' : 'See All Features'}</Link>
-                    </div>
+                <section className="mb-8 rounded-none sm:rounded-[2rem] bg-[#070B1F] px-6 py-12 lg:px-8 lg:py-14 text-center -mx-6 sm:mx-0">
+                    <FadeInSection>
+                        <h2 className="text-2xl lg:text-3xl font-black text-white">{isArabic ? 'ابدأ تحسين ROAS متجرك اليوم' : 'Start improving your store\'s ROAS today'}</h2>
+                        <p className="mt-3 text-sm text-white/50">{isArabic ? 'لا بطاقة ائتمانية — ابدأ التجربة المجانية وشاهد الفرق في أول أسبوع.' : 'No credit card — start free and see the difference in your first week.'}</p>
+                        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                            <button onClick={primaryCtaAction} className="group inline-flex items-center gap-2 rounded-[14px] bg-orange-500 px-7 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 hover:bg-orange-400 transition-all">
+                                {primaryLabel}
+                                <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                            </button>
+                            <Link to={publicPageToPath('features')} className="rounded-[14px] border border-white/15 px-7 py-3 text-sm font-semibold text-white hover:bg-white/5 transition-colors">{isArabic ? 'عرض كل المميزات' : 'See All Features'}</Link>
+                        </div>
+                    </FadeInSection>
                 </section>
             </>
         );
@@ -1482,16 +1601,16 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
     // ── DEMO ──────────────────────────────────────────────────────────────────
     const renderDemo = () => {
         const DEMO_HIGHLIGHTS = [
-            { icon: 'fa-fingerprint',         ar: 'Brand Brain حي',         en: 'Live Brand Brain',            dAr: 'شاهد كيف يبني الذكاء الاصطناعي هوية براند كاملة من وصف بسيط.', dEn: 'See how AI builds a complete brand identity from a simple description.' },
-            { icon: 'fa-brain',               ar: 'خطة حملة بضغطة زر',     en: 'Campaign plan in one click',  dAr: 'من الهدف التسويقي إلى تقويم محتوى كامل في دقائق.', dEn: 'From marketing goal to a full content calendar in minutes.' },
-            { icon: 'fa-wand-magic-sparkles', ar: 'توليد محتوى فوري',       en: 'Instant content generation', dAr: '14 مهارة محتوى تعمل بصوت البراند — إعلان، ريل، بريف SEO.', dEn: '14 content skills in brand voice — ad, reel, SEO brief on demand.' },
-            { icon: 'fa-chart-mixed',         ar: 'Analytics Hub مدمج',     en: 'Unified Analytics Hub',       dAr: 'كل منصاتك في داشبورد واحد مع رؤى AI تشرح الأرقام.', dEn: 'All your platforms in one dashboard with AI insights explaining the numbers.' },
+            { icon: 'fa-fingerprint', ar: 'Brand Brain حي', en: 'Live Brand Brain', dAr: 'شاهد كيف يبني الذكاء الاصطناعي هوية براند كاملة من وصف بسيط.', dEn: 'See how AI builds a complete brand identity from a simple description.' },
+            { icon: 'fa-brain', ar: 'خطة حملة بضغطة زر', en: 'Campaign plan in one click', dAr: 'من الهدف التسويقي إلى تقويم محتوى كامل في دقائق.', dEn: 'From marketing goal to a full content calendar in minutes.' },
+            { icon: 'fa-wand-magic-sparkles', ar: 'توليد محتوى فوري', en: 'Instant content generation', dAr: '14 مهارة محتوى تعمل بصوت البراند — إعلان، ريل، بريف SEO.', dEn: '14 content skills in brand voice — ad, reel, SEO brief on demand.' },
+            { icon: 'fa-chart-mixed', ar: 'Analytics Hub مدمج', en: 'Unified Analytics Hub', dAr: 'كل منصاتك في داشبورد واحد مع رؤى AI تشرح الأرقام.', dEn: 'All your platforms in one dashboard with AI insights explaining the numbers.' },
         ];
         return (
-            <section className="py-16">
+            <section className="py-10 lg:py-16">
                 <div className="mx-auto max-w-3xl text-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400">{isArabic ? 'العرض التجريبي' : 'Book a Demo'}</p>
-                    <h1 className="mt-4 text-4xl font-black text-slate-950 dark:text-white">{isArabic ? 'شاهد SBrandOps في العمل' : 'See SBrandOps in action'}</h1>
+                    <h1 className="mt-4 text-3xl lg:text-4xl font-black text-slate-950 dark:text-white">{isArabic ? 'شاهد SBrandOps في العمل' : 'See SBrandOps in action'}</h1>
                     <p className="mt-4 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'احجز جلسة 30 دقيقة مع فريقنا ونريك كيف يعمل النظام على بياناتك الفعلية.' : 'Book a 30-minute session with our team and we\'ll show you the system working on your actual data.'}</p>
                 </div>
 
@@ -1535,45 +1654,53 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
 
     // ── THANK YOU ────────────────────────────────────────────────────────────
     const renderThankYou = () => (
-        <section className="flex min-h-[70vh] items-center justify-center py-16">
-            <div className="mx-auto max-w-lg text-center">
-                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-cyan-500/15">
-                    <i className="fas fa-circle-check text-4xl text-cyan-400" />
+        <section className="flex min-h-[70vh] items-center justify-center py-10 lg:py-16">
+            <FadeInSection>
+                <div className="mx-auto max-w-lg text-center">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-cyan-500/15">
+                        <i className="fas fa-circle-check text-4xl text-cyan-400 animate-pulse" />
+                    </div>
+                    <h1 className="text-3xl lg:text-4xl font-black text-slate-950 dark:text-white">{isArabic ? 'شكراً لك!' : 'Thank you!'}</h1>
+                    <p className="mt-4 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'استلمنا طلبك وسيتواصل معك فريقنا خلال 24 ساعة.' : 'We received your request and our team will be in touch within 24 hours.'}</p>
+                    <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                        <Link to={publicPageToPath('home')} className="group inline-flex items-center gap-2 rounded-[14px] bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white hover:-translate-y-0.5 hover:bg-blue-500 transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)]">
+                            {isArabic ? 'العودة للرئيسية' : 'Back to Home'}
+                            <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                        </Link>
+                        <Link to="/register" className="group inline-flex items-center gap-2 rounded-[14px] border border-slate-300 px-7 py-3.5 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">
+                            {isArabic ? 'ابدأ التجربة المجانية' : 'Start Free Trial'}
+                            <i className={`fas ${isArabic ? 'fa-arrow-left' : 'fa-arrow-right'} text-xs transition-transform ${isArabic ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'}`} />
+                        </Link>
+                    </div>
+                    <div className="mt-12 grid grid-cols-3 gap-4 text-center">
+                        {[
+                            { icon: 'fa-rocket', ar: 'لوحة تشغيل واحدة', en: 'One operating system' },
+                            { icon: 'fa-brain', ar: 'AI مدرّب على بياناتك', en: 'AI trained on your data' },
+                            { icon: 'fa-chart-mixed', ar: 'تحليلات موحدة', en: 'Unified analytics' },
+                        ].map(f => (
+                            <div key={f.en} className="rounded-[16px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                                <i className={`fas ${f.icon} text-xl text-blue-600 dark:text-blue-400`} />
+                                <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">{isArabic ? f.ar : f.en}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <h1 className="text-4xl font-black text-slate-950 dark:text-white">{isArabic ? 'شكراً لك!' : 'Thank you!'}</h1>
-                <p className="mt-4 text-base leading-7 text-slate-500 dark:text-slate-400">{isArabic ? 'استلمنا طلبك وسيتواصل معك فريقنا خلال 24 ساعة.' : 'We received your request and our team will be in touch within 24 hours.'}</p>
-                <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                    <Link to={publicPageToPath('home')} className="rounded-[14px] bg-blue-600 px-7 py-3 text-sm font-semibold text-white hover:bg-blue-500 transition-colors">{isArabic ? 'العودة للرئيسية' : 'Back to Home'}</Link>
-                    <Link to="/register" className="rounded-[14px] border border-slate-300 px-7 py-3 text-sm font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-600 transition-colors dark:border-slate-700 dark:text-slate-300">{isArabic ? 'ابدأ التجربة المجانية' : 'Start Free Trial'}</Link>
-                </div>
-                <div className="mt-12 grid grid-cols-3 gap-4 text-center">
-                    {[
-                        { icon: 'fa-rocket',       ar: 'لوحة تشغيل واحدة', en: 'One operating system' },
-                        { icon: 'fa-brain',         ar: 'AI مدرّب على بياناتك', en: 'AI trained on your data' },
-                        { icon: 'fa-chart-mixed',   ar: 'تحليلات موحدة', en: 'Unified analytics' },
-                    ].map(f => (
-                        <div key={f.en} className="rounded-[16px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-                            <i className={`fas ${f.icon} text-xl text-blue-600 dark:text-blue-400`} />
-                            <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">{isArabic ? f.ar : f.en}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            </FadeInSection>
         </section>
     );
 
     const renderPage = () => {
         switch (pageId) {
-            case 'about':        return renderAbout();
-            case 'features':     return renderFeatures();
+            case 'about': return renderAbout();
+            case 'features': return renderFeatures();
             case 'for-agencies': return renderForAgencies();
-            case 'for-ecommerce':return renderForEcommerce();
-            case 'demo':         return renderDemo();
-            case 'thank-you':    return renderThankYou();
-            case 'pricing':      return renderPricing();
-            case 'billing':      return renderBilling();
-            case 'contact':      return renderContact();
-            case 'security':     return renderSecurity();
+            case 'for-ecommerce': return renderForEcommerce();
+            case 'demo': return renderDemo();
+            case 'thank-you': return renderThankYou();
+            case 'pricing': return renderPricing();
+            case 'billing': return renderBilling();
+            case 'contact': return renderContact();
+            case 'security': return renderSecurity();
             case 'terms':
             case 'privacy':
             case 'dpa':
@@ -1588,41 +1715,69 @@ const MarketingSite: React.FC<MarketingSiteProps> = ({ pageId, isAuthenticated }
     return (
         <div className="min-h-screen bg-[#f6f8fb] text-slate-950 dark:bg-slate-950 dark:text-white" dir={isArabic ? 'rtl' : 'ltr'}>
             {/* Header */}
-            <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/90">
-                <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
+            <header ref={headerRef} className={`sticky top-0 z-30 transition-all duration-300 ${isScrolled ? 'border-b border-slate-200/80 bg-white/90 backdrop-blur-xl shadow-sm dark:border-slate-800/60 dark:bg-slate-950/90' : 'border-transparent bg-transparent'}`}>
+                <div className={`mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 transition-all duration-300 ${isScrolled ? 'py-3' : 'py-5'}`}>
                     <Link to="/" className="flex items-center gap-2">
                         <SBrandOpsLogo variant="gradient" layout="mark" size="sm" alt="SBrandOps" />
                         <span className="text-base font-black tracking-tight text-slate-950 dark:text-white">SBrandOps</span>
                     </Link>
                     <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 dark:text-slate-300 md:flex">
                         {navItems.map(item => (
-                            <RouteLink key={item.id} href={item.href} className={`transition-colors hover:text-blue-600 dark:hover:text-blue-400 ${item.id === pageId ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                            <RouteLink key={item.id} href={item.href} className={`relative transition-colors hover:text-blue-600 dark:hover:text-blue-400 ${item.id === pageId ? 'font-semibold text-slate-950 dark:text-white' : ''}`}>
                                 {item.label}
+                                {item.id === pageId && (
+                                    <span className="absolute -bottom-1.5 left-0 h-[2px] w-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600" />
+                                )}
                             </RouteLink>
                         ))}
                     </nav>
                     <div className="hidden items-center gap-3 md:flex">
+                        <button
+                            onClick={() => setLanguage(isArabic ? 'en' : 'ar')}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                            title={isArabic ? 'Switch to English' : 'التبديل للعربية'}
+                        >
+                            {isArabic ? 'EN' : 'عربي'}
+                        </button>
+                        <button
+                            onClick={toggleTheme}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                            title={isArabic ? 'تبديل المظهر' : 'Toggle theme'}
+                        >
+                            <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'} text-sm`} />
+                        </button>
                         <Link to={isAuthenticated ? '/app' : '/login'} className="text-sm font-semibold text-slate-600 transition-colors hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400">
-                            {isAuthenticated ? (isArabic ? 'افتح التطبيق' : 'Open App') : (isArabic ? 'تسجيل الدخول' : 'Login')}
+                            {isAuthenticated ? (isArabic ? 'الذهاب للوحة التحكم' : 'Go to Dashboard') : (isArabic ? 'تسجيل الدخول' : 'Login')}
                         </Link>
                         <button onClick={primaryCtaAction} className="rounded-[14px] bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all hover:-translate-y-0.5 hover:bg-blue-500">
                             {appLabel}
                         </button>
                     </div>
-                    <button onClick={() => setMobileMenuOpen(o => !o)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-200 md:hidden" aria-label={isArabic ? 'فتح القائمة' : 'Open menu'}>
-                        <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'} text-sm`} />
-                    </button>
+                    <div className="flex items-center gap-2 md:hidden">
+                        <button onClick={() => setLanguage(isArabic ? 'en' : 'ar')} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-sm font-bold text-slate-700 dark:border-slate-800 dark:text-slate-200" aria-label={isArabic ? 'Switch to English' : 'التبديل للعربية'}>
+                            {isArabic ? 'EN' : 'عربي'}
+                        </button>
+                        <button onClick={toggleTheme} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-200" aria-label={isArabic ? 'تبديل المظهر' : 'Toggle theme'}>
+                            <i className={`fas ${theme === 'dark' ? 'fa-sun' : 'fa-moon'} text-sm`} />
+                        </button>
+                        <button onClick={() => setMobileMenuOpen(o => !o)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-200" aria-label={isArabic ? 'فتح القائمة' : 'Open menu'}>
+                            <i className={`fas ${mobileMenuOpen ? 'fa-times' : 'fa-bars'} text-sm`} />
+                        </button>
+                    </div>
                 </div>
                 {mobileMenuOpen && (
-                    <div className="border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-950 md:hidden">
-                        <div className="flex flex-col gap-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    <div className="border-t border-slate-200 bg-white px-6 py-5 dark:border-slate-800 dark:bg-slate-950 md:hidden">
+                        <div className="flex flex-col gap-5 text-base font-medium text-slate-700 dark:text-slate-200">
                             {navItems.map(item => (
-                                <RouteLink key={item.id} href={item.href} className={`py-1 ${item.id === pageId ? 'text-blue-600 dark:text-blue-400' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+                                <RouteLink key={item.id} href={item.href} className={`relative w-fit py-1 transition-colors ${item.id === pageId ? 'font-semibold text-slate-950 dark:text-white' : ''}`} onClick={() => setMobileMenuOpen(false)}>
                                     {item.label}
+                                    {item.id === pageId && (
+                                        <span className="absolute bottom-0 left-0 h-[2px] w-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600" />
+                                    )}
                                 </RouteLink>
                             ))}
                             <Link to={isAuthenticated ? '/app' : '/login'} onClick={() => setMobileMenuOpen(false)} className="py-1">
-                                {isAuthenticated ? (isArabic ? 'افتح التطبيق' : 'Open App') : (isArabic ? 'تسجيل الدخول' : 'Login')}
+                                {isAuthenticated ? (isArabic ? 'الذهاب للوحة التحكم' : 'Go to Dashboard') : (isArabic ? 'تسجيل الدخول' : 'Login')}
                             </Link>
                             <button onClick={() => { setMobileMenuOpen(false); primaryCtaAction(); }} className="rounded-[14px] bg-blue-600 px-5 py-3 text-sm font-semibold text-white">
                                 {primaryLabel}

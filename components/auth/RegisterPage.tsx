@@ -40,6 +40,51 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
         return () => clearTimeout(t);
     }, [resendCooldown]);
 
+    const isValidEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
+
+    // حساب قوة كلمة المرور
+    const calculateStrength = (pass: string) => {
+        if (!pass) return 0;
+        let score = 0;
+        if (pass.length >= 6) score += 1;
+        if (pass.length >= 8) score += 1;
+        if (/[a-zA-Z]/.test(pass) && /[0-9]/.test(pass)) score += 1;
+        if (/[^A-Za-z0-9]/.test(pass) || (/[A-Z]/.test(pass) && /[a-z]/.test(pass))) score += 1;
+        return Math.max(1, score);
+    };
+
+    const strengthScore = calculateStrength(password);
+
+    const getStrengthColor = (score: number) => {
+        if (score <= 1) return 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.4)]';
+        if (score === 2) return 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]';
+        if (score === 3) return 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]';
+        return 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]';
+    };
+
+    const handleGeneratePassword = () => {
+        const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const lower = "abcdefghijklmnopqrstuvwxyz";
+        const num = "0123456789";
+        const sym = "!@#$%^&*_+";
+        const all = upper + lower + num + sym;
+
+        // ضمان وجود حرف كبير وصغير ورقم ورمز على الأقل مع إكمال الباقي عشوائياً
+        const newPass = [
+            upper[Math.floor(Math.random() * upper.length)],
+            lower[Math.floor(Math.random() * lower.length)],
+            num[Math.floor(Math.random() * num.length)],
+            sym[Math.floor(Math.random() * sym.length)],
+            ...Array.from({ length: 8 }, () => all[Math.floor(Math.random() * all.length)])
+        ].sort(() => Math.random() - 0.5).join('');
+
+        setPassword(newPass);
+        setConfirmPassword(newPass); // تأكيد تلقائي
+        setShowPassword(true); // إظهار الكلمة للمستخدم ليتمكن من حفظها
+    };
+
     const handleResend = async () => {
         setResendStatus('sending');
         await supabase.auth.resend({ type: 'signup', email });
@@ -89,12 +134,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
     };
 
     const surveyOptions = [
-        { value: 'social',    icon: 'fa-heart',     color: 'from-pink-500 to-rose-500',      label: 'محتوى سوشيال ميديا' },
-        { value: 'seo',       icon: 'fa-search',    color: 'from-blue-500 to-cyan-500',      label: 'تحسين محركات البحث SEO' },
-        { value: 'ads',       icon: 'fa-bullhorn',  color: 'from-amber-500 to-orange-500',   label: 'إدارة الإعلانات المدفوعة' },
-        { value: 'branding',  icon: 'fa-star',      color: 'from-violet-500 to-indigo-500',  label: 'بناء هوية البراند' },
-        { value: 'analytics', icon: 'fa-chart-bar', color: 'from-emerald-500 to-teal-500',   label: 'تحليل الأداء والمنافسين' },
-        { value: 'all',       icon: 'fa-rocket',    color: 'from-gray-500 to-slate-600',     label: 'كل ما سبق!' },
+        { value: 'social', icon: 'fa-heart', color: 'from-pink-500 to-rose-500', label: 'محتوى سوشيال ميديا' },
+        { value: 'seo', icon: 'fa-search', color: 'from-blue-500 to-cyan-500', label: 'تحسين محركات البحث SEO' },
+        { value: 'ads', icon: 'fa-bullhorn', color: 'from-amber-500 to-orange-500', label: 'إدارة الإعلانات المدفوعة' },
+        { value: 'branding', icon: 'fa-star', color: 'from-violet-500 to-indigo-500', label: 'بناء هوية البراند' },
+        { value: 'analytics', icon: 'fa-chart-bar', color: 'from-emerald-500 to-teal-500', label: 'تحليل الأداء والمنافسين' },
+        { value: 'all', icon: 'fa-rocket', color: 'from-gray-500 to-slate-600', label: 'كل ما سبق!' },
     ];
 
     if (showSurvey && !success) {
@@ -117,11 +162,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                                 <button
                                     key={opt.value}
                                     onClick={() => setSurveyGoal(opt.value)}
-                                    className={`relative p-4 rounded-xl border-2 text-right transition-all ${
-                                        surveyGoal === opt.value
-                                            ? 'border-brand-primary bg-brand-primary/10'
-                                            : 'border-light-border dark:border-dark-border hover:border-brand-primary/50'
-                                    }`}
+                                    className={`relative p-4 rounded-xl border-2 text-right transition-all ${surveyGoal === opt.value
+                                        ? 'border-brand-primary bg-brand-primary/10'
+                                        : 'border-light-border dark:border-dark-border hover:border-brand-primary/50'
+                                        }`}
                                 >
                                     <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${opt.color} flex items-center justify-center mb-2`}>
                                         <i className={`fas ${opt.icon} text-white text-xs`} />
@@ -154,9 +198,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
     // success state
     if (success) {
         const steps = [
-            { icon: 'fa-layer-group', color: 'text-violet-400',  label: 'أنشئ براندك الأول' },
-            { icon: 'fa-robot',       color: 'text-cyan-400',    label: 'اكتب بالذكاء الاصطناعي' },
-            { icon: 'fa-chart-line',  color: 'text-emerald-400', label: 'تابع التحليلات' },
+            { icon: 'fa-layer-group', color: 'text-violet-400', label: 'أنشئ براندك الأول' },
+            { icon: 'fa-robot', color: 'text-cyan-400', label: 'اكتب بالذكاء الاصطناعي' },
+            { icon: 'fa-chart-line', color: 'text-emerald-400', label: 'تابع التحليلات' },
         ];
         return (
             <AuthShell>
@@ -223,7 +267,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                         </div>
                     </div>
                 </div>
-        </AuthShell>
+            </AuthShell>
         );
     }
 
@@ -238,6 +282,18 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                     {!isSupabaseConfigured && <AuthConfigWarning error={supabaseConfigError} />}
                     {error && <AuthErrorBanner message={error} />}
 
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={googleLoading || !isSupabaseConfigured}
+                        className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+                    >
+                        {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
+                        التسجيل باستخدام Google
+                    </button>
+
+                    <AuthDivider />
+
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <AuthInput
                             label="الاسم الكامل"
@@ -249,70 +305,109 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onNavigat
                             placeholder="عبدالرحمن الحاروني"
                         />
 
-                        <AuthInput
-                            label="البريد الإلكتروني"
-                            icon="fa-envelope"
-                            type="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            required
-                            placeholder="name@company.com"
-                            dir="ltr"
-                        />
+                        <div>
+                            <AuthInput
+                                label="البريد الإلكتروني"
+                                icon="fa-envelope"
+                                type="email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                required
+                                placeholder="name@company.com"
+                                dir="ltr"
+                            />
+                            {email && !isValidEmail(email) && (
+                                <p className="mt-1.5 px-1 text-xs font-medium text-red-500 animate-fade-in">
+                                    <i className="fas fa-circle-exclamation me-1 text-[10px]" />
+                                    يرجى إدخال بريد إلكتروني بصيغة صحيحة
+                                </p>
+                            )}
+                        </div>
 
-                        <AuthInput
-                            label="كلمة المرور"
-                            icon="fa-lock"
-                            type={showPassword ? 'text' : 'password'}
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            required
-                            minLength={6}
-                            placeholder="6 أحرف على الأقل"
-                            dir="ltr"
-                            suffix={
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(p => !p)}
-                                    className="text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition"
-                                >
-                                    <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
-                                </button>
-                            }
-                        />
+                        <div className="space-y-2">
+                            <AuthInput
+                                label="كلمة المرور"
+                                icon="fa-lock"
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                                required
+                                minLength={6}
+                                placeholder="6 أحرف على الأقل"
+                                dir="ltr"
+                                suffix={
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleGeneratePassword}
+                                            className="text-brand-primary hover:text-brand-primary/80 transition"
+                                            title="توليد كلمة مرور آمنة"
+                                        >
+                                            <i className="fas fa-wand-magic-sparkles text-sm" />
+                                        </button>
+                                        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(p => !p)}
+                                            className="text-light-text-secondary dark:text-dark-text-secondary hover:text-brand-primary transition"
+                                        >
+                                            <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
+                                        </button>
+                                    </div>
+                                }
+                            />
+                            {password && (
+                                <div className="px-1 animate-fade-in">
+                                    <div className="flex gap-1.5 h-1.5">
+                                        {[1, 2, 3, 4].map(level => (
+                                            <div
+                                                key={level}
+                                                className={`flex-1 rounded-full transition-all duration-500 ${strengthScore >= level ? getStrengthColor(strengthScore) : 'bg-slate-200 dark:bg-slate-700/50'
+                                                    }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className={`mt-1.5 text-xs font-medium text-end transition-colors duration-300 ${strengthScore <= 1 ? 'text-red-500' : strengthScore === 2 ? 'text-amber-500' : strengthScore === 3 ? 'text-blue-500' : 'text-emerald-500'
+                                        }`}>
+                                        {strengthScore <= 1 ? 'ضعيفة' : strengthScore === 2 ? 'متوسطة' : strengthScore === 3 ? 'جيدة' : 'قوية جداً'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
 
-                        <AuthInput
-                            label="تأكيد كلمة المرور"
-                            icon="fa-lock"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={e => setConfirmPassword(e.target.value)}
-                            required
-                            placeholder="••••••••"
-                            dir="ltr"
-                        />
+                        <div>
+                            <AuthInput
+                                label="تأكيد كلمة المرور"
+                                icon="fa-lock"
+                                type="password"
+                                value={confirmPassword}
+                                onChange={e => setConfirmPassword(e.target.value)}
+                                required
+                                placeholder="••••••••"
+                                dir="ltr"
+                                suffix={
+                                    confirmPassword && confirmPassword === password ? (
+                                        <i className="fas fa-check-circle text-emerald-500 text-sm animate-fade-in" title="كلمات المرور متطابقة" />
+                                    ) : null
+                                }
+                            />
+                            {confirmPassword && confirmPassword !== password && (
+                                <p className="mt-1.5 px-1 text-xs font-medium text-red-500 animate-fade-in">
+                                    <i className="fas fa-circle-exclamation me-1 text-[10px]" />
+                                    كلمتا المرور غير متطابقتين
+                                </p>
+                            )}
+                        </div>
 
                         <AuthSubmitButton
                             type="submit"
-                            disabled={isLoading || !email || !password || !name || !isSupabaseConfigured}
+                            disabled={isLoading || !email || !isValidEmail(email) || !password || !name || !isSupabaseConfigured}
                             loading={isLoading}
                             loadingText=" جاري الإنشاء..."
                         >
                             <i className="fas fa-user-plus" /> إنشاء الحساب
                         </AuthSubmitButton>
                     </form>
-
-                    <AuthDivider />
-
-                    <button
-                        type="button"
-                        onClick={handleGoogleSignIn}
-                        disabled={googleLoading || !isSupabaseConfigured}
-                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-black/10 bg-white py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-sbo-soft dark:hover:bg-white/10"
-                    >
-                        {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
-                        التسجيل عبر Google
-                    </button>
 
                     <div className="mt-6 text-center">
                         <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">

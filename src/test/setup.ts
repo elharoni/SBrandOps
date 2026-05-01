@@ -37,6 +37,9 @@ vi.mock('../services/supabaseClient', () => ({
                 getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/file.jpg' } }),
             }),
         },
+        functions: {
+            invoke: vi.fn().mockResolvedValue({ data: null, error: null }),
+        },
     },
 }));
 

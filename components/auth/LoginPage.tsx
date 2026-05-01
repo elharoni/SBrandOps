@@ -30,6 +30,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
     const [needsVerification, setNeedsVerification] = useState(false);
     const [resendCooldown, setResendCooldown] = useState(0);
     const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+    const [rememberMe, setRememberMe] = useState(false);
+
+    const isValidEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
+
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('sbo_remembered_email');
+        if (savedEmail) {
+            setEmail(savedEmail);
+            setRememberMe(true);
+        }
+    }, []);
 
     useEffect(() => {
         if (resendCooldown <= 0) return;
@@ -51,6 +64,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
         setIsLoading(true);
         try {
             await signIn(email, password);
+            if (rememberMe) {
+                localStorage.setItem('sbo_remembered_email', email);
+            } else {
+                localStorage.removeItem('sbo_remembered_email');
+            }
             onSuccess();
         } catch (err: any) {
             const msg = err?.message || 'فشل تسجيل الدخول';
@@ -126,17 +144,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                     {!isSupabaseConfigured && <AuthConfigWarning error={supabaseConfigError} />}
                     {error && <AuthErrorBanner message={error} />}
 
+                    <button
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={googleLoading || !isSupabaseConfigured}
+                        className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+                    >
+                        {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
+                        المتابعة باستخدام Google
+                    </button>
+
+                    <AuthDivider />
+
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <AuthInput
-                            label="البريد الإلكتروني"
-                            icon="fa-envelope"
-                            type="email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                            required
-                            placeholder="name@company.com"
-                            dir="ltr"
-                        />
+                        <div>
+                            <AuthInput
+                                label="البريد الإلكتروني"
+                                icon="fa-envelope"
+                                type="email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                required
+                                placeholder="name@company.com"
+                                dir="ltr"
+                            />
+                            {email && !isValidEmail(email) && (
+                                <p className="mt-1.5 px-1 text-xs font-medium text-red-500 animate-fade-in">
+                                    <i className="fas fa-circle-exclamation me-1 text-[10px]" />
+                                    يرجى إدخال بريد إلكتروني بصيغة صحيحة
+                                </p>
+                            )}
+                        </div>
 
                         <AuthInput
                             label="كلمة المرور"
@@ -159,9 +197,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                             }
                         />
 
+                        <div className="flex items-center justify-between px-1">
+                            <label className="flex cursor-pointer items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={e => setRememberMe(e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary dark:border-slate-700 dark:bg-slate-800"
+                                />
+                                <span className="text-sm text-slate-600 dark:text-slate-300">تذكرني</span>
+                            </label>
+                            {onNavigateToForgot && (
+                                <button
+                                    type="button"
+                                    onClick={onNavigateToForgot}
+                                    className="text-sm font-medium text-brand-primary transition-colors hover:text-brand-primary/80 hover:underline"
+                                >
+                                    نسيت كلمة المرور؟
+                                </button>
+                            )}
+                        </div>
+
                         <AuthSubmitButton
                             type="submit"
-                            disabled={isLoading || !email || !password || !isSupabaseConfigured}
+                            disabled={isLoading || !email || !isValidEmail(email) || !password || !isSupabaseConfigured}
                             loading={isLoading}
                             loadingText=" جاري تسجيل الدخول..."
                         >
@@ -169,27 +228,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToReg
                         </AuthSubmitButton>
                     </form>
 
-                    <AuthDivider />
-
-                    <button
-                        type="button"
-                        onClick={handleGoogleSignIn}
-                        disabled={googleLoading || !isSupabaseConfigured}
-                        className="flex w-full items-center justify-center gap-3 rounded-xl border border-black/10 bg-white py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-sbo-soft dark:hover:bg-white/10"
-                    >
-                        {googleLoading ? <i className="fas fa-circle-notch fa-spin text-sm" /> : <GoogleIcon />}
-                        متابعة عبر Google
-                    </button>
-
                     <div className="mt-6 space-y-3 text-center">
-                        {onNavigateToForgot && (
-                            <button
-                                onClick={onNavigateToForgot}
-                                className="text-sm text-brand-primary hover:underline"
-                            >
-                                نسيت كلمة المرور؟
-                            </button>
-                        )}
                         <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
                             ليس لديك حساب؟{' '}
                             <button

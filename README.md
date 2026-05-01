@@ -94,10 +94,15 @@ npx supabase db push
 | المتغير | الوصف |
 |---------|-------|
 | `GEMINI_API_KEY` | مفتاح Gemini AI (سري — لا يُكشف للعميل) |
+| `OPENAI_API_KEY` | مفتاح OpenAI المستخدم لتحليل ملفات Brand Hub (سري — لا يُكشف للعميل) |
+| `OPENAI_FILE_ANALYSIS_MODEL` | موديل التحليل الافتراضي لملفات Brand Hub، افتراضيًا `gpt-5.5` |
+| `OPENAI_FILE_ANALYSIS_FALLBACK_MODEL` | موديل احتياطي عند فشل الموديل الأساسي، افتراضيًا `gpt-5` |
 | `OAUTH_ENCRYPTION_KEY` | 64-حرف hex لتشفير OAuth tokens |
 | `WEBHOOK_SECRET` | سر مشترك للـ webhooks |
 | `PADDLE_WEBHOOK_SECRET` | سر HMAC للـ Paddle |
 | `AI_DAILY_TOKEN_LIMIT` | (اختياري) حد يومي للتوكنز، افتراضي 100000 |
+
+> Implementation note: Brand Hub uploaded file analysis now uses OpenAI Responses API instead of Gemini.
 
 ```bash
 # نشر جميع الـ Edge Functions
@@ -159,6 +164,7 @@ sbrandops/
 
 ### AI Services
 - `geminiService` - خدمات Gemini AI
+- `brandFileAnalysisService` - تحليل ملفات Brand Hub عبر OpenAI Responses API
 - `schedulingService` - أوقات النشر المثالية
 
 ### Utilities
@@ -206,7 +212,7 @@ const interval = startAutoPublisher(1); // كل دقيقة
 - ✅ Row Level Security (RLS) على جميع الجداول — كل مستخدم يرى بياناته فقط
 - ✅ OAuth tokens مشفّرة بـ AES-256-GCM في قاعدة البيانات
 - ✅ JWT verification على جميع الـ Edge Functions
-- ✅ مفاتيح Gemini AI على السيرفر فقط — لا تُكشف للمتصفح
+- ✅ مفاتيح Gemini / OpenAI على السيرفر فقط — لا تُكشف للمتصفح
 - ✅ HMAC signature verification على جميع الـ webhooks
 - ✅ CORS مقيّد بـ domain محدد
 
