@@ -206,17 +206,33 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
             }).catch(e => console.warn('[wizard doc save]', e));
         }
 
-        // Wizard form fields extracted from the file — always include them
+        // Explicitly chosen fields in the wizard — always override AI output
         const formExtracted: Partial<BrandHubProfile> = {
+            ...(form.industry       && { industry:              form.industry }),
             ...(form.description    && { description:           form.description }),
             ...(form.targetAudience && { targetAudienceSummary: form.targetAudience }),
-            ...(form.ageRange.length > 0 && { ageRange: form.ageRange }),
+            ...(form.ageRange.length > 0  && { ageRange: form.ageRange }),
+            ...(form.tones.length > 0 && {
+                brandVoice: { toneDescription: form.tones, keywords: [], negativeKeywords: [], toneStrength: 0.5, toneSentiment: 0.5, voiceGuidelines: { dos: [], donts: [] } },
+            }),
         };
 
         try {
             const partialProfile = await generateInitialBrandProfile(fullDesc, brandName);
-            // Gemini-generated fields take precedence; form-extracted fields fill the gaps
-            onGenerate({ ...formExtracted, ...partialProfile });
+            // User's explicit choices win over AI-generated values
+            const merged: Partial<BrandHubProfile> = {
+                ...partialProfile,
+                ...formExtracted,
+                // Deep-merge brandVoice: AI fills keywords/guidelines, form fills toneDescription
+                brandVoice: formExtracted.brandVoice ? {
+                    ...partialProfile.brandVoice,
+                    ...formExtracted.brandVoice,
+                    toneDescription: formExtracted.brandVoice.toneDescription?.length
+                        ? formExtracted.brandVoice.toneDescription
+                        : partialProfile.brandVoice?.toneDescription ?? [],
+                } : partialProfile.brandVoice,
+            };
+            onGenerate(merged);
         } catch (error) {
             console.error('Failed to generate brand profile:', error);
             onGenerate(formExtracted);
