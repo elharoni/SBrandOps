@@ -14,7 +14,7 @@ import { BrandImportModal } from '../BrandImportModal';
 import { ScoreDonut } from '../shared/ScoreDonut';
 import { getMemoryEntries, deleteMemoryEntry, BrandMemoryEntry, MemoryType } from '../../services/brandMemoryService';
 import { getSocialAccounts } from '../../services/socialAccountService';
-import { getBrandHubProfile, updateBrandProfile, invalidateProfileCache } from '../../services/brandHubService';
+import { getBrandHubProfile, updateBrandProfile, invalidateProfileCache, updateBrandMeta } from '../../services/brandHubService';
 
 interface BrandHubPageProps {
     brandId: string;
@@ -1052,6 +1052,10 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     const [evaluationResult, setEvaluationResult] = useState<BrandConsistencyEvaluation | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
 
+    // Identity tag inputs
+    const [newKspInput, setNewKspInput] = useState('');
+    const [newGuidelineInput, setNewGuidelineInput] = useState('');
+
     // Learning Library State
     const [documents, setDocuments] = useState<BrandDocument[]>([]);
     const [isLoadingDocs, setIsLoadingDocs] = useState(false);
@@ -1195,8 +1199,8 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
     // Brand Assets State — initialized from profile, synced on profile change
     const [brandAssets, setBrandAssets] = useState({
-        logoUrl: '',
-        logoPreview: '',
+        logoUrl: initialProfile.brandAssets?.logoUrl ?? '',
+        logoPreview: initialProfile.brandAssets?.logoUrl ?? '',
         primaryColor: initialProfile.brandAssets?.primaryColor ?? '#6366F1',
         secondaryColor: initialProfile.brandAssets?.secondaryColor ?? '#EC4899',
         accentColor: initialProfile.brandAssets?.accentColor ?? '#F59E0B',
@@ -1212,6 +1216,9 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         setIsSavingIdentity(true);
         try {
             await updateBrandProfile(brandId, profile);
+            if (profile.website !== undefined || profile.country !== undefined) {
+                await updateBrandMeta(brandId, { website: profile.website, country: profile.country });
+            }
             onUpdate(profile);
             addNotification(NotificationType.Success, '✅ تم حفظ هوية البراند بنجاح');
         } catch {
@@ -1226,11 +1233,12 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         try {
             await updateBrandProfile(brandId, {
                 brandAssets: {
-                    primaryColor: brandAssets.primaryColor,
+                    primaryColor:   brandAssets.primaryColor,
                     secondaryColor: brandAssets.secondaryColor,
-                    accentColor: brandAssets.accentColor,
-                    fontPrimary: brandAssets.fontPrimary,
-                    fontSecondary: brandAssets.fontSecondary,
+                    accentColor:    brandAssets.accentColor,
+                    fontPrimary:    brandAssets.fontPrimary,
+                    fontSecondary:  brandAssets.fontSecondary,
+                    ...(brandAssets.logoUrl && { logoUrl: brandAssets.logoUrl }),
                 },
             });
             addNotification(NotificationType.Success, '✅ تم حفظ أصول البراند — ستُطبَّق على المحتوى تلقائياً');
@@ -1259,10 +1267,12 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         if (initialProfile.brandAssets) {
             setBrandAssets(prev => ({
                 ...prev,
-                primaryColor: initialProfile.brandAssets!.primaryColor,
-                secondaryColor: initialProfile.brandAssets!.secondaryColor,
-                accentColor: initialProfile.brandAssets!.accentColor,
-                fontPrimary: initialProfile.brandAssets!.fontPrimary,
+                logoUrl:       initialProfile.brandAssets!.logoUrl      ?? '',
+                logoPreview:   initialProfile.brandAssets!.logoUrl      ?? '',
+                primaryColor:  initialProfile.brandAssets!.primaryColor,
+                secondaryColor:initialProfile.brandAssets!.secondaryColor,
+                accentColor:   initialProfile.brandAssets!.accentColor,
+                fontPrimary:   initialProfile.brandAssets!.fontPrimary,
                 fontSecondary: initialProfile.brandAssets!.fontSecondary,
             }));
         }
@@ -1321,14 +1331,30 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                 exportedAt: new Date().toISOString(),
                                 identity: {
                                     industry: profile.industry,
-                                    description: (profile as any).description,
+                                    description: profile.description,
+                                    businessModel: profile.businessModel,
+                                    language: profile.language,
+                                    country: profile.country,
+                                    website: profile.website,
+                                    ageRange: profile.ageRange,
+                                    targetAudienceSummary: profile.targetAudienceSummary,
+                                    goals: profile.goals,
                                     values: profile.values,
                                     keySellingPoints: profile.keySellingPoints,
+                                    styleGuidelines: profile.styleGuidelines,
+                                    contactInfo: profile.contactInfo,
+                                },
+                                strategy: {
+                                    valueProp: profile.valueProp,
+                                    brandPromise: profile.brandPromise,
+                                    messagingPillars: profile.messagingPillars,
                                 },
                                 voice: {
                                     tone: profile.brandVoice.toneDescription,
                                     keywords: profile.brandVoice.keywords,
                                     negativeKeywords: profile.brandVoice.negativeKeywords,
+                                    toneStrength: profile.brandVoice.toneStrength,
+                                    toneSentiment: profile.brandVoice.toneSentiment,
                                     guidelines: profile.brandVoice.voiceGuidelines,
                                 },
                                 audiences: profile.brandAudiences,
@@ -1677,12 +1703,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                             </div>
                         </div>
 
-                        {/* Contact Info */}
+                        {/* Contact Info + Website + Country */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">رقم الهاتف</label>
-                                <input
-                                    type="tel"
+                                <input type="tel"
                                     value={profile.contactInfo?.phone ?? ''}
                                     onChange={e => setProfile(prev => ({ ...prev, contactInfo: { ...prev.contactInfo, phone: e.target.value } }))}
                                     placeholder="+966 5X XXX XXXX"
@@ -1691,13 +1716,36 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">البريد الإلكتروني</label>
-                                <input
-                                    type="email"
+                                <input type="email"
                                     value={profile.contactInfo?.email ?? ''}
                                     onChange={e => setProfile(prev => ({ ...prev, contactInfo: { ...prev.contactInfo, email: e.target.value } }))}
                                     placeholder="contact@brand.com"
                                     className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none"
                                 />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">الموقع الإلكتروني</label>
+                                <input type="url"
+                                    value={profile.website ?? ''}
+                                    onChange={e => setProfile(prev => ({ ...prev, website: e.target.value || undefined }))}
+                                    placeholder="https://yourbrand.com"
+                                    className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">الدولة / السوق</label>
+                                <select
+                                    value={profile.country ?? ''}
+                                    onChange={e => setProfile(prev => ({ ...prev, country: e.target.value || undefined }))}
+                                    className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white focus:border-brand-primary focus:outline-none"
+                                >
+                                    <option value="">اختر الدولة...</option>
+                                    {['SA', 'AE', 'EG', 'KW', 'QA', 'BH', 'OM', 'JO', 'LB', 'IQ', 'MA', 'TN', 'DZ', 'LY', 'YE', 'SD', 'PS', 'SY', 'OTHER'].map(c => (
+                                        <option key={c} value={c}>{
+                                            ({ SA:'السعودية', AE:'الإمارات', EG:'مصر', KW:'الكويت', QA:'قطر', BH:'البحرين', OM:'عُمان', JO:'الأردن', LB:'لبنان', IQ:'العراق', MA:'المغرب', TN:'تونس', DZ:'الجزائر', LY:'ليبيا', YE:'اليمن', SD:'السودان', PS:'فلسطين', SY:'سوريا', OTHER:'أخرى' } as Record<string,string>)[c]
+                                        }</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
@@ -1734,6 +1782,54 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                     onClick={() => { if (newValueInput.trim()) { setProfile(prev => ({ ...prev, values: [...(prev.values ?? []), newValueInput.trim()] })); setNewValueInput(''); } }}
                                     className="px-3 py-2 bg-brand-primary/10 text-brand-primary rounded-xl text-xs hover:bg-brand-primary hover:text-white transition-colors"
                                 >
+                                    <i className="fas fa-plus text-[10px]" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Key Selling Points */}
+                        <div>
+                            <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">نقاط البيع الرئيسية <span className="text-dark-text-secondary/60 font-normal">(ما يميزك عن المنافسين)</span></label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {(profile.keySellingPoints ?? []).map((ksp, i) => (
+                                    <span key={i} className="flex items-center gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
+                                        {ksp}
+                                        <button onClick={() => setProfile(prev => ({ ...prev, keySellingPoints: (prev.keySellingPoints ?? []).filter((_, idx) => idx !== i) }))}
+                                            className="opacity-50 hover:opacity-100 transition-opacity"><i className="fas fa-times text-[8px]" /></button>
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="flex gap-2">
+                                <input value={newKspInput} onChange={e => setNewKspInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && newKspInput.trim()) { setProfile(prev => ({ ...prev, keySellingPoints: [...(prev.keySellingPoints ?? []), newKspInput.trim()] })); setNewKspInput(''); } }}
+                                    placeholder='مثال: "توصيل في 24 ساعة" أو "ضمان استرجاع الأموال"'
+                                    className="flex-1 bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-xs text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none" />
+                                <button onClick={() => { if (newKspInput.trim()) { setProfile(prev => ({ ...prev, keySellingPoints: [...(prev.keySellingPoints ?? []), newKspInput.trim()] })); setNewKspInput(''); } }}
+                                    className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs hover:bg-emerald-500 hover:text-white transition-colors">
+                                    <i className="fas fa-plus text-[10px]" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Style Guidelines */}
+                        <div>
+                            <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">إرشادات الأسلوب <span className="text-dark-text-secondary/60 font-normal">(قواعد الكتابة والتواصل)</span></label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {(profile.styleGuidelines ?? []).map((g, i) => (
+                                    <span key={i} className="flex items-center gap-1.5 text-xs bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full border border-cyan-500/20">
+                                        {g}
+                                        <button onClick={() => setProfile(prev => ({ ...prev, styleGuidelines: (prev.styleGuidelines ?? []).filter((_, idx) => idx !== i) }))}
+                                            className="opacity-50 hover:opacity-100 transition-opacity"><i className="fas fa-times text-[8px]" /></button>
+                                    </span>
+                                ))}
+                            </div>
+                            <div className="flex gap-2">
+                                <input value={newGuidelineInput} onChange={e => setNewGuidelineInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && newGuidelineInput.trim()) { setProfile(prev => ({ ...prev, styleGuidelines: [...(prev.styleGuidelines ?? []), newGuidelineInput.trim()] })); setNewGuidelineInput(''); } }}
+                                    placeholder='مثال: "تجنب الكلمات التقنية" أو "استخدم لغة بسيطة ومباشرة"'
+                                    className="flex-1 bg-dark-bg border border-dark-border rounded-xl px-3 py-2 text-xs text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none" />
+                                <button onClick={() => { if (newGuidelineInput.trim()) { setProfile(prev => ({ ...prev, styleGuidelines: [...(prev.styleGuidelines ?? []), newGuidelineInput.trim()] })); setNewGuidelineInput(''); } }}
+                                    className="px-3 py-2 bg-cyan-500/10 text-cyan-400 rounded-xl text-xs hover:bg-cyan-500 hover:text-white transition-colors">
                                     <i className="fas fa-plus text-[10px]" />
                                 </button>
                             </div>

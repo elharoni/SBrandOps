@@ -311,6 +311,7 @@ export interface BrandHubProfile {
         accentColor: string;
         fontPrimary: string;
         fontSecondary: string;
+        logoUrl?: string;
     };
 }
 

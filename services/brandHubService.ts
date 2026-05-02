@@ -188,3 +188,10 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
 
     throw updateError;
 }
+
+export async function updateBrandMeta(brandId: string, meta: { website?: string; country?: string }): Promise<void> {
+    await supabase.from('brands').update({
+        website_url: meta.website ?? null,
+        country:     meta.country  ?? null,
+    }).eq('id', brandId);
+}
