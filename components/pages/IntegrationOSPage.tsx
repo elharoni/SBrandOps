@@ -1,17 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    AdAccount,
     AssetPurpose,
     AssetType,
     IntegrationHealth,
     NotificationType,
     SyncStatus,
+    AccountStatus,
 } from '../../types';
 import {
     getIntegrationHealth,
     updateAssetMetadata,
     updateAssetSyncStatus,
 } from '../../services/socialAccountService';
+import {
+    getAdAccounts,
+    connectMetaAdAccount,
+    disconnectMetaAdAccount,
+} from '../../services/adAccountService';
 import { useLanguage } from '../../context/LanguageContext';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -321,6 +330,150 @@ const AlertStrip: React.FC<{ assets: IntegrationHealth[]; ar: boolean }> = ({ as
     );
 };
 
+// ─── Ads Account Section ──────────────────────────────────────────────────────
+
+const AdsSection: React.FC<{
+    accounts:          AdAccount[];
+    loading:           boolean;
+    actionLoading:     boolean;
+    confirmOpen:       boolean;
+    ar:                boolean;
+    onConnect:         () => void;
+    onDisconnect:      () => void;
+    onConfirmDisconnect: () => void;
+    onCancelDisconnect:  () => void;
+}> = ({ accounts, loading, actionLoading, confirmOpen, ar, onConnect, onDisconnect, onConfirmDisconnect, onCancelDisconnect }) => {
+    const connected = accounts.find(a => a.status === AccountStatus.Connected);
+    const degraded  = !connected && accounts.find(a => a.status === AccountStatus.NeedsReauth);
+    const account   = connected ?? degraded;
+    const isHealthy = !!connected;
+
+    return (
+        <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-light-text-secondary dark:text-dark-text-secondary">
+                {ar ? 'حسابات الإعلانات' : 'Ad Accounts'}
+            </p>
+
+            {loading ? (
+                <div className="h-24 animate-pulse rounded-2xl bg-light-card dark:bg-dark-card" />
+            ) : account ? (
+                <div className={`rounded-2xl border p-4 bg-light-card dark:bg-dark-card transition-all ${isHealthy ? 'border-emerald-500/25' : 'border-amber-500/25'}`}>
+                    {/* Disconnect warning */}
+                    {confirmOpen && (
+                        <div className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/8 p-3">
+                            <div className="flex items-start gap-2">
+                                <i className="fas fa-triangle-exclamation mt-0.5 shrink-0 text-sm text-rose-500" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-rose-700 dark:text-rose-300">
+                                        {ar ? 'تحذير: فصل حساب الإعلانات' : 'Warning: Disconnect Ad Account'}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-rose-600 dark:text-rose-400">
+                                        {ar
+                                            ? 'سيؤدي هذا إلى إيقاف المزامنة وبيانات الكوكبت الإعلاني فوراً. يمكنك إعادة الربط في أي وقت.'
+                                            : 'This will immediately stop syncing and disable the Ads Cockpit data. You can reconnect at any time.'}
+                                    </p>
+                                    <div className="mt-2 flex gap-2">
+                                        <button
+                                            onClick={onConfirmDisconnect}
+                                            disabled={actionLoading}
+                                            className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
+                                        >
+                                            {actionLoading
+                                                ? <i className="fas fa-circle-notch fa-spin" />
+                                                : <i className="fas fa-unlink text-[10px]" />}
+                                            {ar ? 'تأكيد الفصل' : 'Confirm Disconnect'}
+                                        </button>
+                                        <button
+                                            onClick={onCancelDisconnect}
+                                            className="rounded-xl bg-light-bg px-3 py-1.5 text-xs font-semibold text-light-text dark:bg-dark-bg dark:text-dark-text"
+                                        >
+                                            {ar ? 'إلغاء' : 'Cancel'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Account info */}
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10">
+                            <i className="fab fa-facebook text-lg text-blue-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <p className="truncate text-sm font-bold text-light-text dark:text-dark-text">{account.name}</p>
+                                <span className="rounded-full bg-light-bg px-1.5 py-0.5 text-[10px] font-medium text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary">
+                                    {ar ? 'حساب إعلانات' : 'Ad Account'}
+                                </span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                                {account.accountId} · Meta
+                            </p>
+                        </div>
+                        <div className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isHealthy ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                            {isHealthy ? (ar ? 'نشط' : 'Active') : (ar ? 'يحتاج إعادة ربط' : 'Needs reconnect')}
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-light-border/50 pt-3 dark:border-dark-border/50">
+                        <button
+                            onClick={onConnect}
+                            disabled={actionLoading}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary/10 px-3 py-1.5 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white disabled:opacity-60"
+                        >
+                            {actionLoading
+                                ? <i className="fas fa-circle-notch fa-spin" />
+                                : <i className="fas fa-rotate-right text-[10px]" />}
+                            {ar ? 'إعادة ربط' : 'Reconnect'}
+                        </button>
+                        {!confirmOpen && (
+                            <button
+                                onClick={onDisconnect}
+                                disabled={actionLoading}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-500 hover:text-white dark:text-rose-400 disabled:opacity-60"
+                            >
+                                <i className="fas fa-unlink text-[10px]" />
+                                {ar ? 'فصل الحساب' : 'Disconnect'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-dashed border-light-border bg-light-card p-6 dark:border-dark-border dark:bg-dark-card">
+                    <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10">
+                            <i className="fab fa-facebook text-xl text-blue-500" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="font-semibold text-light-text dark:text-dark-text">
+                                {ar ? 'Meta Ads — غير مرتبط' : 'Meta Ads — Not connected'}
+                            </p>
+                            <p className="mt-0.5 text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                {ar
+                                    ? 'اربط حساب الإعلانات لتفعيل كوكبت الإعلانات والمزامنة التلقائية.'
+                                    : 'Connect your ad account to enable the Ads Cockpit and automatic sync.'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onConnect}
+                            disabled={actionLoading}
+                            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-primary-glow transition-all hover:opacity-90 disabled:opacity-60"
+                        >
+                            {actionLoading
+                                ? <i className="fas fa-circle-notch fa-spin" />
+                                : <i className="fas fa-plug text-[11px]" />}
+                            {ar ? 'ربط الآن' : 'Connect'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // ─── Page skeleton ────────────────────────────────────────────────────────────
 
 const PageSkeleton: React.FC = () => (
@@ -347,15 +500,25 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
     const { language } = useLanguage();
     const ar = language === 'ar';
 
-    const [assets, setAssets] = useState<IntegrationHealth[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [activeFilter, setActiveFilter] = useState<PurposeFilter>('all');
+    const [assets,          setAssets]          = useState<IntegrationHealth[]>([]);
+    const [loading,         setLoading]         = useState(true);
+    const [activeFilter,    setActiveFilter]    = useState<PurposeFilter>('all');
+    const [adAccounts,      setAdAccounts]      = useState<AdAccount[]>([]);
+    const [adsLoading,      setAdsLoading]      = useState(true);
+    const [adsActionLoading, setAdsActionLoading] = useState(false);
+    const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
-        const data = await getIntegrationHealth(brandId);
+        setAdsLoading(true);
+        const [data, ads] = await Promise.all([
+            getIntegrationHealth(brandId),
+            getAdAccounts(brandId),
+        ]);
         setAssets(data);
+        setAdAccounts(ads);
         setLoading(false);
+        setAdsLoading(false);
     }, [brandId]);
 
     useEffect(() => { load(); }, [load]);
@@ -381,6 +544,36 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
         await updateAssetSyncStatus(id, status);
         setAssets((prev) => prev.map((a) => a.id === id ? { ...a, syncStatus: status, syncError: null } : a));
         addNotification(NotificationType.Success, ar ? 'تم تحديث الحالة.' : 'Status updated.');
+    };
+
+    const handleConnectAds = async () => {
+        setAdsActionLoading(true);
+        const result = await connectMetaAdAccount(brandId, SUPABASE_URL);
+        if (result.success) {
+            addNotification(NotificationType.Success, ar ? 'تم ربط Meta Ads بنجاح.' : 'Meta Ads connected.');
+            const updated = await getAdAccounts(brandId);
+            setAdAccounts(updated);
+        } else {
+            addNotification(NotificationType.Error, result.error ?? (ar ? 'فشل الربط.' : 'Connection failed.'));
+        }
+        setAdsActionLoading(false);
+    };
+
+    const handleDisconnectAds = () => setConfirmDisconnect(true);
+    const handleCancelDisconnect = () => setConfirmDisconnect(false);
+
+    const handleConfirmDisconnect = async () => {
+        setAdsActionLoading(true);
+        const result = await disconnectMetaAdAccount(brandId, SUPABASE_URL);
+        if (result.success) {
+            addNotification(NotificationType.Success, ar ? 'تم فصل حساب الإعلانات.' : 'Ad account disconnected.');
+            const updated = await getAdAccounts(brandId);
+            setAdAccounts(updated);
+        } else {
+            addNotification(NotificationType.Error, result.error ?? (ar ? 'فشل الفصل.' : 'Disconnect failed.'));
+        }
+        setConfirmDisconnect(false);
+        setAdsActionLoading(false);
     };
 
     const issueCount = assets.filter((a) => CRITICAL_STATUSES.has(a.syncStatus) || a.tokenExpiringSoon).length;
@@ -501,6 +694,19 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
                     ))}
                 </div>
             )}
+
+            {/* Ads Accounts section */}
+            <AdsSection
+                accounts={adAccounts}
+                loading={adsLoading}
+                actionLoading={adsActionLoading}
+                confirmOpen={confirmDisconnect}
+                ar={ar}
+                onConnect={handleConnectAds}
+                onDisconnect={handleDisconnectAds}
+                onConfirmDisconnect={handleConfirmDisconnect}
+                onCancelDisconnect={handleCancelDisconnect}
+            />
 
             {/* Summary footer */}
             {assets.length > 0 && (

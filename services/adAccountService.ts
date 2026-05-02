@@ -136,6 +136,36 @@ export async function connectMetaAdAccount(
 }
 
 /**
+ * Disconnects the Meta Ads account for the given brand.
+ * Calls DELETE /meta-ads-connect which nulls the token and marks connection_health = 'disconnected'.
+ */
+export async function disconnectMetaAdAccount(
+    brandId: string,
+    supabaseUrl: string,
+): Promise<{ success: boolean; error?: string }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return { success: false, error: 'Session expired — please log in again.' };
+
+    try {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/meta-ads-connect`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ brand_id: brandId }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+            return { success: false, error: err.error ?? `HTTP ${resp.status}` };
+        }
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: String(err) };
+    }
+}
+
+/**
  * Legacy shim — kept to avoid breaking any callers that still use linkAdAccount.
  * @deprecated Use connectMetaAdAccount() instead.
  */
