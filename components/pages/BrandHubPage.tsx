@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandHubProfile, BrandVoice, NotificationType, BrandConsistencyEvaluation, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
-import { analyzeBrandFiles, buildWizardPrefillFromAnalysis } from '../../services/brandFileAnalysisService';
+import { analyzeBrandFiles, buildWizardPrefillFromAnalysis, BrandFileAnalysisResult } from '../../services/brandFileAnalysisService';
 import { getBrandFileExt, getBrandFileMimeType, isBrandFileBinaryExt, isSupportedBrandFileExt } from '../../services/brandFileAnalysisShared';
 import { getBrandKnowledge } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
 import { getBrandSkillsReport } from '../../services/evaluationService';
-import { getBrandDocuments, deleteBrandDocument, BrandDocument, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
+import { getBrandDocuments, deleteBrandDocument, addBrandDocument, BrandDocument, BrandDocType, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
 import { BrandImportModal } from '../BrandImportModal';
 import { ScoreDonut } from '../shared/ScoreDonut';
 import { getMemoryEntries, deleteMemoryEntry, BrandMemoryEntry, MemoryType } from '../../services/brandMemoryService';
@@ -52,7 +52,7 @@ async function fileToBase64(file: File): Promise<string> {
     });
 }
 
-const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGenerate: (profile: Partial<BrandHubProfile>) => void; }> = ({ brandName, onClose, onGenerate }) => {
+const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose: () => void; onGenerate: (profile: Partial<BrandHubProfile>) => void; }> = ({ brandId, brandName, onClose, onGenerate }) => {
     const [step, setStep] = useState(1);
     const [form, setForm] = useState({
         industry: '',
@@ -66,6 +66,7 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
     const [isExtractingFile, setIsExtractingFile] = useState(false);
     const [fileExtractMsg, setFileExtractMsg] = useState<string | null>(null);
     const [unsupportedExt, setUnsupportedExt] = useState<string | null>(null);
+    const [fileEntry, setFileEntry] = useState<{ fileName: string; content: string; result: BrandFileAnalysisResult } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,6 +116,14 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
             const result = await analyzeBrandFiles([document]);
             const prefill = buildWizardPrefillFromAnalysis(result.data);
 
+            setFileEntry({
+                fileName: file.name,
+                content: 'text_content' in document
+                    ? (document as { text_content: string }).text_content
+                    : (result.data.documentSummary ?? ''),
+                result,
+            });
+
             setForm(f => ({
                 ...f,
                 industry: prefill.industry || f.industry,
@@ -158,12 +167,40 @@ const AIOnboardingModal: React.FC<{ brandName: string; onClose: () => void; onGe
     const handleGenerate = async () => {
         setIsLoading(true);
         const fullDesc = `${form.description} | الصناعة: ${form.industry} | الجمهور: ${form.targetAudience} (${form.ageRange}) | النبرة: ${form.tones.join(', ')} | المنصات: ${form.platforms.join(', ')}`;
+
+        // Save the analyzed file to the document library (fire-and-forget)
+        if (fileEntry) {
+            addBrandDocument(brandId, {
+                title: fileEntry.fileName,
+                docType: 'brand_book' as BrandDocType,
+                content: fileEntry.content,
+                extractedSummary: fileEntry.result.data.documentSummary,
+                fieldsFound: {},
+                completenessScore: fileEntry.result.score,
+                memoryEntriesSaved: 0,
+                knowledgeEntriesSaved: 0,
+                fileName: fileEntry.fileName,
+                analysisProvider: fileEntry.result.provider,
+                analysisModel: fileEntry.result.model,
+                analysisJson: fileEntry.result.data.rawAnalysis as unknown as Record<string, unknown>,
+                detectedLanguage: fileEntry.result.data.detectedLanguage,
+            }).catch(e => console.warn('[wizard doc save]', e));
+        }
+
+        // Wizard form fields extracted from the file — always include them
+        const formExtracted: Partial<BrandHubProfile> = {
+            ...(form.description    && { description:           form.description }),
+            ...(form.targetAudience && { targetAudienceSummary: form.targetAudience }),
+            ...(form.ageRange       && { ageRange:              form.ageRange }),
+        };
+
         try {
             const partialProfile = await generateInitialBrandProfile(fullDesc, brandName);
-            onGenerate(partialProfile);
+            // Gemini-generated fields take precedence; form-extracted fields fill the gaps
+            onGenerate({ ...formExtracted, ...partialProfile });
         } catch (error) {
             console.error('Failed to generate brand profile:', error);
-            onGenerate({});
+            onGenerate(formExtracted);
         } finally {
             setIsLoading(false);
             onClose();
@@ -1225,7 +1262,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
 
     return (
         <div className="space-y-6">
-             {showOnboarding && <AIOnboardingModal brandName={profile.brandName} onClose={() => setShowOnboarding(false)} onGenerate={handleAIOnboarding} />}
+             {showOnboarding && <AIOnboardingModal brandId={brandId} brandName={profile.brandName} onClose={() => setShowOnboarding(false)} onGenerate={handleAIOnboarding} />}
 
             <div className="flex justify-between items-center flex-wrap gap-3">
                 <h1 className="text-3xl font-bold text-white">مركز البراند</h1>
