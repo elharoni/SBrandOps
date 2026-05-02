@@ -14,8 +14,11 @@ import {
     updateAssetSyncStatus,
 } from '../../services/socialAccountService';
 import {
+    MetaAdAccountOption,
+    ConnectMetaAdsResult,
     getAdAccounts,
     connectMetaAdAccount,
+    saveMetaAdSelection,
     disconnectMetaAdAccount,
 } from '../../services/adAccountService';
 import { useLanguage } from '../../context/LanguageContext';
@@ -332,17 +335,25 @@ const AlertStrip: React.FC<{ assets: IntegrationHealth[]; ar: boolean }> = ({ as
 
 // ─── Ads Account Section ──────────────────────────────────────────────────────
 
+function formatDate(iso: string | null | undefined, ar: boolean): string {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString(ar ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 const AdsSection: React.FC<{
-    accounts:          AdAccount[];
-    loading:           boolean;
-    actionLoading:     boolean;
-    confirmOpen:       boolean;
-    ar:                boolean;
-    onConnect:         () => void;
-    onDisconnect:      () => void;
-    onConfirmDisconnect: () => void;
-    onCancelDisconnect:  () => void;
-}> = ({ accounts, loading, actionLoading, confirmOpen, ar, onConnect, onDisconnect, onConfirmDisconnect, onCancelDisconnect }) => {
+    accounts:           AdAccount[];
+    loading:            boolean;
+    actionLoading:      boolean;
+    confirmOpen:        boolean;
+    pendingAccounts:    MetaAdAccountOption[] | null;
+    ar:                 boolean;
+    onConnect:          () => void;
+    onDisconnect:       () => void;
+    onConfirmDisconnect:  () => void;
+    onCancelDisconnect:   () => void;
+    onPickAccount:      (a: MetaAdAccountOption) => void;
+    onCancelPick:       () => void;
+}> = ({ accounts, loading, actionLoading, confirmOpen, pendingAccounts, ar, onConnect, onDisconnect, onConfirmDisconnect, onCancelDisconnect, onPickAccount, onCancelPick }) => {
     const connected = accounts.find(a => a.status === AccountStatus.Connected);
     const degraded  = !connected && accounts.find(a => a.status === AccountStatus.NeedsReauth);
     const account   = connected ?? degraded;
@@ -354,10 +365,63 @@ const AdsSection: React.FC<{
                 {ar ? 'حسابات الإعلانات' : 'Ad Accounts'}
             </p>
 
+            {/* ── Account picker (multi-account) ── */}
+            {pendingAccounts && (
+                <div className="rounded-2xl border border-brand-primary/30 bg-brand-primary/5 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                        <i className="fab fa-facebook text-blue-500" />
+                        <p className="text-sm font-bold text-light-text dark:text-dark-text">
+                            {ar ? 'اختر حساب الإعلانات' : 'Select an Ad Account'}
+                        </p>
+                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                            {ar ? `${pendingAccounts.length} حسابات متاحة` : `${pendingAccounts.length} accounts available`}
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        {pendingAccounts.map(acc => (
+                            <button
+                                key={acc.id}
+                                onClick={() => onPickAccount(acc)}
+                                disabled={actionLoading}
+                                className="flex w-full items-center gap-3 rounded-xl border border-light-border bg-light-card px-3 py-2.5 text-start transition-all hover:border-brand-primary hover:bg-brand-primary/5 dark:border-dark-border dark:bg-dark-card disabled:opacity-50"
+                            >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+                                    <i className="fab fa-facebook text-sm text-blue-500" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-semibold text-light-text dark:text-dark-text">{acc.name}</p>
+                                    <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{acc.id} · {acc.currency}</p>
+                                </div>
+                                {actionLoading
+                                    ? <i className="fas fa-circle-notch fa-spin text-xs text-brand-primary" />
+                                    : <i className="fas fa-chevron-left text-[9px] text-light-text-secondary dark:text-dark-text-secondary" />}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={onCancelPick} className="mt-2 text-xs text-light-text-secondary underline hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text">
+                        {ar ? 'إلغاء' : 'Cancel'}
+                    </button>
+                </div>
+            )}
+
             {loading ? (
                 <div className="h-24 animate-pulse rounded-2xl bg-light-card dark:bg-dark-card" />
-            ) : account ? (
+            ) : !pendingAccounts && account ? (
                 <div className={`rounded-2xl border p-4 bg-light-card dark:bg-dark-card transition-all ${isHealthy ? 'border-emerald-500/25' : 'border-amber-500/25'}`}>
+
+                    {/* Token expiry warning */}
+                    {account.tokenExpiringSoon && account.tokenExpiresAt && (
+                        <div className="mb-3 flex items-center gap-2 rounded-xl bg-orange-500/8 px-3 py-2 border border-orange-500/20">
+                            <i className="fas fa-key text-[10px] text-orange-500 shrink-0" />
+                            <p className="text-[11px] text-orange-700 dark:text-orange-400">
+                                {ar ? 'التوكن سينتهي قريباً' : 'Token expiring soon'} — {formatDate(account.tokenExpiresAt, ar)}
+                            </p>
+                            <button onClick={onConnect} className="ms-auto text-[10px] font-semibold text-orange-600 underline hover:no-underline dark:text-orange-400">
+                                {ar ? 'تجديد' : 'Refresh'}
+                            </button>
+                        </div>
+                    )}
+
                     {/* Disconnect warning */}
                     {confirmOpen && (
                         <div className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/8 p-3">
@@ -370,23 +434,14 @@ const AdsSection: React.FC<{
                                     <p className="mt-0.5 text-xs text-rose-600 dark:text-rose-400">
                                         {ar
                                             ? 'سيؤدي هذا إلى إيقاف المزامنة وبيانات الكوكبت الإعلاني فوراً. يمكنك إعادة الربط في أي وقت.'
-                                            : 'This will immediately stop syncing and disable the Ads Cockpit data. You can reconnect at any time.'}
+                                            : 'This will immediately stop syncing and disable the Ads Cockpit. You can reconnect at any time.'}
                                     </p>
                                     <div className="mt-2 flex gap-2">
-                                        <button
-                                            onClick={onConfirmDisconnect}
-                                            disabled={actionLoading}
-                                            className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
-                                        >
-                                            {actionLoading
-                                                ? <i className="fas fa-circle-notch fa-spin" />
-                                                : <i className="fas fa-unlink text-[10px]" />}
+                                        <button onClick={onConfirmDisconnect} disabled={actionLoading} className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600 disabled:opacity-60">
+                                            {actionLoading ? <i className="fas fa-circle-notch fa-spin" /> : <i className="fas fa-unlink text-[10px]" />}
                                             {ar ? 'تأكيد الفصل' : 'Confirm Disconnect'}
                                         </button>
-                                        <button
-                                            onClick={onCancelDisconnect}
-                                            className="rounded-xl bg-light-bg px-3 py-1.5 text-xs font-semibold text-light-text dark:bg-dark-bg dark:text-dark-text"
-                                        >
+                                        <button onClick={onCancelDisconnect} className="rounded-xl bg-light-bg px-3 py-1.5 text-xs font-semibold text-light-text dark:bg-dark-bg dark:text-dark-text">
                                             {ar ? 'إلغاء' : 'Cancel'}
                                         </button>
                                     </div>
@@ -406,6 +461,11 @@ const AdsSection: React.FC<{
                                 <span className="rounded-full bg-light-bg px-1.5 py-0.5 text-[10px] font-medium text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary">
                                     {ar ? 'حساب إعلانات' : 'Ad Account'}
                                 </span>
+                                {account.currency && (
+                                    <span className="rounded-full border border-light-border px-1.5 py-0.5 font-mono text-[10px] uppercase text-light-text-secondary dark:border-dark-border dark:text-dark-text-secondary">
+                                        {account.currency}
+                                    </span>
+                                )}
                             </div>
                             <p className="mt-0.5 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
                                 {account.accountId} · Meta
@@ -417,56 +477,92 @@ const AdsSection: React.FC<{
                         </div>
                     </div>
 
+                    {/* Meta row — extra details */}
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                        {account.connectedAt && (
+                            <span><i className="fas fa-calendar-check me-1 opacity-60" />{formatDate(account.connectedAt, ar)}</span>
+                        )}
+                        {account.pageId && (
+                            <span><i className="fab fa-facebook me-1 opacity-60" />{ar ? 'صفحة مرتبطة' : 'Page linked'}</span>
+                        )}
+                        {account.pixelId && (
+                            <span className="text-violet-600 dark:text-violet-400"><i className="fas fa-circle-dot me-1" />Pixel</span>
+                        )}
+                    </div>
+
                     {/* Actions */}
                     <div className="mt-3 flex flex-wrap gap-2 border-t border-light-border/50 pt-3 dark:border-dark-border/50">
-                        <button
-                            onClick={onConnect}
-                            disabled={actionLoading}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary/10 px-3 py-1.5 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white disabled:opacity-60"
-                        >
-                            {actionLoading
-                                ? <i className="fas fa-circle-notch fa-spin" />
-                                : <i className="fas fa-rotate-right text-[10px]" />}
+                        <button onClick={onConnect} disabled={actionLoading} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary/10 px-3 py-1.5 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white disabled:opacity-60">
+                            {actionLoading ? <i className="fas fa-circle-notch fa-spin" /> : <i className="fas fa-rotate-right text-[10px]" />}
                             {ar ? 'إعادة ربط' : 'Reconnect'}
                         </button>
                         {!confirmOpen && (
-                            <button
-                                onClick={onDisconnect}
-                                disabled={actionLoading}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-500 hover:text-white dark:text-rose-400 disabled:opacity-60"
-                            >
+                            <button onClick={onDisconnect} disabled={actionLoading} className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-500 hover:text-white dark:text-rose-400 disabled:opacity-60">
                                 <i className="fas fa-unlink text-[10px]" />
                                 {ar ? 'فصل الحساب' : 'Disconnect'}
                             </button>
                         )}
                     </div>
                 </div>
-            ) : (
-                <div className="rounded-2xl border border-dashed border-light-border bg-light-card p-6 dark:border-dark-border dark:bg-dark-card">
-                    <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/10">
-                            <i className="fab fa-facebook text-xl text-blue-500" />
+
+            ) : !pendingAccounts ? (
+                /* Meta Ads — not connected */
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-dashed border-light-border bg-light-card p-5 dark:border-dark-border dark:bg-dark-card">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
+                                <i className="fab fa-facebook text-lg text-blue-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-light-text dark:text-dark-text">Meta Ads</p>
+                                <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                                    {ar ? 'حسابات الحملات المدفوعة' : 'Paid campaigns'}
+                                </p>
+                            </div>
                         </div>
-                        <div className="flex-1">
-                            <p className="font-semibold text-light-text dark:text-dark-text">
-                                {ar ? 'Meta Ads — غير مرتبط' : 'Meta Ads — Not connected'}
-                            </p>
-                            <p className="mt-0.5 text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                                {ar
-                                    ? 'اربط حساب الإعلانات لتفعيل كوكبت الإعلانات والمزامنة التلقائية.'
-                                    : 'Connect your ad account to enable the Ads Cockpit and automatic sync.'}
-                            </p>
-                        </div>
-                        <button
-                            onClick={onConnect}
-                            disabled={actionLoading}
-                            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-primary-glow transition-all hover:opacity-90 disabled:opacity-60"
-                        >
-                            {actionLoading
-                                ? <i className="fas fa-circle-notch fa-spin" />
-                                : <i className="fas fa-plug text-[11px]" />}
+                        <button onClick={onConnect} disabled={actionLoading} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary px-3 py-2 text-xs font-semibold text-white shadow-primary-glow hover:opacity-90 disabled:opacity-60">
+                            {actionLoading ? <i className="fas fa-circle-notch fa-spin" /> : <i className="fas fa-plug text-[10px]" />}
                             {ar ? 'ربط الآن' : 'Connect'}
                         </button>
+                    </div>
+
+                    {/* Google Ads — coming soon */}
+                    <div className="rounded-2xl border border-dashed border-light-border bg-light-card p-5 opacity-60 dark:border-dark-border dark:bg-dark-card">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+                                <i className="fab fa-google text-lg text-red-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-light-text dark:text-dark-text">Google Ads</p>
+                                <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                                    {ar ? 'حملات البحث والعرض' : 'Search & Display campaigns'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-light-border px-3 py-2 text-xs font-semibold text-light-text-secondary dark:border-dark-border dark:text-dark-text-secondary">
+                            <i className="fas fa-clock text-[10px]" />
+                            {ar ? 'قريباً' : 'Coming soon'}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {/* Google Ads card when Meta IS connected */}
+            {!loading && account && !pendingAccounts && (
+                <div className="rounded-2xl border border-dashed border-light-border bg-light-card p-5 opacity-60 dark:border-dark-border dark:bg-dark-card">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+                            <i className="fab fa-google text-lg text-red-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-light-text dark:text-dark-text">Google Ads</p>
+                            <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                                {ar ? 'حملات البحث والعرض' : 'Search & Display campaigns'}
+                            </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-light-bg px-2.5 py-0.5 text-[10px] font-semibold text-light-text-secondary dark:bg-dark-bg dark:text-dark-text-secondary">
+                            {ar ? 'قريباً' : 'Coming soon'}
+                        </span>
                     </div>
                 </div>
             )}
@@ -503,10 +599,16 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
     const [assets,          setAssets]          = useState<IntegrationHealth[]>([]);
     const [loading,         setLoading]         = useState(true);
     const [activeFilter,    setActiveFilter]    = useState<PurposeFilter>('all');
-    const [adAccounts,      setAdAccounts]      = useState<AdAccount[]>([]);
-    const [adsLoading,      setAdsLoading]      = useState(true);
-    const [adsActionLoading, setAdsActionLoading] = useState(false);
+    const [adAccounts,        setAdAccounts]        = useState<AdAccount[]>([]);
+    const [adsLoading,        setAdsLoading]        = useState(true);
+    const [adsActionLoading,  setAdsActionLoading]  = useState(false);
     const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+    const [pendingConnection, setPendingConnection] = useState<{
+        accounts: MetaAdAccountOption[];
+        accessToken: string;
+        confirmedBrandId: string;
+        pageId?: string;
+    } | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -546,18 +648,45 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
         addNotification(NotificationType.Success, ar ? 'تم تحديث الحالة.' : 'Status updated.');
     };
 
+    const refreshAdAccounts = async () => {
+        const updated = await getAdAccounts(brandId);
+        setAdAccounts(updated);
+    };
+
     const handleConnectAds = async () => {
         setAdsActionLoading(true);
         const result = await connectMetaAdAccount(brandId, SUPABASE_URL);
-        if (result.success) {
+        if (result.type === 'success') {
             addNotification(NotificationType.Success, ar ? 'تم ربط Meta Ads بنجاح.' : 'Meta Ads connected.');
-            const updated = await getAdAccounts(brandId);
-            setAdAccounts(updated);
+            await refreshAdAccounts();
+        } else if (result.type === 'pick') {
+            // Multiple accounts — show picker, keep loading spinner off
+            setPendingConnection({ accounts: result.accounts, accessToken: result.accessToken, confirmedBrandId: result.confirmedBrandId, pageId: result.pageId });
         } else {
             addNotification(NotificationType.Error, result.error ?? (ar ? 'فشل الربط.' : 'Connection failed.'));
         }
         setAdsActionLoading(false);
     };
+
+    const handlePickAccount = async (account: MetaAdAccountOption) => {
+        if (!pendingConnection) return;
+        setAdsActionLoading(true);
+        const result = await saveMetaAdSelection(pendingConnection.confirmedBrandId, SUPABASE_URL, {
+            accessToken: pendingConnection.accessToken,
+            adAccount: account,
+            pageId: pendingConnection.pageId,
+        });
+        if (result.type === 'success') {
+            addNotification(NotificationType.Success, ar ? `تم ربط ${account.name} بنجاح.` : `${account.name} connected.`);
+            setPendingConnection(null);
+            await refreshAdAccounts();
+        } else {
+            addNotification(NotificationType.Error, result.error ?? (ar ? 'فشل الحفظ.' : 'Failed to save.'));
+        }
+        setAdsActionLoading(false);
+    };
+
+    const handleCancelPick = () => setPendingConnection(null);
 
     const handleDisconnectAds = () => setConfirmDisconnect(true);
     const handleCancelDisconnect = () => setConfirmDisconnect(false);
@@ -567,8 +696,7 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
         const result = await disconnectMetaAdAccount(brandId, SUPABASE_URL);
         if (result.success) {
             addNotification(NotificationType.Success, ar ? 'تم فصل حساب الإعلانات.' : 'Ad account disconnected.');
-            const updated = await getAdAccounts(brandId);
-            setAdAccounts(updated);
+            await refreshAdAccounts();
         } else {
             addNotification(NotificationType.Error, result.error ?? (ar ? 'فشل الفصل.' : 'Disconnect failed.'));
         }
@@ -701,11 +829,14 @@ export const IntegrationOSPage: React.FC<IntegrationOSPageProps> = ({ brandId, a
                 loading={adsLoading}
                 actionLoading={adsActionLoading}
                 confirmOpen={confirmDisconnect}
+                pendingAccounts={pendingConnection?.accounts ?? null}
                 ar={ar}
                 onConnect={handleConnectAds}
                 onDisconnect={handleDisconnectAds}
                 onConfirmDisconnect={handleConfirmDisconnect}
                 onCancelDisconnect={handleCancelDisconnect}
+                onPickAccount={handlePickAccount}
+                onCancelPick={handleCancelPick}
             />
 
             {/* Summary footer */}

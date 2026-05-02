@@ -254,6 +254,12 @@ export interface AdAccount {
     name: string;
     accountId: string;
     status: AccountStatus;
+    currency?: string;
+    connectedAt?: string | null;
+    pageId?: string | null;
+    pixelId?: string | null;
+    tokenExpiresAt?: string | null;
+    tokenExpiringSoon?: boolean;
 }
 
 // --- Brand Hub ---
