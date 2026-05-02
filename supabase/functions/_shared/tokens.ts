@@ -6,7 +6,11 @@
  * Wire format: base64url( 12-byte IV || ciphertext )
  *
  * The key never leaves the Edge Function runtime.
+ * Every decryptToken call MUST go through decryptTokenWithLog so it
+ * is recorded in token_decrypt_logs for audit purposes.
  */
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 function b64urlEncode(buf: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -30,7 +34,7 @@ async function importKey(): Promise<CryptoKey> {
 
 /**
  * Encrypts a plaintext token string.
- * Returns null if the input is null/undefined (pass-through for missing tokens).
+ * Returns null if the input is null/undefined.
  */
 export async function encryptToken(plaintext: string | null | undefined): Promise<string | null> {
   if (!plaintext) return null;
@@ -51,6 +55,9 @@ export async function encryptToken(plaintext: string | null | undefined): Promis
  * Decrypts an encrypted token string.
  * Returns null if the input is null/undefined.
  * Throws if the ciphertext is tampered or the key is wrong.
+ *
+ * Prefer decryptTokenWithLog() over calling this directly —
+ * it records the decrypt event in token_decrypt_logs.
  */
 export async function decryptToken(encrypted: string | null | undefined): Promise<string | null> {
   if (!encrypted) return null;
@@ -60,4 +67,41 @@ export async function decryptToken(encrypted: string | null | undefined): Promis
   const ciphertext = combined.slice(12);
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
   return new TextDecoder().decode(plaintext);
+}
+
+/**
+ * Decrypts a token AND writes an audit row to token_decrypt_logs.
+ * Use this in every Edge Function that reads an oauth token.
+ *
+ * @param encrypted   The encrypted token from oauth_tokens.access_token_enc
+ * @param tokenId     The oauth_tokens.id UUID (for audit trail)
+ * @param brandId     The brand_id (for audit trail)
+ * @param purpose     Why the token is being decrypted (e.g. 'ads_sync')
+ * @param requestor   The Edge Function name (e.g. 'ads-sync')
+ */
+export async function decryptTokenWithLog(
+  encrypted: string | null | undefined,
+  tokenId: string | null | undefined,
+  brandId: string | null | undefined,
+  purpose: string,
+  requestor: string,
+): Promise<string | null> {
+  const plaintext = await decryptToken(encrypted);
+
+  // Write audit log fire-and-forget — never block on this
+  if (plaintext && tokenId) {
+    const supabaseUrl        = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (supabaseUrl && serviceRoleKey) {
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+      supabase.from('token_decrypt_logs').insert({
+        brand_id:  brandId || null,
+        token_id:  tokenId,
+        purpose,
+        requestor,
+      }).then(() => {}).catch(() => {}); // fire-and-forget
+    }
+  }
+
+  return plaintext;
 }

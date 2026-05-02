@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { generateImageFromPrompt, AIImageProvider } from '../services/geminiService';
 import { BrandHubProfile, Brand, MediaItem } from '../types';
 import { useLanguage } from '../context/LanguageContext';
@@ -47,7 +47,7 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
     const brandStyleHint = brandProfile
         ? `— بأسلوب يعكس براند "${brandProfile.brandName || brand?.name}" ونبرة ${brandProfile.brandVoice.toneDescription.slice(0, 2).join(' و')}`
         : (brand?.name ? `— بأسلوب يعكس براند "${brand.name}"` : '');
-    const [provider, setProvider] = useState<AIImageProvider>('pollinations');
+    const [provider, setProvider] = useState<AIImageProvider>('openai');
     const [count, setCount] = useState<number>(1);
     const [images, setImages] = useState<GeneratedImage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -77,14 +77,22 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
             let errorMsg = ar
                 ? 'فشل في توليد الصورة. يرجى المحاولة مرة أخرى.'
                 : 'Image generation failed. Please try again.';
-            if (err?.message?.includes('503') || err?.message?.includes('high demand')) {
+            if (err?.message?.includes('503') || err?.message?.includes('high demand') || err?.message?.includes('overloaded')) {
                 errorMsg = ar
-                    ? 'نموذج جوجل يواجه ضغطاً عالياً. جرّب "المستقر (مجاني)".'
-                    : 'Google model is under high demand. Try the free stable model.';
-            } else if (err?.message?.includes('400') || err?.message?.includes('paid plans')) {
+                    ? 'النموذج مشغول حالياً. جرّب "مجاني" أو أعد المحاولة.'
+                    : 'Model is busy. Try the free model or retry.';
+            } else if (err?.message?.includes('content_policy') || err?.message?.includes('safety')) {
                 errorMsg = ar
-                    ? 'نموذج Imagen للحسابات المدفوعة فقط. اختر "المستقر (مجاني)".'
-                    : 'Imagen is for paid accounts only. Choose the free stable model.';
+                    ? 'المحتوى لا يتوافق مع سياسة OpenAI. عدّل الوصف وأعد المحاولة.'
+                    : 'Content flagged by OpenAI policy. Adjust your prompt and retry.';
+            } else if (err?.message?.includes('400') || err?.message?.includes('paid') || err?.message?.includes('billing') || err?.message?.includes('quota')) {
+                errorMsg = ar
+                    ? 'تجاوزت الحد اليومي أو رصيد OpenAI منتهٍ. جرّب "مجاني".'
+                    : 'OpenAI quota exceeded or billing issue. Try the free model.';
+            } else if (err?.message?.includes('API key') || err?.message?.includes('missing')) {
+                errorMsg = ar
+                    ? 'مفتاح OpenAI غير مُعدّ. تواصل مع الإدارة.'
+                    : 'OpenAI API key not configured. Contact admin.';
             }
             setError(errorMsg);
             console.error(err);
@@ -219,10 +227,10 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                 </div>
 
                 <div className="flex-grow overflow-y-auto p-5 space-y-5">
-                    {/* Controls grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Controls */}
+                    <div className="space-y-4">
                         {/* Prompt */}
-                        <div className="md:col-span-2 space-y-1.5">
+                        <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
                                 <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
                                     {ar ? 'وصف الصورة' : 'Image Prompt'}
@@ -250,76 +258,126 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                             />
                         </div>
 
-                        {/* Model */}
-                        <div className="space-y-1.5">
+                        {/* Model picker — visual cards */}
+                        <div className="space-y-2">
                             <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
                                 {ar ? 'النموذج' : 'Model'}
                             </label>
-                            <select
-                                value={provider}
-                                onChange={e => setProvider(e.target.value as AIImageProvider)}
-                                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
-                            >
-                                <option value="pollinations">{ar ? 'المستقر (مجاني - غير محدود)' : 'Stable (Free & Unlimited)'}</option>
-                                <option value="google">{ar ? 'Google Imagen 4 (احترافي)' : 'Google Imagen 4 (Pro)'}</option>
-                                <option value="gemini-native">{ar ? 'Gemini 2.0 Flash (يدعم النص العربي)' : 'Gemini 2.0 Flash (Arabic text)'}</option>
-                            </select>
-                        </div>
-
-                        {/* Aspect ratio */}
-                        <div className="space-y-1.5">
-                            <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
-                                {ar ? 'النسبة والحجم' : 'Aspect Ratio'}
-                            </label>
-                            <select
-                                value={aspectRatio}
-                                onChange={e => setAspectRatio(e.target.value as any)}
-                                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
-                            >
-                                <option value="1:1">{ar ? 'مربع (1:1)' : 'Square (1:1)'}</option>
-                                <option value="16:9">{ar ? 'أفقي (16:9)' : 'Landscape (16:9)'}</option>
-                                <option value="9:16">{ar ? 'رأسي (9:16)' : 'Portrait (9:16)'}</option>
-                                <option value="4:3">{ar ? 'قياسي (4:3)' : 'Standard (4:3)'}</option>
-                                <option value="3:4">{ar ? 'صورة شخصية (3:4)' : 'Portrait (3:4)'}</option>
-                            </select>
-                        </div>
-
-                        {/* Count */}
-                        <div className="space-y-1.5">
-                            <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
-                                {ar ? 'عدد الصور' : 'Number of Images'}
-                            </label>
-                            <div className="flex gap-2">
-                                {[1, 2, 3, 4].map(n => (
+                            <div className="grid grid-cols-2 gap-2">
+                                {([
+                                    { id: 'openai',        label: 'GPT Image 1',        sub: ar ? 'أعلى جودة' : 'Best quality',    icon: 'fas fa-robot',    badge: '✦',    badgeCls: 'bg-emerald-500/20 text-emerald-300' },
+                                    { id: 'openai-dalle3', label: 'DALL·E 3',           sub: ar ? 'احترافي' : 'Professional',      icon: 'fas fa-paintbrush', badge: 'PRO', badgeCls: 'bg-blue-500/20 text-blue-300' },
+                                    { id: 'gemini-native', label: 'Gemini 2.0',         sub: ar ? 'عربي نيتف' : 'Arabic native',   icon: 'fas fa-gem',      badge: 'AR',   badgeCls: 'bg-purple-500/20 text-purple-300' },
+                                    { id: 'pollinations',  label: ar ? 'مجاني' : 'Free', sub: ar ? 'غير محدود' : 'Unlimited',     icon: 'fas fa-infinity', badge: 'FREE', badgeCls: 'bg-slate-500/20 text-slate-300' },
+                                ] as const).map(m => (
                                     <button
-                                        key={n}
+                                        key={m.id}
                                         type="button"
-                                        onClick={() => setCount(n)}
-                                        className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all ${count === n
-                                                ? 'bg-brand-primary text-white shadow-sm'
-                                                : 'border border-white/10 bg-black/20 text-dark-text-secondary hover:border-brand-primary/40 hover:text-white'
-                                            }`}
+                                        onClick={() => setProvider(m.id)}
+                                        className={`relative flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-start ${
+                                            provider === m.id
+                                                ? 'border-brand-primary bg-brand-primary/15 shadow-sm shadow-brand-primary/20'
+                                                : 'border-white/8 bg-black/20 hover:border-white/20'
+                                        }`}
                                     >
-                                        {n}
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${provider === m.id ? 'bg-brand-primary/20' : 'bg-white/5'}`}>
+                                            <i className={`${m.icon} text-sm ${provider === m.id ? 'text-brand-secondary' : 'text-dark-text-secondary'}`} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className={`text-xs font-bold leading-none mb-0.5 ${provider === m.id ? 'text-white' : 'text-dark-text-secondary'}`}>{m.label}</p>
+                                            <p className="text-[10px] text-dark-text-secondary/60 leading-none">{m.sub}</p>
+                                        </div>
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.badgeCls}`}>{m.badge}</span>
+                                        {provider === m.id && (
+                                            <div className="absolute top-2 end-2 w-4 h-4 rounded-full bg-brand-primary flex items-center justify-center">
+                                                <i className="fas fa-check text-white" style={{ fontSize: '7px' }} />
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Generate button */}
-                        <div className="flex items-end">
-                            <button
-                                onClick={handleGenerate}
-                                disabled={isLoading || !prompt.trim()}
-                                className="w-full rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                                {isLoading ? (
-                                    <><i className="fas fa-spinner fa-spin me-2" />{ar ? 'جارٍ التوليد...' : 'Generating...'}</>
-                                ) : (
-                                    <><i className="fas fa-wand-magic-sparkles me-2" />{ar ? 'توليد الصور' : 'Generate Images'}</>
-                                )}
-                            </button>
+                        {/* Aspect ratio + Count */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Aspect ratio — visual tiles */}
+                            <div className="space-y-2">
+                                <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
+                                    {ar ? 'النسبة والحجم' : 'Aspect Ratio'}
+                                </label>
+                                <div className="flex gap-1.5">
+                                    {([
+                                        { value: '1:1',  w: 22, h: 22, labelAr: 'مربع',  labelEn: '1:1'  },
+                                        { value: '16:9', w: 32, h: 18, labelAr: 'أفقي',  labelEn: '16:9' },
+                                        { value: '9:16', w: 18, h: 32, labelAr: 'رأسي',  labelEn: '9:16' },
+                                        { value: '4:3',  w: 26, h: 20, labelAr: 'قياسي', labelEn: '4:3'  },
+                                        { value: '3:4',  w: 20, h: 26, labelAr: 'صورة',  labelEn: '3:4'  },
+                                    ] as const).map(r => (
+                                        <button
+                                            key={r.value}
+                                            type="button"
+                                            onClick={() => setAspectRatio(r.value)}
+                                            className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border-2 transition-all ${
+                                                aspectRatio === r.value
+                                                    ? 'border-brand-primary bg-brand-primary/15'
+                                                    : 'border-white/8 bg-black/20 hover:border-white/20'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-center" style={{ width: '34px', height: '34px' }}>
+                                                <div
+                                                    className={`rounded-sm transition-colors ${aspectRatio === r.value ? 'bg-brand-primary' : 'bg-white/20'}`}
+                                                    style={{ width: `${r.w}px`, height: `${r.h}px` }}
+                                                />
+                                            </div>
+                                            <span className={`text-[9px] font-bold leading-none ${aspectRatio === r.value ? 'text-brand-secondary' : 'text-dark-text-secondary/60'}`}>
+                                                {ar ? r.labelAr : r.labelEn}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Count */}
+                            <div className="space-y-2">
+                                <label className="block text-xs font-bold uppercase tracking-widest text-dark-text-secondary">
+                                    {ar ? 'عدد الصور' : 'Count'}
+                                </label>
+                                <div className="flex gap-2">
+                                    {[1, 2, 3, 4].map(n => (
+                                        <button
+                                            key={n}
+                                            type="button"
+                                            onClick={() => setCount(n)}
+                                            className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all ${count === n
+                                                    ? 'bg-brand-primary text-white shadow-sm'
+                                                    : 'border border-white/10 bg-black/20 text-dark-text-secondary hover:border-brand-primary/40 hover:text-white'
+                                                }`}
+                                        >
+                                            {n}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Generate button */}
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isLoading || !prompt.trim()}
+                            className="w-full rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary py-3 text-sm font-bold text-white shadow-lg transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? (
+                                <><i className="fas fa-spinner fa-spin" /><span>{ar ? 'جارٍ التوليد...' : 'Generating...'}</span></>
+                            ) : (
+                                <>
+                                    <i className="fas fa-wand-magic-sparkles" />
+                                    <span>{ar ? 'توليد الصور' : 'Generate Images'}</span>
+                                    <span className="text-[10px] opacity-60 font-normal">
+                                        {provider === 'openai' ? '• GPT Image 1' : provider === 'openai-dalle3' ? '• DALL·E 3' : provider === 'gemini-native' ? '• Gemini 2.0' : ar ? '• مجاني' : '• Free'}
+                                    </span>
+                                </>
+                            )}
+                        </button>
                     </div>
 
                     {/* Error */}
@@ -332,17 +390,36 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
 
                     {/* Loading state */}
                     {isLoading && (
-                        <div className="flex min-h-[240px] items-center justify-center rounded-2xl border-2 border-dashed border-dark-border bg-dark-bg/60">
-                            <div className="text-center">
-                                <i className="fas fa-spinner fa-spin mb-3 block text-4xl text-brand-secondary" />
-                                <p className="text-sm font-medium text-dark-text-secondary">
-                                    {ar ? 'جارٍ رسم خيالك...' : 'Painting your vision...'}
-                                </p>
-                                {count > 1 && (
-                                    <p className="mt-1 text-xs text-dark-text-secondary/60">
-                                        {ar ? `جارٍ توليد ${count} صور` : `Generating ${count} images`}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-brand-primary/8 border border-brand-primary/20">
+                                <div className="w-9 h-9 rounded-xl bg-brand-primary/20 flex items-center justify-center flex-shrink-0 animate-pulse">
+                                    <i className="fas fa-wand-magic-sparkles text-brand-secondary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white">{ar ? 'جارٍ رسم خيالك...' : 'Painting your vision...'}</p>
+                                    <p className="text-[11px] text-dark-text-secondary mt-0.5">
+                                        {provider === 'openai' ? 'GPT Image 1' : provider === 'openai-dalle3' ? 'DALL·E 3' : provider === 'gemini-native' ? 'Gemini 2.0' : ar ? 'النموذج المجاني' : 'Free model'}
+                                        {count > 1 && ` • ${count} ${ar ? 'صور' : 'images'}`}
                                     </p>
-                                )}
+                                </div>
+                                <div className="ms-auto flex gap-1">
+                                    {[0, 0.2, 0.4].map((delay, i) => (
+                                        <div
+                                            key={i}
+                                            className="w-2 h-2 rounded-full bg-brand-primary animate-bounce"
+                                            style={{ animationDelay: `${delay}s` }}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div className={`grid gap-3 ${count === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                {Array.from({ length: count }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="rounded-xl bg-white/5 animate-pulse overflow-hidden"
+                                        style={{ aspectRatio: aspectRatio.replace(':', '/'), minHeight: count === 1 ? '260px' : '140px' }}
+                                    />
+                                ))}
                             </div>
                         </div>
                     )}

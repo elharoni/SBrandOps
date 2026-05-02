@@ -53,7 +53,7 @@ async function callAIImageProxy(params: {
 }
 
 // --- Image Generation ---
-export type AIImageProvider = 'google' | 'pollinations' | 'gemini-native' | 'openai';
+export type AIImageProvider = 'google' | 'pollinations' | 'gemini-native' | 'openai' | 'openai-dalle3';
 
 export async function generateImageFromPrompt(
     prompt: string,
@@ -97,11 +97,11 @@ export async function generateImageFromPrompt(
             return (data as { images: string[] })?.images ?? [];
         }
 
-        if (provider === 'openai') {
+        if (provider === 'openai' || provider === 'openai-dalle3') {
             const { data, error } = await supabase.functions.invoke('ai-proxy', {
                 body: {
                     mode: 'openai-image',
-                    model: 'dall-e-3',
+                    model: provider === 'openai-dalle3' ? 'dall-e-3' : 'gpt-image-1',
                     prompt,
                     count: clampedCount,
                     aspect_ratio: aspectRatio,
@@ -1524,6 +1524,42 @@ export async function analyzeImageForContent(base64Image: string): Promise<{ des
     });
 
     return JSON.parse(response.text);
+}
+
+// ── Design Ops: Arabic → Professional Image Prompt ───────────────────────────
+
+export async function enhanceImagePrompt(
+    description: string,
+    brandName: string,
+    platform: string,
+    tone: string,
+    format: string,
+    brandColors?: string,
+): Promise<string> {
+    const { text } = await callAIProxy({
+        model: 'gemini-2.5-flash',
+        prompt: `You are an expert AI image generation prompt engineer for commercial brands.
+
+Convert this Arabic brand content description into a professional English image generation prompt that will produce a stunning, high-quality, commercial-grade visual.
+
+Arabic description: "${description}"
+Brand: ${brandName}
+Platform: ${platform} (${format})
+Visual tone: ${tone}${brandColors ? `\nBrand colors to incorporate: ${brandColors}` : ''}
+
+Rules:
+- Output ONLY the English image prompt, no explanations or labels
+- Be highly specific about: lighting style, composition, background, color palette, camera angle, depth of field
+- Use professional photography/art direction vocabulary (e.g. "shot on Canon 5D", "studio strobe lighting", "shallow depth of field")
+- Make it photorealistic, commercial-quality
+- Include style keywords that match the tone (luxury/minimalist/vibrant/etc)
+- Under 180 words
+- Do NOT include any visible text, Arabic words, or placeholder text in the prompt description
+
+Output ONLY the prompt:`,
+        feature: 'design-ops-prompt-enhance',
+    });
+    return text.trim();
 }
 
 // ── AI Strategy Engine ────────────────────────────────────────────────────────

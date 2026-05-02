@@ -44,8 +44,8 @@ const ALLOWED_OPENAI_IMAGE_MODELS = new Set([
   'dall-e-2',
 ]);
 
-const BRAND_FILE_ANALYSIS_MODEL = Deno.env.get('OPENAI_FILE_ANALYSIS_MODEL') ?? 'gpt-5.5';
-const BRAND_FILE_ANALYSIS_FALLBACK_MODEL = Deno.env.get('OPENAI_FILE_ANALYSIS_FALLBACK_MODEL') ?? 'gpt-5';
+const BRAND_FILE_ANALYSIS_MODEL = Deno.env.get('OPENAI_FILE_ANALYSIS_MODEL') ?? 'gpt-4o';
+const BRAND_FILE_ANALYSIS_FALLBACK_MODEL = Deno.env.get('OPENAI_FILE_ANALYSIS_FALLBACK_MODEL') ?? 'gpt-4o-mini';
 const BRAND_FILE_ANALYSIS_TIMEOUT_MS = Number(Deno.env.get('OPENAI_FILE_ANALYSIS_TIMEOUT_MS') ?? 45_000);
 const MAX_BRAND_FILE_DOCUMENTS = 8;
 const MAX_BRAND_FILE_ANALYSIS_BYTES = 7 * 1024 * 1024;
@@ -553,10 +553,14 @@ function buildBrandAnalysisInput(documents: BrandAnalysisDocumentPayload[]) {
 
   for (const doc of documents) {
     if (doc.base64_data) {
+      // OpenAI Responses API requires full data URI format
+      const fileData = doc.base64_data.startsWith('data:')
+        ? doc.base64_data
+        : `data:${doc.mime_type};base64,${doc.base64_data}`;
       content.push({
         type: 'input_file',
         filename: doc.file_name,
-        file_data: doc.base64_data,
+        file_data: fileData,
       });
       content.push({
         type: 'input_text',
@@ -830,15 +834,27 @@ async function handleOpenAIImageGeneration(
   count: number,
   aspectRatio: string,
 ): Promise<string[]> {
-  // Map aspect ratio to supported OpenAI sizes
-  const sizeMap: Record<string, string> = {
-    '1:1':  '1024x1024',
-    '16:9': '1536x1024',
-    '4:3':  '1536x1024',
-    '9:16': '1024x1536',
-    '3:4':  '1024x1536',
-  };
-  const size = sizeMap[aspectRatio] ?? '1024x1024';
+  const isGptImage1 = model === 'gpt-image-1';
+
+  // Each model has different supported sizes
+  const sizeMap = isGptImage1
+    ? { '1:1': '1024x1024', '16:9': '1536x1024', '4:3': '1536x1024', '9:16': '1024x1536', '3:4': '1024x1536' }
+    : { '1:1': '1024x1024', '16:9': '1792x1024', '4:3': '1792x1024', '9:16': '1024x1792', '3:4': '1024x1792' };
+
+  const size = (sizeMap as Record<string, string>)[aspectRatio] ?? '1024x1024';
+
+  const requestBody: Record<string, unknown> = { model, prompt, size };
+
+  if (isGptImage1) {
+    requestBody.quality = 'high';
+    requestBody.output_format = 'png';
+    requestBody.n = count;
+  } else {
+    // dall-e-3 / dall-e-2: b64_json response, n must be 1 for dall-e-3
+    requestBody.response_format = 'b64_json';
+    requestBody.n = model === 'dall-e-3' ? 1 : Math.min(count, 10);
+    if (model === 'dall-e-3') requestBody.quality = 'hd';
+  }
 
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
@@ -846,14 +862,7 @@ async function handleOpenAIImageGeneration(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      prompt,
-      n: count,
-      size,
-      quality: 'high',
-      output_format: 'png',
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
@@ -862,10 +871,13 @@ async function handleOpenAIImageGeneration(
   }
 
   const data = await res.json();
+  const mimeType = isGptImage1 ? 'image/png' : 'image/png';
   return (data.data ?? [])
-    .map((item: { b64_json?: string }) =>
-      item.b64_json ? `data:image/png;base64,${item.b64_json}` : null,
-    )
+    .map((item: { b64_json?: string; url?: string }) => {
+      if (item.b64_json) return `data:${mimeType};base64,${item.b64_json}`;
+      if (item.url) return item.url;
+      return null;
+    })
     .filter(Boolean) as string[];
 }
 

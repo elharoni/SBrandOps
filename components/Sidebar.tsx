@@ -99,6 +99,7 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
         label: ar ? 'قنوات النمو' : 'Growth Channels',
         items: [
             { id: 'ads-ops', icon: 'fa-bullhorn', label: ar ? 'إدارة الإعلانات' : 'Ads Ops', permission: 'ads.campaigns.view.brand' },
+            { id: 'ads-cockpit', icon: 'fa-gauge-high', label: ar ? 'كوكبت الإعلانات' : 'Ads Cockpit', permission: 'ads.campaigns.view.brand' },
             { id: 'seo-ops', icon: 'fa-magnifying-glass', label: ar ? 'تحسين محركات البحث' : 'SEO Ops', permission: 'seo.projects.view.brand' },
         ],
     },

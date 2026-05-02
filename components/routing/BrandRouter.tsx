@@ -35,6 +35,7 @@ const BrandHubPage      = lazy(() => import('../pages/BrandHubPage').then(m => (
 const BrandsManagePage  = lazy(() => import('../pages/BrandsManagePage').then(m => ({ default: m.BrandsManagePage })));
 const ContentOpsPage    = lazy(() => import('../pages/ContentOpsPage').then(m => ({ default: m.ContentOpsPage })));
 const AdsOpsPage        = lazy(() => import('../pages/AdsOpsPage').then(m => ({ default: m.AdsOpsPage })));
+const AdsMediaBuyerCockpit = lazy(() => import('../pages/AdsMediaBuyerCockpit'));
 const SEOOpsPage        = lazy(() => import('../pages/SEOOpsPageV2'));
 const SocialSearchPage  = lazy(() => import('../pages/SocialSearchPage').then(m => ({ default: m.SocialSearchPage })));
 const IdeaOpsPage       = lazy(() => import('../pages/IdeaOpsPage').then(m => ({ default: m.IdeaOpsPage })));
@@ -317,6 +318,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             case 'content-ops':          return <div className="p-6"><SkeletonCardGrid count={6} cols={3} /></div>;
             case 'design-ops':           return <div className="p-6"><SkeletonCardGrid count={5} cols={3} /></div>;
             case 'ads-ops':              return <div className="p-6"><SkeletonAnalytics /></div>;
+            case 'ads-cockpit':          return <div className="p-6"><SkeletonAnalytics /></div>;
             default:                     return <SkeletonPageLoader label={ar ? 'جارٍ تحميل البيانات...' : 'Loading data...'} />;
         }
     }
@@ -547,6 +549,15 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     brandConnections={brandConnections}
                     brandAssets={brandAssets}
                     onNavigate={onNavigate}
+                />
+            );
+
+        case 'ads-cockpit':
+            return (
+                <AdsMediaBuyerCockpit
+                    brandId={activeBrand.id}
+                    brandName={activeBrand.name}
+                    addNotification={addNotification}
                 />
             );
 
