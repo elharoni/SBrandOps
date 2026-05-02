@@ -160,12 +160,27 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
         };
     }
 
-    const { data, error } = await supabase
+    // Use UPDATE first (avoids PostgREST upsert 403 issue with RLS subquery policies)
+    const { brand_id: _bid, ...updatePayload } = upsertData;
+    const { data: updated, error: updateError } = await supabase
         .from('brand_profiles')
-        .upsert(upsertData, { onConflict: 'brand_id' })
+        .update(updatePayload)
+        .eq('brand_id', brandId)
         .select()
-        .single();
+        .maybeSingle();
 
-    if (error) throw error;
-    return mapToProfile(data, profile.brandName || '');
+    if (!updateError && updated) return mapToProfile(updated, profile.brandName || '');
+
+    // Row doesn't exist yet — INSERT (new brand first save)
+    if (!updateError && !updated) {
+        const { data: inserted, error: insertError } = await supabase
+            .from('brand_profiles')
+            .insert(upsertData)
+            .select()
+            .single();
+        if (insertError) throw insertError;
+        return mapToProfile(inserted, profile.brandName || '');
+    }
+
+    throw updateError;
 }

@@ -1141,21 +1141,20 @@ export async function getCrmFeatureFlags(brandId: string): Promise<CrmFeatureFla
     try {
         const { data, error } = await supabase
             .from('crm_feature_flags')
-            .select('*')
-            .eq('brand_id', brandId)
-            .single();
+            .select('flag_key, is_enabled, metadata')
+            .eq('brand_id', brandId);
         if (error || !data) return DEFAULT_FEATURE_FLAGS(brandId);
-        const r = data as Record<string, unknown>;
+        const byKey = Object.fromEntries((data as any[]).map(r => [r.flag_key, r.is_enabled]));
         return {
-            brandId:           r.brand_id as string,
-            plan:              (r.plan as CrmFeatureFlags['plan']) ?? 'basic',
-            crmEnabled:        Boolean(r.crm_enabled),
-            maxCustomers:      Number(r.max_customers ?? 1000),
-            maxSegments:       Number(r.max_segments ?? 5),
-            maxAutomations:    Number(r.max_automations ?? 3),
-            shopifyEnabled:    Boolean(r.shopify_enabled),
-            wooEnabled:        Boolean(r.woo_enabled),
-            analyticsEnabled:  Boolean(r.analytics_enabled),
+            brandId,
+            plan:              'basic',
+            crmEnabled:        Boolean(byKey.crm_enabled),
+            maxCustomers:      1000,
+            maxSegments:       5,
+            maxAutomations:    3,
+            shopifyEnabled:    Boolean(byKey.shopify_enabled),
+            wooEnabled:        Boolean(byKey.woo_enabled),
+            analyticsEnabled:  Boolean(byKey.analytics_enabled),
         };
     } catch {
         return DEFAULT_FEATURE_FLAGS(brandId);

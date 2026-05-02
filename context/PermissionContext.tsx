@@ -280,17 +280,18 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
 
                 // 3. Plan features — check crm_feature_flags for brand-specific overrides
                 try {
-                    const { data: flags } = await supabase
+                    const { data: flagRows } = await supabase
                         .from('crm_feature_flags')
-                        .select('crm_enabled, analytics_enabled')
+                        .select('flag_key, is_enabled')
                         .eq('brand_id', activeBrand.id)
-                        .maybeSingle();
+                        .in('flag_key', ['crm_enabled', 'analytics_enabled']);
 
-                    if (flags) {
+                    if (flagRows && flagRows.length > 0) {
+                        const byKey = Object.fromEntries(flagRows.map((f: any) => [f.flag_key, f.is_enabled]));
                         setPlanFeatures(prev => ({
                             ...prev,
-                            crm_enabled: flags.crm_enabled ?? prev.crm_enabled,
-                            analytics_enabled: flags.analytics_enabled ?? prev.analytics_enabled,
+                            ...(byKey.crm_enabled !== undefined       && { crm_enabled: byKey.crm_enabled }),
+                            ...(byKey.analytics_enabled !== undefined && { analytics_enabled: byKey.analytics_enabled }),
                         }));
                     }
                 } catch {
