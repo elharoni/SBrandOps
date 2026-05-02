@@ -294,10 +294,10 @@ export interface BrandHubProfile {
     lastMemoryUpdate: string;
     // Extended wizard fields — stored in brand_profiles.extended_profile JSONB
     description?: string;
-    businessModel?: BusinessModel;
+    businessModel?: BusinessModel[];
     goals?: BrandGoal[];
     language?: BrandLanguage;
-    ageRange?: string;
+    ageRange?: string[];
     targetAudienceSummary?: string;
     contactInfo?: { phone?: string; email?: string; };
     // Strategy fields — critical for AI content quality

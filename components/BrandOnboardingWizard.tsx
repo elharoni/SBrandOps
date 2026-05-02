@@ -480,10 +480,10 @@ Return JSON only.`;
                     }]
                     : [],
                 description,
-                businessModel: businessModel || undefined,
+                businessModel: businessModel ? [businessModel] : undefined,
                 goals,
                 language:      language2 || undefined,
-                ageRange:      ageRange   || undefined,
+                ageRange:      ageRange ? [ageRange] : undefined,
                 targetAudienceSummary,
             });
 

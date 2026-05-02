@@ -51,10 +51,14 @@ function mapToProfile(data: any, brandName: string): BrandHubProfile {
         lastMemoryUpdate: data.updated_at || new Date().toISOString(),
         // Extended wizard fields from extended_profile JSONB
         description: ext.description as string | undefined,
-        businessModel: ext.businessModel as BusinessModel | undefined,
+        businessModel: Array.isArray(ext.businessModel)
+            ? ext.businessModel as BusinessModel[]
+            : ext.businessModel ? [ext.businessModel as BusinessModel] : undefined,
         goals: (ext.goals as BrandGoal[]) ?? [],
         language: ext.language as BrandLanguage | undefined,
-        ageRange: ext.ageRange as string | undefined,
+        ageRange: Array.isArray(ext.ageRange)
+            ? ext.ageRange as string[]
+            : ext.ageRange ? [ext.ageRange as string] : undefined,
         targetAudienceSummary: ext.targetAudienceSummary as string | undefined,
         contactInfo: ext.contactInfo as { phone?: string; email?: string } | undefined,
         // Strategy fields

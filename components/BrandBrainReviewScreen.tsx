@@ -64,7 +64,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             !!brandProfile.brandName,
             !!brandProfile.industry,
             !!brandProfile.description,
-            !!brandProfile.businessModel,
+            (brandProfile.businessModel?.length ?? 0) > 0,
             // Strategy
             !!brandProfile.valueProp,
             !!brandProfile.brandPromise,
@@ -87,7 +87,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             !!brandProfile.brandName,
             !!brandProfile.industry,
             !!brandProfile.description,
-            !!brandProfile.businessModel,
+            (brandProfile.businessModel?.length ?? 0) > 0,
         ].filter(Boolean).length / 4,
         strategy: [
             !!brandProfile.valueProp,
@@ -117,7 +117,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                 { labelAr: 'اسم البراند', labelEn: 'Brand name', value: brandProfile.brandName },
                 { labelAr: 'المجال', labelEn: 'Industry', value: brandProfile.industry },
                 { labelAr: 'وصف النشاط', labelEn: 'Business description', value: brandProfile.description },
-                { labelAr: 'نموذج العمل', labelEn: 'Business model', value: brandProfile.businessModel },
+                { labelAr: 'نموذج العمل', labelEn: 'Business model', value: brandProfile.businessModel?.join(' + ') },
                 { labelAr: 'الدولة / السوق', labelEn: 'Country / Market', value: brandProfile.country },
                 { labelAr: 'الموقع', labelEn: 'Website', value: brandProfile.website },
             ],

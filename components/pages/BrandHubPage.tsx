@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandHubProfile, BrandVoice, NotificationType, BrandConsistencyEvaluation, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
 import { generateInitialBrandProfile, evaluateContentConsistency } from '../../services/geminiService';
 import { analyzeBrandFiles, buildWizardPrefillFromAnalysis, BrandFileAnalysisResult } from '../../services/brandFileAnalysisService';
-import { getBrandFileExt, getBrandFileMimeType, isBrandFileBinaryExt, isSupportedBrandFileExt } from '../../services/brandFileAnalysisShared';
+import { getBrandFileExt, getBrandFileMimeType, isBrandFileBinaryExt, isSupportedBrandFileExt, mapOpenAIAnalysisToBrandImport } from '../../services/brandFileAnalysisShared';
 import { getBrandKnowledge } from '../../services/brandKnowledgeService';
 import { callAIProxy, Type } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
@@ -14,7 +14,7 @@ import { BrandImportModal } from '../BrandImportModal';
 import { ScoreDonut } from '../shared/ScoreDonut';
 import { getMemoryEntries, deleteMemoryEntry, BrandMemoryEntry, MemoryType } from '../../services/brandMemoryService';
 import { getSocialAccounts } from '../../services/socialAccountService';
-import { getBrandHubProfile, updateBrandProfile } from '../../services/brandHubService';
+import { getBrandHubProfile, updateBrandProfile, invalidateProfileCache } from '../../services/brandHubService';
 
 interface BrandHubPageProps {
     brandId: string;
@@ -36,7 +36,15 @@ const TONE_OPTIONS = [
     { value: 'authoritative', label: 'خبير وموثوق',   icon: 'fa-award',      color: 'border-green-500 bg-green-500/10' },
 ];
 
-const INDUSTRY_OPTIONS = ['تجزئة وتسوق', 'عقارات', 'مطاعم وأغذية', 'صحة وجمال', 'تقنية وSaaS', 'تعليم', 'سياحة وضيافة', 'مالية وبنوك', 'رياضة ولياقة', 'أخرى'];
+const INDUSTRY_OPTIONS = [
+    'تجزئة وتسوق', 'عقارات وتطوير عقاري', 'مطاعم وأغذية ومشروبات', 'صحة وجمال وعناية',
+    'تقنية وSaaS وبرمجيات', 'تعليم وتدريب وتطوير', 'سياحة وفنادق وضيافة', 'مالية وبنوك وتأمين',
+    'رياضة ولياقة بدنية', 'أثاث وديكور ومنزل', 'ملابس وأزياء وإكسسوار', 'سيارات وخدمات مركبات',
+    'طبي وصحة عامة وصيدلة', 'قانوني واستشاري ومحاسبة', 'وكالة تسويق وإعلانات وإبداع',
+    'لوجستيات وشحن وتوصيل', 'مقاولات وبناء وتشييد', 'زراعة وصناعات غذائية',
+    'ترفيه وإعلام ومحتوى رقمي', 'تصميم جرافيك وفنون بصرية', 'خدمات منزلية ومهنية',
+    'أعمال خيرية وغير ربحية', 'طاقة وبيئة واستدامة', 'تجميل ومكياج وعطور', 'أخرى',
+];
 
 // Brand Hub uploaded file analysis is handled server-side via OpenAI Responses API.
 const INLINE_PDF_MAX_BYTES = 5 * 1024 * 1024;
@@ -191,7 +199,7 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
         const formExtracted: Partial<BrandHubProfile> = {
             ...(form.description    && { description:           form.description }),
             ...(form.targetAudience && { targetAudienceSummary: form.targetAudience }),
-            ...(form.ageRange       && { ageRange:              form.ageRange }),
+            ...(form.ageRange       && { ageRange:              [form.ageRange] }),
         };
 
         try {
@@ -1048,6 +1056,8 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
     const [documents, setDocuments] = useState<BrandDocument[]>([]);
     const [isLoadingDocs, setIsLoadingDocs] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [showLibraryImport, setShowLibraryImport] = useState(false);
+    const [libraryImportLoading, setLibraryImportLoading] = useState(false);
 
     const loadDocuments = useCallback(async () => {
         if (!brandId) return;
@@ -1085,6 +1095,39 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
             addNotification(NotificationType.Success, 'تم حذف الوثيقة');
         } catch {
             addNotification(NotificationType.Error, 'فشل الحذف');
+        }
+    };
+
+    const handleLibraryImport = async (doc: BrandDocument) => {
+        if (!doc.analysisJson) {
+            addNotification(NotificationType.Warning, 'هذه الوثيقة لا تحتوي على بيانات تحليل — جرب الاستيراد من وثيقة جديدة');
+            return;
+        }
+        setLibraryImportLoading(true);
+        try {
+            const mapped = mapOpenAIAnalysisToBrandImport(doc.analysisJson as any);
+            await updateBrandProfile(brandId, {
+                ...(mapped.industry && { industry: mapped.industry }),
+                ...(mapped.values?.length    && { values: mapped.values }),
+                ...(mapped.keySellingPoints?.length && { keySellingPoints: mapped.keySellingPoints }),
+                ...(mapped.styleGuidelines?.length  && { styleGuidelines: mapped.styleGuidelines }),
+                ...(mapped.targetAudienceSummary    && { targetAudienceSummary: mapped.targetAudienceSummary }),
+                ...(mapped.valueProp     && { valueProp:     mapped.valueProp }),
+                ...(mapped.coreOffer     && { brandPromise:  mapped.coreOffer }),
+                ...(mapped.contentPillars?.length && { messagingPillars: mapped.contentPillars }),
+                ...(mapped.brandVoice    && { brandVoice:    mapped.brandVoice }),
+                ...(mapped.brandAudiences?.length && { brandAudiences: mapped.brandAudiences }),
+            });
+            invalidateProfileCache(brandId);
+            const refreshed = await getBrandHubProfile(brandId, profile.brandName);
+            setProfile(refreshed);
+            onUpdate(refreshed);
+            setShowLibraryImport(false);
+            addNotification(NotificationType.Success, `✅ تم تحديث هوية البراند من "${doc.title}"`);
+        } catch {
+            addNotification(NotificationType.Error, 'تعذّر الاستيراد من المكتبة');
+        } finally {
+            setLibraryImportLoading(false);
         }
     };
 
@@ -1333,7 +1376,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                     (profile.brandAudiences?.length ?? 0) > 0,
                     !!profile.valueProp,
                     !!profile.brandPromise,
-                    !!profile.businessModel,
+                    (profile.businessModel?.length ?? 0) > 0,
                 ];
                 const filled = checks.filter(Boolean).length;
                 const pct = Math.round((filled / checks.length) * 100);
@@ -1404,6 +1447,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                     className="text-xs font-semibold text-brand-pink hover:underline flex items-center gap-1">
                                     <i className="fas fa-file-import text-xs" /> استيراد من وثيقة
                                 </button>
+                                <span className="text-dark-border text-[10px]">|</span>
+                                <button onClick={() => { setShowLibraryImport(v => !v); if (!documents.length) loadDocuments(); }}
+                                    className="text-xs font-semibold text-amber-400 hover:underline flex items-center gap-1">
+                                    <i className="fas fa-book-open text-xs" /> من المكتبة
+                                </button>
                             </div>
                         </div>
 
@@ -1419,6 +1467,50 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                             />
                         )}
 
+                        {/* Library Import Panel */}
+                        {showLibraryImport && (
+                            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                                        <i className="fas fa-book-open" /> اختر وثيقة من المكتبة لاستيراد هوية البراند منها
+                                    </p>
+                                    <button onClick={() => setShowLibraryImport(false)} className="text-dark-text-secondary hover:text-white text-xs">
+                                        <i className="fas fa-times" />
+                                    </button>
+                                </div>
+                                {isLoadingDocs ? (
+                                    <p className="text-xs text-dark-text-secondary"><i className="fas fa-spinner fa-spin me-1" />جارٍ التحميل...</p>
+                                ) : documents.length === 0 ? (
+                                    <p className="text-xs text-dark-text-secondary">لا توجد وثائق في المكتبة بعد — ارفع وثيقة أولاً من تاب "مكتبة التعلم"</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        {documents.map(doc => (
+                                            <button key={doc.id} type="button"
+                                                disabled={libraryImportLoading || !doc.analysisJson}
+                                                onClick={() => handleLibraryImport(doc)}
+                                                className="w-full flex items-center justify-between gap-3 bg-dark-bg hover:bg-dark-card border border-dark-border hover:border-amber-500/30 rounded-xl px-4 py-2.5 transition-all disabled:opacity-40"
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <i className="fas fa-file-alt text-amber-400 text-xs flex-shrink-0" />
+                                                    <span className="text-xs text-white truncate">{doc.title}</span>
+                                                    {!doc.analysisJson && <span className="text-[10px] text-dark-text-secondary">(بدون تحليل)</span>}
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    {doc.completenessScore > 0 && (
+                                                        <span className="text-[10px] text-emerald-400">{doc.completenessScore}%</span>
+                                                    )}
+                                                    {libraryImportLoading
+                                                        ? <i className="fas fa-spinner fa-spin text-xs text-amber-400" />
+                                                        : <i className="fas fa-arrow-left text-xs text-dark-text-secondary" />
+                                                    }
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Name + Industry */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -1429,13 +1521,25 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                             <div>
                                 <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">الصناعة</label>
                                 <select
-                                    value={profile.industry}
-                                    onChange={e => setProfile(prev => ({ ...prev, industry: e.target.value }))}
+                                    value={INDUSTRY_OPTIONS.includes(profile.industry) ? profile.industry : (profile.industry ? 'أخرى' : '')}
+                                    onChange={e => {
+                                        if (e.target.value !== 'أخرى') setProfile(prev => ({ ...prev, industry: e.target.value }));
+                                        else setProfile(prev => ({ ...prev, industry: '' }));
+                                    }}
                                     className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white focus:border-brand-primary focus:outline-none"
                                 >
                                     <option value="">اختر الصناعة...</option>
                                     {INDUSTRY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                                 </select>
+                                {(!INDUSTRY_OPTIONS.includes(profile.industry) && profile.industry !== '') || profile.industry === 'أخرى' ? (
+                                    <input
+                                        type="text"
+                                        value={profile.industry === 'أخرى' ? '' : profile.industry}
+                                        onChange={e => setProfile(prev => ({ ...prev, industry: e.target.value }))}
+                                        placeholder="اكتب اسم الصناعة..."
+                                        className="mt-2 w-full bg-dark-bg border border-brand-primary/50 rounded-xl px-4 py-2.5 text-sm text-white placeholder-dark-text-secondary focus:border-brand-primary focus:outline-none"
+                                    />
+                                ) : null}
                             </div>
                         </div>
 
@@ -1454,21 +1558,31 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                         {/* Business Model + Language */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">نموذج العمل</label>
-                                <select
-                                    value={profile.businessModel ?? ''}
-                                    onChange={e => setProfile(prev => ({ ...prev, businessModel: (e.target.value || undefined) as typeof prev.businessModel }))}
-                                    className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white focus:border-brand-primary focus:outline-none"
-                                >
-                                    <option value="">اختر النموذج...</option>
-                                    <option value="b2c">B2C — عملاء أفراد</option>
-                                    <option value="b2b">B2B — شركات</option>
-                                    <option value="ecommerce">تجارة إلكترونية</option>
-                                    <option value="service">خدمات</option>
-                                    <option value="local">محلي / فيزيائي</option>
-                                    <option value="saas">SaaS / برمجيات</option>
-                                    <option value="mixed">مختلط</option>
-                                </select>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">نموذج العمل <span className="text-dark-text-secondary/60 font-normal">(اختر واحداً أو أكثر)</span></label>
+                                <div className="flex flex-wrap gap-2">
+                                    {([
+                                        { v: 'b2c' as BusinessModel,      label: 'B2C — أفراد' },
+                                        { v: 'b2b' as BusinessModel,      label: 'B2B — شركات' },
+                                        { v: 'ecommerce' as BusinessModel, label: 'تجارة إلكترونية' },
+                                        { v: 'service' as BusinessModel,  label: 'خدمات' },
+                                        { v: 'local' as BusinessModel,    label: 'محلي' },
+                                        { v: 'saas' as BusinessModel,     label: 'SaaS' },
+                                        { v: 'mixed' as BusinessModel,    label: 'مختلط' },
+                                    ]).map(({ v, label }) => {
+                                        const active = (profile.businessModel ?? []).includes(v);
+                                        return (
+                                            <button key={v} type="button"
+                                                onClick={() => setProfile(prev => ({
+                                                    ...prev,
+                                                    businessModel: active
+                                                        ? (prev.businessModel ?? []).filter(m => m !== v)
+                                                        : [...(prev.businessModel ?? []), v],
+                                                }))}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${active ? 'bg-brand-primary border-brand-primary text-white' : 'border-dark-border text-dark-text-secondary hover:border-brand-primary/50 hover:text-white'}`}
+                                            >{label}</button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">لغة التواصل</label>
@@ -1531,23 +1645,27 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                         </div>
 
                         {/* Age Range + Audience Summary */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">الفئة العمرية</label>
-                                <select
-                                    value={profile.ageRange ?? ''}
-                                    onChange={e => setProfile(prev => ({ ...prev, ageRange: e.target.value || undefined }))}
-                                    className="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-3 text-sm text-white focus:border-brand-primary focus:outline-none"
-                                >
-                                    <option value="">غير محدد</option>
-                                    <option value="18-24">18–24</option>
-                                    <option value="25-34">25–34</option>
-                                    <option value="35-44">35–44</option>
-                                    <option value="45-54">45–54</option>
-                                    <option value="55+">55+</option>
-                                </select>
+                                <label className="text-xs font-bold text-dark-text-secondary mb-2 block">الفئة العمرية <span className="text-dark-text-secondary/60 font-normal">(اختر نطاقاً أو أكثر)</span></label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['13-17', '18-24', '25-34', '35-44', '45-54', '55+'].map(r => {
+                                        const active = (profile.ageRange ?? []).includes(r);
+                                        return (
+                                            <button key={r} type="button"
+                                                onClick={() => setProfile(prev => ({
+                                                    ...prev,
+                                                    ageRange: active
+                                                        ? (prev.ageRange ?? []).filter(a => a !== r)
+                                                        : [...(prev.ageRange ?? []), r],
+                                                }))}
+                                                className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${active ? 'bg-brand-primary border-brand-primary text-white' : 'border-dark-border text-dark-text-secondary hover:border-brand-primary/50 hover:text-white'}`}
+                                            >{r}</button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="md:col-span-2">
+                            <div>
                                 <label className="text-xs font-bold text-dark-text-secondary mb-1.5 block">ملخص الجمهور المستهدف</label>
                                 <textarea
                                     value={profile.targetAudienceSummary ?? ''}
