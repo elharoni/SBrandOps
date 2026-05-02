@@ -428,8 +428,11 @@ const AppShell: React.FC = () => {
     return (
         <div className="relative flex h-screen overflow-hidden bg-light-bg font-sans text-light-text dark:bg-dark-bg dark:text-dark-text">
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="app-shell-orb -left-20 top-0 h-72 w-72 bg-brand-primary/20" />
-                <div className="app-shell-orb bottom-[-8rem] right-[-6rem] h-80 w-80 bg-brand-secondary/20" />
+                <div className="app-shell-orb -left-20 -top-10 h-[28rem] w-[28rem] bg-brand-primary/25" />
+                <div className="app-shell-orb bottom-[-8rem] right-[-6rem] h-96 w-96 bg-brand-secondary/20" />
+                <div className="app-shell-orb top-1/2 left-[30%] h-64 w-64 bg-brand-primary/12" style={{ transform: 'translateY(-50%)' }} />
+                <div className="app-shell-orb top-[15%] right-[10%] h-48 w-48 bg-brand-pink/15" />
+                <div className="app-shell-orb bottom-[20%] left-[15%] h-56 w-56 bg-brand-secondary/12" />
             </div>
 
             {showBrandIntelModal && activeBrand && (

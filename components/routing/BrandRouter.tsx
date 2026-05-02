@@ -647,6 +647,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     initialProfile={resolvedBrandProfile}
                     onUpdate={(p) => updateBrandProfile(activeBrand.id, p)}
                     addNotification={addNotification}
+                    onNavigate={onNavigate}
                 />
             );
 

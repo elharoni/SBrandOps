@@ -61,6 +61,8 @@ function mapToProfile(data: any, brandName: string): BrandHubProfile {
         valueProp: ext.valueProp as string | undefined,
         brandPromise: ext.brandPromise as string | undefined,
         messagingPillars: (ext.messagingPillars as string[]) ?? [],
+        // Visual assets
+        brandAssets: ext.brandAssets as BrandHubProfile['brandAssets'] | undefined,
     };
 }
 
@@ -131,7 +133,8 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
         profile.contactInfo !== undefined ||
         profile.valueProp !== undefined ||
         profile.brandPromise !== undefined ||
-        profile.messagingPillars !== undefined
+        profile.messagingPillars !== undefined ||
+        profile.brandAssets !== undefined
     );
     if (hasExtended) {
         // Fetch existing extended_profile to merge (avoid overwriting unrelated keys)
@@ -153,6 +156,7 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
             ...(profile.valueProp !== undefined              && { valueProp: profile.valueProp }),
             ...(profile.brandPromise !== undefined           && { brandPromise: profile.brandPromise }),
             ...(profile.messagingPillars !== undefined       && { messagingPillars: profile.messagingPillars }),
+            ...(profile.brandAssets !== undefined            && { brandAssets: profile.brandAssets }),
         };
     }
 

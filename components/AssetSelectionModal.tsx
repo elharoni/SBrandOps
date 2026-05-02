@@ -7,20 +7,20 @@ import { useModalClose } from '../hooks/useModalClose';
 type Step = 'assets' | 'purpose';
 
 const PURPOSE_OPTIONS = [
-    { id: AssetPurpose.Publishing, icon: 'fa-paper-plane',      labelAr: 'النشر والجدولة',  labelEn: 'Publishing',  descAr: 'نشر المحتوى وجدولته',             descEn: 'Post and schedule content' },
-    { id: AssetPurpose.Inbox,      icon: 'fa-comments',         labelAr: 'صندوق الوارد',    labelEn: 'Inbox',       descAr: 'الردود والتعليقات والرسائل',        descEn: 'Messages, comments & replies' },
-    { id: AssetPurpose.Analytics,  icon: 'fa-chart-bar',        labelAr: 'التحليلات',       labelEn: 'Analytics',   descAr: 'سحب بيانات الأداء والإحصاءات',     descEn: 'Pull performance insights' },
-    { id: AssetPurpose.Ads,        icon: 'fa-bullhorn',         labelAr: 'الإعلانات',       labelEn: 'Ads',         descAr: 'مراقبة وتحليل الحملات الإعلانية',  descEn: 'Monitor ad campaigns' },
-    { id: AssetPurpose.Commerce,   icon: 'fa-bag-shopping',     labelAr: 'التجارة',         labelEn: 'Commerce',    descAr: 'المنتجات والطلبات والمبيعات',       descEn: 'Products, orders & sales' },
-    { id: AssetPurpose.Seo,        icon: 'fa-magnifying-glass', labelAr: 'السيو',           labelEn: 'SEO',         descAr: 'البحث والمحتوى وصفحات الموقع',     descEn: 'Search, content & pages' },
+    { id: AssetPurpose.Publishing, icon: 'fa-paper-plane', labelAr: 'النشر والجدولة', labelEn: 'Publishing', descAr: 'نشر المحتوى وجدولته', descEn: 'Post and schedule content' },
+    { id: AssetPurpose.Inbox, icon: 'fa-comments', labelAr: 'صندوق الوارد', labelEn: 'Inbox', descAr: 'الردود والتعليقات والرسائل', descEn: 'Messages, comments & replies' },
+    { id: AssetPurpose.Analytics, icon: 'fa-chart-bar', labelAr: 'التحليلات', labelEn: 'Analytics', descAr: 'سحب بيانات الأداء والإحصاءات', descEn: 'Pull performance insights' },
+    { id: AssetPurpose.Ads, icon: 'fa-bullhorn', labelAr: 'الإعلانات', labelEn: 'Ads', descAr: 'مراقبة وتحليل الحملات الإعلانية', descEn: 'Monitor ad campaigns' },
+    { id: AssetPurpose.Commerce, icon: 'fa-bag-shopping', labelAr: 'التجارة', labelEn: 'Commerce', descAr: 'المنتجات والطلبات والمبيعات', descEn: 'Products, orders & sales' },
+    { id: AssetPurpose.Seo, icon: 'fa-magnifying-glass', labelAr: 'السيو', labelEn: 'SEO', descAr: 'البحث والمحتوى وصفحات الموقع', descEn: 'Search, content & pages' },
 ] as const;
 
 const MARKET_OPTIONS = [
-    { value: 'sa',     flag: '🇸🇦', labelAr: 'السعودية',     labelEn: 'Saudi Arabia' },
-    { value: 'eg',     flag: '🇪🇬', labelAr: 'مصر',          labelEn: 'Egypt' },
-    { value: 'ae',     flag: '🇦🇪', labelAr: 'الإمارات',     labelEn: 'UAE' },
-    { value: 'kw',     flag: '🇰🇼', labelAr: 'الكويت',       labelEn: 'Kuwait' },
-    { value: 'global', flag: '🌐', labelAr: 'عالمي / عام',   labelEn: 'Global' },
+    { value: 'sa', flag: '🇸🇦', labelAr: 'السعودية', labelEn: 'Saudi Arabia' },
+    { value: 'eg', flag: '🇪🇬', labelAr: 'مصر', labelEn: 'Egypt' },
+    { value: 'ae', flag: '🇦🇪', labelAr: 'الإمارات', labelEn: 'UAE' },
+    { value: 'kw', flag: '🇰🇼', labelAr: 'الكويت', labelEn: 'Kuwait' },
+    { value: 'global', flag: '🌐', labelAr: 'عالمي / عام', labelEn: 'Global' },
 ];
 
 interface AssetSelectionModalProps {
@@ -67,11 +67,11 @@ export const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
     const selectedCount = selectedIds.length;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
-            <div className="w-full max-w-md rounded-2xl border border-light-border bg-light-card shadow-2xl dark:border-dark-border dark:bg-dark-card" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-md rounded-3xl border border-black/10 bg-white/70 shadow-2xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 animate-scale-in" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-light-border px-6 py-4 dark:border-dark-border">
+                <div className="flex items-center justify-between border-b border-black/10 px-6 py-4 dark:border-white/10">
                     <div className="flex items-center gap-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${platformAsset.color} text-white`}>
                             <i className={`${platformAsset.icon} text-base`} />
@@ -89,7 +89,7 @@ export const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-light-text-secondary transition-colors hover:bg-light-bg hover:text-light-text dark:hover:bg-dark-bg dark:hover:text-dark-text">
+                    <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-light-text-secondary transition-colors hover:bg-black/5 hover:text-light-text dark:hover:bg-white/10 dark:hover:text-dark-text">
                         <i className="fas fa-xmark text-sm" />
                     </button>
                 </div>
@@ -97,7 +97,7 @@ export const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
                 {/* Step bar */}
                 <div className="flex gap-1.5 px-6 pt-3">
                     {(['assets', 'purpose'] as Step[]).map((s, i) => (
-                        <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${i === 0 || step === 'purpose' ? 'bg-brand-primary' : 'bg-light-border dark:bg-dark-border'}`} />
+                        <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${i === 0 || step === 'purpose' ? 'bg-brand-primary' : 'bg-black/5 dark:bg-white/5'}`} />
                     ))}
                 </div>
 
@@ -186,13 +186,13 @@ export const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 border-t border-light-border px-6 py-4 dark:border-dark-border">
+                <div className="flex justify-end gap-3 border-t border-black/10 px-6 py-4 dark:border-white/10">
                     {step === 'purpose' ? (
-                        <button onClick={() => setStep('assets')} disabled={isLoading} className="rounded-xl border border-light-border px-4 py-2.5 text-sm font-medium text-light-text-secondary hover:bg-light-bg disabled:opacity-50 dark:border-dark-border dark:text-dark-text-secondary dark:hover:bg-dark-bg">
+                        <button onClick={() => setStep('assets')} disabled={isLoading} className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-medium text-light-text-secondary hover:bg-black/5 disabled:opacity-50 dark:border-white/10 dark:text-dark-text-secondary dark:hover:bg-white/5">
                             {ar ? 'رجوع' : 'Back'}
                         </button>
                     ) : (
-                        <button onClick={onClose} disabled={isLoading} className="rounded-xl border border-light-border px-4 py-2.5 text-sm font-medium text-light-text-secondary hover:bg-light-bg disabled:opacity-50 dark:border-dark-border dark:text-dark-text-secondary dark:hover:bg-dark-bg">
+                        <button onClick={onClose} disabled={isLoading} className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-medium text-light-text-secondary hover:bg-black/5 disabled:opacity-50 dark:border-white/10 dark:text-dark-text-secondary dark:hover:bg-white/5">
                             {ar ? 'إلغاء' : 'Cancel'}
                         </button>
                     )}

@@ -113,7 +113,7 @@ const AIInsightsTab: React.FC<{
     type ChipContext = { message: string; type: 'insight' | 'warning' | 'opportunity' } | undefined;
     const quickMetrics = [
         {
-            label: 'Avg. Engagement Rate',
+            label: 'متوسط معدل التفاعل',
             value: `${avgEngRate.toFixed(2)}%`,
             icon: 'fa-heart',
             color: 'text-pink-500',
@@ -121,7 +121,7 @@ const AIInsightsTab: React.FC<{
             aiContext: undefined as ChipContext,
         },
         {
-            label: 'Total Impressions',
+            label: 'مرات الظهور',
             value: data.overallStats.impressions.toLocaleString(),
             icon: 'fa-eye',
             color: 'text-blue-500',
@@ -129,7 +129,7 @@ const AIInsightsTab: React.FC<{
             aiContext: undefined as ChipContext,
         },
         {
-            label: 'Total Followers',
+            label: 'إجمالي المتابعين',
             value: data.overallStats.totalFollowers.toLocaleString(),
             icon: 'fa-users',
             color: 'text-purple-500',
@@ -137,7 +137,7 @@ const AIInsightsTab: React.FC<{
             aiContext: undefined as ChipContext,
         },
         {
-            label: 'Positive Sentiment',
+            label: 'مشاعر إيجابية',
             value: `${data.overallStats.sentiment.positive}%`,
             icon: 'fa-smile',
             color: 'text-green-500',
@@ -214,7 +214,7 @@ const AIInsightsTab: React.FC<{
                         </div>
                         <div className="surface-panel-soft rounded-2xl border-l-[4px] border-l-green-500 p-6">
                             <h4 className="mb-3 flex items-center gap-2 font-bold text-green-700 dark:text-green-300">
-                                <i className="fas fa-trending-up" />
+                                <i className="fas fa-arrow-trend-up" />
                                 {t.analytics.keyTrends}
                             </h4>
                             <p className="leading-relaxed text-light-text-secondary dark:text-dark-text-secondary">{insights.trends}</p>
@@ -562,18 +562,22 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
         let isMounted = true;
 
         const loadReferences = async () => {
-            const [briefResults, watchlistResults, briefRollupResults, watchlistRollupResults] = await Promise.all([
-                getContentBriefs(brandId),
-                getCompetitiveWatchlists(brandId),
-                getBriefPerformanceRollups(brandId, period),
-                getWatchlistPerformanceRollups(brandId, period),
-            ]);
-
-            if (!isMounted) return;
-            setSavedBriefs(briefResults);
-            setWatchlists(watchlistResults);
-            setBriefRollups(briefRollupResults);
-            setWatchlistRollups(watchlistRollupResults);
+            try {
+                const [briefResults, watchlistResults, briefRollupResults, watchlistRollupResults] = await Promise.all([
+                    getContentBriefs(brandId),
+                    getCompetitiveWatchlists(brandId),
+                    getBriefPerformanceRollups(brandId, period),
+                    getWatchlistPerformanceRollups(brandId, period),
+                ]);
+                if (!isMounted) return;
+                setSavedBriefs(briefResults);
+                setWatchlists(watchlistResults);
+                setBriefRollups(briefRollupResults);
+                setWatchlistRollups(watchlistRollupResults);
+            } catch {
+                if (!isMounted) return;
+                addNotification(NotificationType.Error, 'تعذّر تحميل بيانات الـ Briefs والـ Watchlists');
+            }
         };
 
         void loadReferences();
@@ -813,35 +817,35 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
             {/* Connected web measurement summary */}
             {(ga4Source || searchSource) && (
                 <PageSection
-                    title="Connected Web Measurement"
-                    description="Scoped metrics from the saved GA4 property and Search Console site tied to this brand."
+                    title="قياسات الموقع الإلكتروني"
+                    description="مقاييس من خاصية GA4 وموقع Search Console المرتبطَين بهذا البراند."
                 >
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                         {[
                             {
-                                label: 'GA4 Sessions',
+                                label: 'جلسات GA4',
                                 value: (ga4Source?.sessions ?? 0).toLocaleString(),
-                                sub: ga4Source?.propertyName ?? 'No GA4 property selected',
+                                sub: ga4Source?.propertyName ?? 'لا توجد خاصية GA4 محددة',
                                 available: Boolean(ga4Source),
                             },
                             {
-                                label: 'GA4 Revenue',
+                                label: 'إيرادات GA4',
                                 value: `$${Math.round(ga4Source?.revenue ?? 0).toLocaleString()}`,
-                                sub: ga4Source ? `${(ga4Source.bounceRate * 100).toFixed(1)}% bounce rate` : 'No GA4 revenue data yet',
+                                sub: ga4Source ? `${(ga4Source.bounceRate * 100).toFixed(1)}% معدل ارتداد` : 'لا توجد بيانات إيرادات بعد',
                                 available: Boolean(ga4Source),
                             },
                             {
-                                label: 'Search Clicks',
+                                label: 'نقرات البحث',
                                 value: (searchSource?.clicks ?? 0).toLocaleString(),
-                                sub: searchSource?.siteUrl ?? 'No Search Console site selected',
+                                sub: searchSource?.siteUrl ?? 'لا يوجد موقع Search Console محدد',
                                 available: Boolean(searchSource),
                             },
                             {
-                                label: 'Search Impressions',
+                                label: 'ظهور البحث',
                                 value: (searchSource?.impressions ?? 0).toLocaleString(),
                                 sub: searchSource
-                                    ? `CTR ${(searchSource.ctr * 100).toFixed(2)}% · Avg pos ${searchSource.avgPosition.toFixed(1)}`
-                                    : 'No Search Console data yet',
+                                    ? `CTR ${(searchSource.ctr * 100).toFixed(2)}% · متوسط الترتيب ${searchSource.avgPosition.toFixed(1)}`
+                                    : 'لا توجد بيانات Search Console بعد',
                                 available: Boolean(searchSource),
                             },
                         ].map(({ label, value, sub, available }) => (
@@ -860,16 +864,16 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
 
             {/* Brief & Watchlist attribution */}
             <PageSection
-                title="Brief & Watchlist Performance"
-                description="Rollups from attributed post analytics, with fallback counts when attribution sync has not populated metrics yet."
+                title="أداء البريفات والـ Watchlists"
+                description="تجميع من تحليلات المنشورات المنسوبة — مع أعداد احتياطية عند عدم اكتمال المزامنة."
             >
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
                     <div className="space-y-4">
                         <div className="grid gap-3 md:grid-cols-3">
                             {[
-                                { label: 'Saved Briefs', value: savedBriefs.length },
-                                { label: 'Attributed Posts', value: attributedPostsCount },
-                                { label: 'Attributed Impressions', value: attributedImpressions.toLocaleString() },
+                                { label: 'البريفات المحفوظة', value: savedBriefs.length },
+                                { label: 'منشورات منسوبة', value: attributedPostsCount },
+                                { label: 'مرات ظهور منسوبة', value: attributedImpressions.toLocaleString() },
                             ].map(({ label, value }) => (
                                 <div key={label} className="rounded-2xl border border-light-border bg-light-surface p-4 dark:border-dark-border dark:bg-dark-surface">
                                     <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
@@ -880,13 +884,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
 
                         <div className="rounded-2xl border border-light-border bg-light-card p-4 dark:border-dark-border dark:bg-dark-card">
                             <div className="mb-4 flex items-center justify-between">
-                                <h3 className="font-semibold text-light-text dark:text-dark-text">Top performing briefs</h3>
-                                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Direct metrics from attributed post analytics</span>
+                                <h3 className="font-semibold text-light-text dark:text-dark-text">أفضل البريفات أداءً</h3>
+                                <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">مقاييس مباشرة من تحليلات المنشورات المنسوبة</span>
                             </div>
                             <div className="space-y-3">
                                 {briefPerformanceRows.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-light-border bg-light-bg p-4 text-sm text-light-text-secondary dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-secondary">
-                                        لا توجد briefs مرتبطة بمنشورات بعد.
+                                        لا توجد بريفات مرتبطة بمنشورات بعد.
                                     </div>
                                 ) : (
                                     briefPerformanceRows.slice(0, 5).map(({ brief, linkedPosts, publishedCount, scheduledCount, totalImpressions, totalEngagement, totalClicks, platformSpread, lastPublishedAt }) => (
@@ -897,16 +901,16 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                                                     <p className="mt-1 text-xs text-light-text-secondary dark:text-dark-text-secondary">{brief.angle}</p>
                                                 </div>
                                                 <span className="rounded-full bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold text-brand-primary">
-                                                    {publishedCount} published
+                                                    {publishedCount} منشور
                                                 </span>
                                             </div>
                                             <div className="mt-3 grid gap-3 sm:grid-cols-5">
                                                 {[
-                                                    { label: 'Linked', value: linkedPosts },
-                                                    { label: 'Scheduled', value: scheduledCount },
-                                                    { label: 'Impressions', value: totalImpressions.toLocaleString() },
-                                                    { label: 'Engagement', value: totalEngagement.toLocaleString() },
-                                                    { label: 'Platforms', value: platformSpread },
+                                                    { label: 'مرتبط', value: linkedPosts },
+                                                    { label: 'مجدول', value: scheduledCount },
+                                                    { label: 'ظهور', value: totalImpressions.toLocaleString() },
+                                                    { label: 'تفاعل', value: totalEngagement.toLocaleString() },
+                                                    { label: 'منصات', value: platformSpread },
                                                 ].map(({ label, value }) => (
                                                     <div key={label}>
                                                         <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
@@ -915,8 +919,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                                                 ))}
                                             </div>
                                             <div className="mt-3 flex items-center justify-between text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
-                                                <span>Clicks: {totalClicks.toLocaleString()}</span>
-                                                <span>{lastPublishedAt ? `Last published ${new Date(lastPublishedAt).toLocaleDateString()}` : 'No published date yet'}</span>
+                                                <span>نقرات: {totalClicks.toLocaleString()}</span>
+                                                <span>{lastPublishedAt ? `آخر نشر ${new Date(lastPublishedAt).toLocaleDateString('ar-EG')}` : 'لا يوجد تاريخ نشر بعد'}</span>
                                             </div>
                                         </div>
                                     ))
@@ -927,13 +931,13 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
 
                     <div className="rounded-2xl border border-light-border bg-light-card p-4 dark:border-dark-border dark:bg-dark-card">
                         <div className="mb-4 flex items-center justify-between">
-                            <h3 className="font-semibold text-light-text dark:text-dark-text">Watchlist influence</h3>
-                            <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Rollups across briefs and posts</span>
+                            <h3 className="font-semibold text-light-text dark:text-dark-text">تأثير الـ Watchlists</h3>
+                            <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">تجميع عبر البريفات والمنشورات</span>
                         </div>
                         <div className="space-y-3">
                             {watchlistPerformanceRows.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-light-border bg-light-bg p-4 text-sm text-light-text-secondary dark:border-dark-border dark:bg-dark-bg dark:text-dark-text-secondary">
-                                    لا توجد watchlists مرتبطة بـ briefs أو منشورات حتى الآن.
+                                    لا توجد Watchlists مرتبطة ببريفات أو منشورات حتى الآن.
                                 </div>
                             ) : (
                                 watchlistPerformanceRows.slice(0, 5).map(({ watchlist, briefsCount, linkedPosts, publishedCount, scheduledCount, totalImpressions, totalEngagement, totalClicks, platformSpread, lastPublishedAt }) => (
@@ -944,14 +948,14 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                                                 <p className="mt-1 text-xs text-light-text-secondary dark:text-dark-text-secondary">{watchlist.query}</p>
                                             </div>
                                             <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                                {publishedCount} published
+                                                {publishedCount} منشور
                                             </span>
                                         </div>
                                         <div className="mt-3 grid grid-cols-3 gap-3">
                                             {[
-                                                { label: 'Briefs', value: briefsCount },
-                                                { label: 'Linked', value: linkedPosts },
-                                                { label: 'Scheduled', value: scheduledCount },
+                                                { label: 'بريفات', value: briefsCount },
+                                                { label: 'مرتبط', value: linkedPosts },
+                                                { label: 'مجدول', value: scheduledCount },
                                             ].map(({ label, value }) => (
                                                 <div key={label}>
                                                     <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
@@ -961,9 +965,9 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                                         </div>
                                         <div className="mt-3 grid grid-cols-3 gap-3">
                                             {[
-                                                { label: 'Impressions', value: totalImpressions.toLocaleString() },
-                                                { label: 'Engagement', value: totalEngagement.toLocaleString() },
-                                                { label: 'Platforms', value: platformSpread },
+                                                { label: 'ظهور', value: totalImpressions.toLocaleString() },
+                                                { label: 'تفاعل', value: totalEngagement.toLocaleString() },
+                                                { label: 'منصات', value: platformSpread },
                                             ].map(({ label, value }) => (
                                                 <div key={label}>
                                                     <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
@@ -972,8 +976,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
                                             ))}
                                         </div>
                                         <div className="mt-3 flex items-center justify-between text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
-                                            <span>Clicks: {totalClicks.toLocaleString()}</span>
-                                            <span>{lastPublishedAt ? `Last published ${new Date(lastPublishedAt).toLocaleDateString()}` : 'No published date yet'}</span>
+                                            <span>نقرات: {totalClicks.toLocaleString()}</span>
+                                            <span>{lastPublishedAt ? `آخر نشر ${new Date(lastPublishedAt).toLocaleDateString('ar-EG')}` : 'لا يوجد تاريخ نشر بعد'}</span>
                                         </div>
                                     </div>
                                 ))

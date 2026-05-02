@@ -9,11 +9,11 @@ interface Props {
 }
 
 const tabs = (ar: boolean) => [
-    { id: 'mobile-home',    icon: 'fa-home',        label: ar ? 'الرئيسية' : 'Home'      },
-    { id: 'inbox',          icon: 'fa-inbox',        label: ar ? 'الرسائل'  : 'Inbox'     },
-    { id: 'content-studio', icon: 'fa-pen-nib',      label: ar ? 'المحتوى'  : 'Content'   },
-    { id: 'analytics',      icon: 'fa-chart-pie',    label: ar ? 'الأداء'   : 'Analytics' },
-    { id: '__menu__',       icon: 'fa-bars',          label: ar ? 'المزيد'   : 'More'      },
+    { id: 'mobile-home', icon: 'fa-home', label: ar ? 'الرئيسية' : 'Home' },
+    { id: 'inbox', icon: 'fa-inbox', label: ar ? 'الرسائل' : 'Inbox' },
+    { id: 'content-studio', icon: 'fa-pen-nib', label: ar ? 'المحتوى' : 'Content' },
+    { id: 'analytics', icon: 'fa-chart-pie', label: ar ? 'الأداء' : 'Analytics' },
+    { id: '__menu__', icon: 'fa-bars', label: ar ? 'المزيد' : 'More' },
 ];
 
 export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpenSidebar, unreadCount = 0 }) => {
@@ -28,6 +28,7 @@ export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpe
         >
             {/* Blur backdrop */}
             <div className="absolute inset-0 bg-white/85 dark:bg-[#070e1c]/90 backdrop-blur-[20px] saturate-150 border-t border-light-border/60 dark:border-dark-border/50" />
+            <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-black/10 dark:border-white/10" />
 
             <div className="relative flex items-center justify-around px-2 pt-2 pb-2">
                 {navTabs.map(tab => {
@@ -47,11 +48,10 @@ export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpe
                             )}
 
                             <div className="relative">
-                                <i className={`fas ${tab.icon} text-lg transition-all duration-200 ${
-                                    isActive
+                                <i className={`fas ${tab.icon} text-lg transition-all duration-200 ${isActive
                                         ? 'text-brand-primary'
                                         : 'text-light-text-secondary dark:text-dark-text-secondary'
-                                }`} />
+                                    }`} />
                                 {tab.id === 'inbox' && unreadCount > 0 && (
                                     <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
                                         {unreadCount > 9 ? '9+' : unreadCount}
@@ -59,11 +59,10 @@ export const MobileBottomNav: React.FC<Props> = ({ activePage, onNavigate, onOpe
                                 )}
                             </div>
 
-                            <span className={`text-[10px] font-medium transition-colors duration-200 ${
-                                isActive
+                            <span className={`text-[10px] font-medium transition-colors duration-200 ${isActive
                                     ? 'text-brand-primary'
                                     : 'text-light-text-secondary dark:text-dark-text-secondary'
-                            }`}>
+                                }`}>
                                 {tab.label}
                             </span>
                         </button>

@@ -380,6 +380,10 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
             setSaveDetails([...details]);
         };
 
+        // Prevent the 3000-char validation limit from aborting the entire save
+        const trunc = (text: string, max = 2800) =>
+            text.length > max ? text.slice(0, max) + '…' : text;
+
         try {
             let brandId: string;
             let brandName: string;
@@ -455,31 +459,40 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                 strategyEntries.push({ title: 'أسئلة المتابعة الموصى بها', content: extracted.businessNotes.recommended_next_questions.map((item, index) => `${index + 1}. ${item}`).join('\n') });
             }
 
+            // Resilient: skip individual entries that fail instead of aborting all
+            let savedStrategy = 0;
             for (let i = 0; i < strategyEntries.length; i++) {
-                await addKnowledgeEntry(brandId, {
-                    type: 'policy',
-                    title: strategyEntries[i].title,
-                    content: strategyEntries[i].content,
-                    metadata: { source: 'brand_import', category: 'strategy' },
-                    sortOrder: i,
-                });
+                try {
+                    await addKnowledgeEntry(brandId, {
+                        type: 'policy',
+                        title: strategyEntries[i].title,
+                        content: trunc(strategyEntries[i].content),
+                        metadata: { source: 'brand_import', category: 'strategy' },
+                        sortOrder: i,
+                    });
+                    savedStrategy++;
+                } catch { /* skip oversized/invalid entry, continue with rest */ }
             }
-            if (strategyEntries.length) addDetail(`✅ ${strategyEntries.length} عناصر هوية واستراتيجية حُفظت`);
+            if (savedStrategy) addDetail(`✅ ${savedStrategy} عناصر هوية واستراتيجية حُفظت`);
 
             // ── 4. Knowledge entries (products, FAQ, policies, competitors) ───
             setSaveProgress(`جاري حفظ قاعدة المعرفة (${extracted.knowledgeEntries.length} إدخال)...`);
             const validTypes = ['product', 'faq', 'policy', 'competitor', 'scenario_script'];
+            let savedKnowledge = 0;
             for (let i = 0; i < extracted.knowledgeEntries.length; i++) {
                 const e = extracted.knowledgeEntries[i];
-                await addKnowledgeEntry(brandId, {
-                    type: validTypes.includes(e.type) ? (e.type as any) : 'product',
-                    title: e.title,
-                    content: e.content,
-                    metadata: { source: 'brand_import' },
-                    sortOrder: i,
-                });
+                try {
+                    await addKnowledgeEntry(brandId, {
+                        type: validTypes.includes(e.type) ? (e.type as any) : 'product',
+                        title: e.title,
+                        content: trunc(e.content),
+                        metadata: { source: 'brand_import' },
+                        sortOrder: i,
+                    });
+                    savedKnowledge++;
+                } catch { /* skip entry, continue */ }
             }
-            if (extracted.knowledgeEntries.length) addDetail(`✅ ${extracted.knowledgeEntries.length} إدخالات معرفة (منتجات/FAQ/سياسات/منافسين)`);
+            if (savedKnowledge) addDetail(`✅ ${savedKnowledge} إدخالات معرفة (منتجات/FAQ/سياسات/منافسين)`);
 
             // ── 5. Sample content → brand_memory ──────────────────────────────
             if (extracted.sampleContent.length > 0) {
@@ -553,27 +566,82 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
 
     const filledFiles = files.filter(f => f.text.trim() || f.binaryData).length;
 
+    const isCreating = !existingBrandId;
+
+    // Step labels for the creation wizard indicator
+    const STEPS: { key: Step; label: string }[] = [
+        { key: 'input',     label: 'رفع الوثائق' },
+        { key: 'analyzing', label: 'التحليل بالـ AI' },
+        { key: 'preview',   label: 'مراجعة البيانات' },
+        { key: 'saving',    label: 'بناء البراند' },
+    ];
+    const currentStepIdx = STEPS.findIndex(s => s.key === step || (step === 'done' && s.key === 'saving'));
+
     return (
         <div
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={onClose}
+            className={isCreating
+                ? 'fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-light-bg via-light-card to-brand-primary/5 dark:from-dark-bg dark:via-dark-card dark:to-brand-primary/10'
+                : 'fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4'
+            }
+            onClick={isCreating ? undefined : onClose}
             onDragOver={e => e.preventDefault()}
             onDrop={step === 'input' ? handleDrop : undefined}
         >
+            {/* ── Full-screen top bar (create mode only) ─────────────────────── */}
+            {isCreating && (
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-light-border dark:border-dark-border bg-light-card/80 dark:bg-dark-card/80 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                        <span className="text-2xl">🏗️</span>
+                        <div>
+                            <h1 className="font-bold text-light-text dark:text-dark-text text-base">بناء براند من مستند</h1>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">يستخرج OpenAI الهوية، الاستراتيجية، والمحتوى في ثوانٍ</p>
+                        </div>
+                    </div>
+
+                    {/* Step indicator */}
+                    <div className="hidden sm:flex items-center gap-0">
+                        {STEPS.map((s, idx) => (
+                            <React.Fragment key={s.key}>
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                    idx < currentStepIdx
+                                        ? 'text-green-600 dark:text-green-400'
+                                        : idx === currentStepIdx
+                                        ? 'bg-brand-primary/15 text-brand-primary font-semibold'
+                                        : 'text-light-text-secondary/50 dark:text-dark-text-secondary/50'
+                                }`}>
+                                    <span>{idx < currentStepIdx ? '✓' : `${idx + 1}`}</span>
+                                    <span>{s.label}</span>
+                                </div>
+                                {idx < STEPS.length - 1 && (
+                                    <span className={`text-xs mx-1 ${idx < currentStepIdx ? 'text-green-500' : 'text-light-border dark:text-dark-border'}`}>›</span>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
+
+                    <button type="button" onClick={onClose}
+                        className="text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-light-bg dark:hover:bg-dark-bg">
+                        &times;
+                    </button>
+                </div>
+            )}
+
             <div
-                className="bg-light-card dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col"
-                onClick={e => e.stopPropagation()}
+                className={isCreating
+                    ? 'flex-1 overflow-hidden flex flex-col w-full max-w-3xl mx-auto'
+                    : 'bg-light-card dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col'
+                }
+                onClick={isCreating ? undefined : e => e.stopPropagation()}
             >
-                {/* ── Header ─────────────────────────────────────────────────── */}
+                {/* ── Header (modal/update mode only) ────────────────────────── */}
+                {!isCreating && (
                 <div className="p-5 border-b border-light-border dark:border-dark-border flex justify-between items-start flex-shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-light-text dark:text-dark-text">
-                            {existingBrandId ? 'إضافة وثائق إلى البراند' : 'استيراد بيانات براند جديد'}
+                            إضافة وثائق إلى البراند
                         </h2>
                         <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary mt-0.5">
-                            {existingBrandId
-                                ? 'ارفع وثائق جديدة لتعميق معرفة البراند وتدريب الذاكرة'
-                                : 'يدعم ملفات متعددة — يستخرج كل شيء ويبني مكتبة تعلم كاملة'}
+                            ارفع وثائق جديدة لتعميق معرفة البراند وتدريب الذاكرة
                         </p>
                     </div>
                     <button type="button" onClick={onClose}
@@ -581,9 +649,10 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                         &times;
                     </button>
                 </div>
+                )}
 
                 {/* ── Body ───────────────────────────────────────────────────── */}
-                <div className="flex-1 overflow-y-auto p-5">
+                <div className={`flex-1 overflow-y-auto ${isCreating ? 'p-6' : 'p-5'}`}>
 
                     {/* ══ INPUT ══════════════════════════════════════════════════ */}
                     {step === 'input' && (
@@ -930,12 +999,21 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
 
                     {/* ══ DONE ═══════════════════════════════════════════════════ */}
                     {step === 'done' && (
-                        <div className="flex flex-col items-center justify-center py-12 gap-4">
-                            <div className="w-20 h-20 rounded-full bg-green-500/15 flex items-center justify-center text-4xl">✅</div>
-                            <p className="text-xl font-bold text-light-text dark:text-dark-text">تم البناء الكامل!</p>
-                            <div className="text-center space-y-1 max-w-xs">
+                        <div className={`flex flex-col items-center justify-center gap-6 ${isCreating ? 'py-20' : 'py-12'}`}>
+                            <div className={`rounded-full bg-green-500/15 flex items-center justify-center ${isCreating ? 'w-28 h-28 text-6xl' : 'w-20 h-20 text-4xl'}`}>✅</div>
+                            <div className="text-center space-y-2">
+                                <p className={`font-bold text-light-text dark:text-dark-text ${isCreating ? 'text-3xl' : 'text-xl'}`}>
+                                    {isCreating ? '🎉 البراند جاهز!' : 'تم البناء الكامل!'}
+                                </p>
+                                {isCreating && (
+                                    <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm">
+                                        تم بناء هوية البراند الكاملة، ذاكرة الـ AI، وقاعدة المعرفة تلقائياً
+                                    </p>
+                                )}
+                            </div>
+                            <div className={`grid gap-2 w-full ${isCreating ? 'max-w-md grid-cols-1' : 'max-w-xs'}`}>
                                 {saveDetails.map((d, i) => (
-                                    <p key={i} className="text-sm text-light-text-secondary dark:text-dark-text-secondary">{d}</p>
+                                    <p key={i} className={`text-center ${isCreating ? 'text-sm bg-light-bg dark:bg-dark-bg rounded-lg px-4 py-2 text-light-text dark:text-dark-text' : 'text-sm text-light-text-secondary dark:text-dark-text-secondary'}`}>{d}</p>
                                 ))}
                             </div>
                         </div>
@@ -944,7 +1022,7 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
 
                 {/* ── Footer ─────────────────────────────────────────────────── */}
                 {(step === 'input' || step === 'preview') && (
-                    <div className="p-4 border-t border-light-border dark:border-dark-border flex justify-between items-center flex-shrink-0">
+                    <div className={`border-t border-light-border dark:border-dark-border flex justify-between items-center flex-shrink-0 ${isCreating ? 'px-6 py-5 bg-light-card/60 dark:bg-dark-card/60 backdrop-blur-sm' : 'p-4'}`}>
                         {step === 'preview' ? (
                             <>
                                 <button type="button" onClick={() => { setStep('input'); setError(null); }}
@@ -956,8 +1034,8 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                         {completeness}% اكتمال
                                     </span>
                                     <button type="button" onClick={handleSave}
-                                        className="bg-brand-primary text-white font-bold py-2 px-6 rounded-lg hover:bg-brand-secondary">
-                                        بناء البراند الكامل ✓
+                                        className={`bg-brand-primary text-white font-bold rounded-xl hover:bg-brand-secondary shadow-lg shadow-brand-primary/20 transition-all ${isCreating ? 'py-3 px-10 text-base' : 'py-2 px-6'}`}>
+                                        {isCreating ? '🚀 إنشاء البراند الآن' : 'بناء البراند الكامل ✓'}
                                     </button>
                                 </div>
                             </>
@@ -971,11 +1049,11 @@ export const BrandImportModal: React.FC<Props> = ({ onClose, onImported, existin
                                     type="button"
                                     onClick={handleAnalyze}
                                     disabled={filledFiles === 0 || isLoadingFile || analysisState === 'analyzing'}
-                                    className="bg-brand-primary text-white font-bold py-2 px-6 rounded-lg disabled:bg-gray-500 hover:bg-brand-secondary flex items-center gap-2">
+                                    className={`bg-brand-primary text-white font-bold rounded-xl disabled:bg-gray-500 hover:bg-brand-secondary flex items-center gap-2 shadow-lg shadow-brand-primary/20 transition-all ${isCreating ? 'py-3 px-10 text-base' : 'py-2 px-6'}`}>
                                     <span>{analysisState === 'failed' ? '↻' : '🧠'}</span>
                                     {analysisState === 'failed'
                                         ? 'إعادة التحليل'
-                                        : `تحليل ${filledFiles > 1 ? `${filledFiles} وثائق` : 'الوثيقة'}`}
+                                        : `تحليل ${filledFiles > 1 ? `${filledFiles} وثائق` : 'الوثيقة'} بالـ AI`}
                                 </button>
                             </>
                         )}

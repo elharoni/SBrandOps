@@ -9,16 +9,16 @@ import { uploadFile } from '../services/storageService';
 // ── Format groups (compact, for the editor side panel) ────────────────────────
 
 const EDITOR_PLATFORM_GROUPS = [
-    { id: 'ig',        nameAr: 'إنستاغرام', icon: 'fab fa-instagram',  color: 'text-pink-500',   formats: ['instagram-post', 'instagram-portrait', 'instagram-story', 'instagram-reel-cover'] },
-    { id: 'fb',        nameAr: 'فيسبوك',    icon: 'fab fa-facebook',   color: 'text-blue-400',   formats: ['facebook-post', 'facebook-story'] },
-    { id: 'tiktok',    nameAr: 'تيك توك',   icon: 'fab fa-tiktok',     color: 'text-white',      formats: ['tiktok-cover'] },
-    { id: 'x',         nameAr: 'X',         icon: 'fab fa-x-twitter',  color: 'text-white',      formats: ['twitter-post', 'twitter-portrait'] },
-    { id: 'linkedin',  nameAr: 'لينكدإن',   icon: 'fab fa-linkedin',   color: 'text-blue-400',   formats: ['linkedin-post', 'linkedin-banner'] },
-    { id: 'youtube',   nameAr: 'يوتيوب',    icon: 'fab fa-youtube',    color: 'text-red-500',    formats: ['youtube-thumbnail'] },
-    { id: 'pinterest', nameAr: 'بينتريست',  icon: 'fab fa-pinterest',  color: 'text-red-500',    formats: ['pinterest-pin'] },
-    { id: 'snap',      nameAr: 'سناب',      icon: 'fab fa-snapchat',   color: 'text-yellow-400', formats: ['snapchat-story'] },
-    { id: 'whatsapp',  nameAr: 'واتساب',    icon: 'fab fa-whatsapp',   color: 'text-green-500',  formats: ['whatsapp-status'] },
-    { id: 'ads',       nameAr: 'إعلانات',   icon: 'fas fa-rectangle-ad', color: 'text-orange-400', formats: ['ad-banner-square', 'ad-banner-landscape', 'ad-banner-portrait'] },
+    { id: 'ig', nameAr: 'إنستاغرام', icon: 'fab fa-instagram', color: 'text-pink-500', formats: ['instagram-post', 'instagram-portrait', 'instagram-story', 'instagram-reel-cover'] },
+    { id: 'fb', nameAr: 'فيسبوك', icon: 'fab fa-facebook', color: 'text-blue-400', formats: ['facebook-post', 'facebook-story'] },
+    { id: 'tiktok', nameAr: 'تيك توك', icon: 'fab fa-tiktok', color: 'text-white', formats: ['tiktok-cover'] },
+    { id: 'x', nameAr: 'X', icon: 'fab fa-x-twitter', color: 'text-white', formats: ['twitter-post', 'twitter-portrait'] },
+    { id: 'linkedin', nameAr: 'لينكدإن', icon: 'fab fa-linkedin', color: 'text-blue-400', formats: ['linkedin-post', 'linkedin-banner'] },
+    { id: 'youtube', nameAr: 'يوتيوب', icon: 'fab fa-youtube', color: 'text-red-500', formats: ['youtube-thumbnail'] },
+    { id: 'pinterest', nameAr: 'بينتريست', icon: 'fab fa-pinterest', color: 'text-red-500', formats: ['pinterest-pin'] },
+    { id: 'snap', nameAr: 'سناب', icon: 'fab fa-snapchat', color: 'text-yellow-400', formats: ['snapchat-story'] },
+    { id: 'whatsapp', nameAr: 'واتساب', icon: 'fab fa-whatsapp', color: 'text-green-500', formats: ['whatsapp-status'] },
+    { id: 'ads', nameAr: 'إعلانات', icon: 'fas fa-rectangle-ad', color: 'text-orange-400', formats: ['ad-banner-square', 'ad-banner-landscape', 'ad-banner-portrait'] },
 ] as const;
 
 type FitMode = 'crop' | 'fit' | 'fill';
@@ -44,8 +44,8 @@ const RAW_PREVIEW_W = 300;
 
 function calcPreview(fmt: DesignWorkflowFormat) {
     const rawH = RAW_PREVIEW_W * fmt.height / fmt.width;
-    const h    = Math.min(rawH, MAX_PREVIEW_H);
-    const w    = rawH > MAX_PREVIEW_H ? Math.round(MAX_PREVIEW_H * fmt.width / fmt.height) : RAW_PREVIEW_W;
+    const h = Math.min(rawH, MAX_PREVIEW_H);
+    const w = rawH > MAX_PREVIEW_H ? Math.round(MAX_PREVIEW_H * fmt.width / fmt.height) : RAW_PREVIEW_W;
     return { w, h };
 }
 
@@ -64,35 +64,35 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
     useModalClose(onClose);
 
     // ── Tab & format ────────────────────────────────────────────────────────
-    const [activeTab,     setActiveTab]     = useState<ActiveTab>('size');
-    const [targetFormat,  setTargetFormat]  = useState<DesignWorkflowFormat>(
+    const [activeTab, setActiveTab] = useState<ActiveTab>('size');
+    const [targetFormat, setTargetFormat] = useState<DesignWorkflowFormat>(
         sourceFormat ?? DESIGN_FORMAT_MAP['instagram-post']
     );
     const [activePlatform, setActivePlatform] = useState('ig');
 
     // ── Fit mode & canvas position ──────────────────────────────────────────
-    const [fitMode,  setFitMode]  = useState<FitMode>('crop');
-    const [zoom,     setZoom]     = useState(1);
-    const [offsetX,  setOffsetX]  = useState(0);
-    const [offsetY,  setOffsetY]  = useState(0);
+    const [fitMode, setFitMode] = useState<FitMode>('crop');
+    const [zoom, setZoom] = useState(1);
+    const [offsetX, setOffsetX] = useState(0);
+    const [offsetY, setOffsetY] = useState(0);
 
     // ── Image natural size ───────────────────────────────────────────────────
     const [imgNatW, setImgNatW] = useState(0);
     const [imgNatH, setImgNatH] = useState(0);
 
     // ── Adjustments ─────────────────────────────────────────────────────────
-    const [brightness,  setBrightness]  = useState(100);
-    const [contrast,    setContrast]    = useState(100);
-    const [saturation,  setSaturation]  = useState(100);
-    const [sepia,       setSepia]       = useState(0);
-    const [grayscale,   setGrayscale]   = useState(0);
+    const [brightness, setBrightness] = useState(100);
+    const [contrast, setContrast] = useState(100);
+    const [saturation, setSaturation] = useState(100);
+    const [sepia, setSepia] = useState(0);
+    const [grayscale, setGrayscale] = useState(0);
 
     // ── Export state ─────────────────────────────────────────────────────────
-    const [isSaving,  setIsSaving]  = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // ── Drag ────────────────────────────────────────────────────────────────
-    const isDragging  = useRef(false);
-    const dragOrigin  = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+    const isDragging = useRef(false);
+    const dragOrigin = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
 
     // ── Derived preview dimensions ───────────────────────────────────────────
     const { w: PREV_W, h: PREV_H } = calcPreview(targetFormat);
@@ -181,11 +181,11 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
     // ── Export to canvas → dataURL ────────────────────────────────────────────
     const exportToDataUrl = useCallback(async (): Promise<string> => {
         const canvas = document.createElement('canvas');
-        canvas.width  = targetFormat.width;
+        canvas.width = targetFormat.width;
         canvas.height = targetFormat.height;
         const ctx = canvas.getContext('2d')!;
 
-        const exportScaleX = targetFormat.width  / PREV_W;
+        const exportScaleX = targetFormat.width / PREV_W;
         const exportScaleY = targetFormat.height / PREV_H;
 
         if (fitMode === 'fit') {
@@ -201,10 +201,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
         if (!src.complete) await new Promise<void>(r => { src.onload = () => r(); src.onerror = () => r(); });
 
         ctx.drawImage(src,
-            imgX  * exportScaleX,
-            imgY  * exportScaleY,
-            imgW  * exportScaleX,
-            imgH  * exportScaleY,
+            imgX * exportScaleX,
+            imgY * exportScaleY,
+            imgW * exportScaleX,
+            imgH * exportScaleY,
         );
 
         ctx.filter = 'none';
@@ -226,22 +226,22 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
         setIsSaving(true);
         try {
             const dataUrl = await exportToDataUrl();
-            const blob  = await (await fetch(dataUrl)).blob();
+            const blob = await (await fetch(dataUrl)).blob();
             const fname = `edited-${targetFormat.format}-${Date.now()}.jpg`;
-            const file  = new File([blob], fname, { type: 'image/jpeg' });
+            const file = new File([blob], fname, { type: 'image/jpeg' });
 
             const upload = await uploadFile(file, 'design-assets', brandId);
-            const url    = upload.success && upload.url ? upload.url : dataUrl;
+            const url = upload.success && upload.url ? upload.url : dataUrl;
 
             const asset = await createDesignAsset(brandId, {
-                name:        `تصميم معدّل — ${targetFormat.labelAr}`,
+                name: `تصميم معدّل — ${targetFormat.labelAr}`,
                 url,
                 thumbnailUrl: url,
-                type:        'image',
-                source:      'ai-generated',
-                tags:        ['edited', targetFormat.format],
-                width:       targetFormat.width,
-                height:      targetFormat.height,
+                type: 'image',
+                source: 'ai-generated',
+                tags: ['edited', targetFormat.format],
+                width: targetFormat.width,
+                height: targetFormat.height,
                 aspectRatio: targetFormat.aspectRatio,
             });
             onSaveToLibrary(asset);
@@ -265,11 +265,11 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"
             onClick={onClose}
         >
             <div
-                className="bg-dark-card rounded-2xl shadow-2xl border border-dark-border w-full max-w-5xl flex flex-col max-h-[92vh]"
+                className="rounded-3xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/50 backdrop-blur-2xl backdrop-saturate-150 w-full max-w-5xl flex flex-col max-h-[92vh] animate-scale-in"
                 onClick={e => e.stopPropagation()}
             >
                 {/* ── Header ── */}
@@ -333,11 +333,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`flex-1 py-3 text-xs font-bold transition ${
-                                        activeTab === tab
+                                    className={`flex-1 py-3 text-xs font-bold transition ${activeTab === tab
                                             ? 'text-brand-secondary border-b-2 border-brand-primary'
                                             : 'text-dark-text-secondary hover:text-white'
-                                    }`}
+                                        }`}
                                 >
                                     {tab === 'size' ? '↔ المقاس والمنصة' : '🎨 التعديلات'}
                                 </button>
@@ -355,11 +354,10 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
                                             <button
                                                 key={pg.id}
                                                 onClick={() => setActivePlatform(pg.id)}
-                                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                                                    activePlatform === pg.id
+                                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${activePlatform === pg.id
                                                         ? 'border-brand-primary bg-brand-primary text-white'
                                                         : 'border-dark-border text-dark-text-secondary hover:border-brand-primary/40 bg-dark-bg'
-                                                }`}
+                                                    }`}
                                             >
                                                 <i className={`${pg.icon} text-[9px] ${activePlatform === pg.id ? 'text-white' : pg.color}`} />
                                                 {pg.nameAr}
@@ -377,18 +375,17 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
                                                 <button
                                                     key={fmt.format}
                                                     onClick={() => setTargetFormat(fmt)}
-                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-start transition ${
-                                                        isActive
+                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-start transition ${isActive
                                                             ? 'border-brand-primary bg-brand-primary/10'
                                                             : 'border-dark-border bg-dark-bg hover:border-brand-primary/30'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {/* Mini aspect ratio box */}
                                                     {(() => {
                                                         const maxW = 24, maxH = 30;
                                                         const r = fmt.width / fmt.height;
                                                         const bw = r >= 1 ? maxW : Math.round(maxH * r);
-                                                        const bh = r < 1  ? maxH : Math.round(maxW / r);
+                                                        const bh = r < 1 ? maxH : Math.round(maxW / r);
                                                         return (
                                                             <div style={{ width: maxW, height: maxH }} className="flex items-center justify-center flex-shrink-0">
                                                                 <div
@@ -420,18 +417,17 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
                                         <div className="grid grid-cols-3 gap-1.5">
                                             {([
                                                 { id: 'crop', labelAr: 'اقتصاص', icon: 'fa-crop', tip: 'يملأ الإطار' },
-                                                { id: 'fit',  labelAr: 'ملاءمة', icon: 'fa-compress', tip: 'بحواف سوداء' },
+                                                { id: 'fit', labelAr: 'ملاءمة', icon: 'fa-compress', tip: 'بحواف سوداء' },
                                                 { id: 'fill', labelAr: 'تكبير', icon: 'fa-expand', tip: 'ملء مع تكبير' },
                                             ] as const).map(m => (
                                                 <button
                                                     key={m.id}
                                                     onClick={() => setFitMode(m.id)}
                                                     title={m.tip}
-                                                    className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-[10px] font-bold transition ${
-                                                        fitMode === m.id
+                                                    className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-[10px] font-bold transition ${fitMode === m.id
                                                             ? 'border-brand-primary bg-brand-primary/10 text-brand-secondary'
                                                             : 'border-dark-border text-dark-text-secondary hover:border-brand-primary/30'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <i className={`fas ${m.icon} text-xs`} />
                                                     {m.labelAr}
@@ -477,8 +473,8 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
                                 <div className="space-y-5">
                                     {([
                                         { label: 'السطوع', value: brightness, set: setBrightness, min: 0, max: 200, default: 100 },
-                                        { label: 'التباين', value: contrast,   set: setContrast,   min: 0, max: 200, default: 100 },
-                                        { label: 'التشبع',  value: saturation, set: setSaturation, min: 0, max: 200, default: 100 },
+                                        { label: 'التباين', value: contrast, set: setContrast, min: 0, max: 200, default: 100 },
+                                        { label: 'التشبع', value: saturation, set: setSaturation, min: 0, max: 200, default: 100 },
                                         { label: 'دفء (Sepia)', value: sepia, set: setSepia, min: 0, max: 100, default: 0 },
                                         { label: 'أبيض وأسود', value: grayscale, set: setGrayscale, min: 0, max: 100, default: 0 },
                                     ] as const).map(s => (
@@ -568,14 +564,14 @@ export const DesignEditorModal: React.FC<DesignEditorModalProps> = ({
                                 alt="preview"
                                 draggable={false}
                                 style={{
-                                    position:       'absolute',
-                                    left:           imgX,
-                                    top:            imgY,
-                                    width:          imgW,
-                                    height:         imgH,
-                                    filter:         filterStr,
-                                    userSelect:     'none',
-                                    pointerEvents:  'none',
+                                    position: 'absolute',
+                                    left: imgX,
+                                    top: imgY,
+                                    width: imgW,
+                                    height: imgH,
+                                    filter: filterStr,
+                                    userSelect: 'none',
+                                    pointerEvents: 'none',
                                 }}
                             />
 

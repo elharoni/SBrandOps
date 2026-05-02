@@ -36,8 +36,8 @@ interface DashboardPageProps {
 // ─── Shared UI primitives ────────────────────────────────────────────────────
 
 const Panel: React.FC<{
-    title?: string;
-    subtitle?: string;
+    title?: React.ReactNode;
+    subtitle?: React.ReactNode;
     actions?: React.ReactNode;
     className?: string;
     children: React.ReactNode;
@@ -81,7 +81,7 @@ const NowTile: React.FC<NowItem & { onNavigate: (page: string) => void; ar: bool
 }) => (
     <button
         onClick={() => onNavigate(nav)}
-        className={`group flex flex-col gap-3 rounded-[1.5rem] p-5 text-start transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] ${bg} border backdrop-blur-md animate-fade-in ${urgency === 'high' ? 'border-rose-500/40 shadow-rose-500/10' : urgency === 'medium' ? 'border-amber-500/30 shadow-amber-500/5' : 'border-light-border/50 dark:border-dark-border/50 hover:border-brand-primary/30'}`}
+        className={`group flex flex-col gap-3 rounded-[1.5rem] p-5 text-start transition-all duration-300 hover:-translate-y-1 hover:shadow-xl active:scale-[0.98] bg-white/70 shadow-lg shadow-black/5 backdrop-blur-2xl backdrop-saturate-150 dark:bg-slate-900/70 animate-fade-in border ${urgency === 'high' ? 'border-rose-500/40 shadow-rose-500/20' : urgency === 'medium' ? 'border-amber-500/40 shadow-amber-500/20' : 'border-black/5 dark:border-white/10 hover:border-brand-primary/30'}`}
         style={{ animationDelay: `${delayIdx * 75}ms` }}
     >
         <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone} bg-white/70 shadow-sm dark:bg-white/10 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}>
@@ -125,7 +125,7 @@ const getPriorityIconBg = (tone: string): string => {
 const PriorityCard: React.FC<Priority & { onNavigate: (page: string) => void }> = ({
     icon, title, description, tone, cta, nav, badge, onNavigate,
 }) => (
-    <div className={`flex items-start gap-4 rounded-[1.5rem] p-4 transition-all duration-300 hover:shadow-md border bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 ${tone}`}>
+    <div className={`flex items-start gap-4 rounded-[1.5rem] p-4 transition-all duration-300 hover:shadow-xl border bg-white/70 shadow-lg shadow-black/5 backdrop-blur-2xl backdrop-saturate-150 dark:bg-slate-900/70 ${tone}`}>
         <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${getPriorityIconBg(tone)}`}>
             <i className={`fas ${icon} text-base`} />
         </div>
@@ -158,10 +158,10 @@ interface Insight {
 
 const InsightTile: React.FC<Insight & { delayIdx: number }> = ({ icon, label, value, sub, color, bg, delayIdx }) => (
     <div
-        className={`rounded-[1.5rem] p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg backdrop-blur-md animate-fade-in ${bg} border border-light-border/40 dark:border-dark-border/40`}
+        className="rounded-[1.5rem] p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border border-black/5 bg-white/70 shadow-lg shadow-black/5 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 animate-fade-in"
         style={{ animationDelay: `${delayIdx * 75}ms` }}
     >
-        <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${color} bg-white/70 shadow-sm dark:bg-white/10`}>
+        <div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-2xl ${bg} ${color} shadow-inner border border-black/5 dark:border-white/5`}>
             <i className={`fas ${icon} text-sm`} />
         </div>
         <p className="text-xs font-bold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">{label}</p>
@@ -185,7 +185,7 @@ const SuggestionCard: React.FC<Suggestion & { onNavigate: (page: string) => void
     icon, title, reason, confidence, nav, onNavigate, ar, delayIdx
 }) => (
     <div
-        className="flex flex-col gap-4 rounded-[1.5rem] p-5 transition-all duration-300 hover:shadow-lg border border-light-border/50 dark:border-dark-border/50 bg-gradient-to-b from-white/50 to-transparent dark:from-white/5 animate-fade-in"
+        className="flex flex-col gap-4 rounded-[1.5rem] p-5 transition-all duration-300 hover:shadow-xl border border-black/5 bg-white/70 shadow-lg shadow-black/5 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 animate-fade-in"
         style={{ animationDelay: `${delayIdx * 75}ms` }}
     >
         <div className="flex items-start justify-between gap-2">
@@ -218,7 +218,7 @@ const MetricTile: React.FC<{
     title: string; value: string; icon: string; trend?: string;
     positive?: boolean; comparedText?: string;
 }> = ({ title, value, icon, trend, positive, comparedText }) => (
-    <div className="rounded-[1.5rem] border border-light-border/50 bg-light-card/60 p-5 text-start backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-dark-border/50 dark:bg-dark-card/60">
+    <div className="rounded-[1.5rem] border border-black/5 bg-white/70 p-5 text-start shadow-lg shadow-black/5 backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/70">
         <div className="flex items-start justify-between gap-3">
             <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-light-text-secondary dark:text-dark-text-secondary">{title}</p>
@@ -248,7 +248,7 @@ const ScheduledPostItem: React.FC<{
     post: ScheduledPost; onEdit: () => void; onDelete?: () => void;
     locale: string; emptyTitleText: string;
 }> = ({ post, onEdit, onDelete, locale, emptyTitleText }) => (
-    <div className="group flex items-center justify-between gap-3 rounded-[1.25rem] border border-light-border/40 bg-white/50 p-3 transition-all hover:border-brand-primary/30 hover:bg-white dark:border-dark-border/40 dark:bg-black/10 dark:hover:bg-black/20">
+    <div className="group flex items-center justify-between gap-3 rounded-[1.25rem] border border-black/5 bg-white/60 p-3 shadow-sm shadow-black/5 backdrop-blur-xl backdrop-saturate-150 transition-all hover:border-brand-primary/30 hover:bg-white/80 dark:border-white/10 dark:bg-slate-900/60 dark:hover:bg-slate-900/80">
         <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-light-bg shadow-sm dark:bg-dark-bg">
                 {post.media.length > 0 ? (
@@ -288,7 +288,7 @@ const ScheduledPostItem: React.FC<{
 );
 
 const ConversationItem: React.FC<{ conversation: InboxConversation; locale: string }> = ({ conversation, locale }) => (
-    <div className="group flex items-start gap-3 rounded-[1.25rem] border border-light-border/40 bg-white/50 p-3 transition-all hover:border-brand-primary/30 hover:bg-white dark:border-dark-border/40 dark:bg-black/10 dark:hover:bg-black/20">
+    <div className="group flex items-start gap-3 rounded-[1.25rem] border border-black/5 bg-white/60 p-3 shadow-sm shadow-black/5 backdrop-blur-xl backdrop-saturate-150 transition-all hover:border-brand-primary/30 hover:bg-white/80 dark:border-white/10 dark:bg-slate-900/60 dark:hover:bg-slate-900/80">
         <div className="relative shrink-0">
             <img src={conversation.user.avatarUrl} alt={conversation.user.name} className="h-11 w-11 rounded-2xl object-cover shadow-sm" />
             <div className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-light-card text-[9px] text-white dark:border-dark-card ${PLATFORM_ASSETS[conversation.platform].color}`}>
@@ -312,7 +312,7 @@ const ConversationItem: React.FC<{ conversation: InboxConversation; locale: stri
 const ErrorItem: React.FC<{ error: OperationalError }> = ({ error }) => {
     const isCritical = error.severity === ErrorSeverity.Critical;
     return (
-        <div className={`rounded-[1.25rem] border px-4 py-3 ${isCritical ? 'border-rose-500/30 bg-rose-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
+        <div className={`rounded-[1.25rem] border px-4 py-3 shadow-sm shadow-black/5 backdrop-blur-xl backdrop-saturate-150 ${isCritical ? 'border-rose-500/30 bg-rose-500/10 dark:bg-rose-500/10' : 'border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/10'}`}>
             <div className="flex items-start gap-3">
                 <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${isCritical ? 'bg-rose-500/15 text-rose-500' : 'bg-amber-500/15 text-amber-500'}`}>
                     <i className={`fas ${isCritical ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}`} />
@@ -760,7 +760,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             )}
 
             {/* ── Hero greeting ─────────────────────────────────────────────── */}
-            <div className="surface-panel rounded-[2rem] bg-gradient-to-br from-brand-primary/5 via-transparent to-brand-secondary/5 p-6 shadow-[var(--shadow-primary)] !border-0">
+            <div className="rounded-[2rem] border border-black/5 bg-white/70 p-6 shadow-xl shadow-brand-primary/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="section-kicker">{ar ? 'مركز التشغيل اليومي' : 'Daily Control Center'}</p>
@@ -778,7 +778,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                             <i className="fas fa-wand-magic-sparkles text-xs" />
                             <span>{ar ? 'أنشئ محتوى' : 'Create content'}</span>
                         </button>
-                        <button onClick={() => onNavigate('social-ops/scheduled')} className="btn rounded-2xl border-none bg-light-card/80 px-5 py-3 text-sm font-semibold text-light-text shadow-[var(--shadow-ambient)] dark:bg-dark-card/80 dark:text-dark-text">
+                        <button onClick={() => onNavigate('social-ops/scheduled')} className="btn rounded-2xl border border-black/10 bg-white/50 px-5 py-3 text-sm font-semibold text-light-text shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-black/20 dark:text-white hover:bg-white/80 dark:hover:bg-black/40 transition-colors">
                             <i className="fas fa-calendar-check text-xs" />
                             <span>{ar ? 'الجدول' : 'Schedule'}</span>
                         </button>
@@ -937,7 +937,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             >
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {operatorMetrics.map((metric) => (
-                        <div key={metric.label} className="rounded-[1.5rem] border border-light-border/50 bg-light-bg/50 p-5 transition-all hover:bg-light-card hover:shadow-sm dark:border-dark-border/50 dark:bg-dark-bg/50 dark:hover:bg-dark-card">
+                        <div key={metric.label} className="rounded-[1.5rem] border border-black/5 bg-white/70 p-5 shadow-lg shadow-black/5 backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-slate-900/70">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5">
@@ -978,23 +978,31 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.9fr)]">
                 <Panel
-                    title={ar ? 'نمو الجمهور' : 'Audience growth'}
+                    title={
+                        <div className="flex items-center gap-2">
+                            <span>{ar ? 'نمو الجمهور' : 'Audience growth'}</span>
+                            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
+                                {ar ? 'مباشر' : 'Live'}
+                            </span>
+                        </div>
+                    }
                     subtitle={ar ? 'قراءة سريعة لنمو الجمهور خلال الفترة المحددة.' : 'Quick read on audience growth in the selected period.'}
                     actions={(
-                        <div className="flex rounded-2xl bg-light-bg p-1 dark:bg-dark-bg">
+                        <div className="flex rounded-2xl border border-black/5 bg-black/5 p-1 backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
                             {(['7d', '30d', '90d'] as const).map((period) => (
                                 <button
                                     key={period}
                                     onClick={() => setTimePeriod(period)}
-                                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${timePeriod === period ? 'bg-light-card text-brand-primary shadow-sm dark:bg-dark-card' : 'text-light-text-secondary hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text'}`}
+                                    className={`rounded-xl px-4 py-1.5 text-xs font-bold transition-all duration-300 ${timePeriod === period ? 'bg-white text-brand-primary shadow-sm dark:bg-slate-800 dark:text-white' : 'text-light-text-secondary hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text'}`}
                                 >
-                                    {period}
+                                    {period === '7d' ? (ar ? '٧ أيام' : '7 Days') : period === '30d' ? (ar ? '٣٠ يوم' : '30 Days') : (ar ? '٩٠ يوم' : '90 Days')}
                                 </button>
                             ))}
                         </div>
                     )}
                 >
-                    <div className="h-[280px]">
+                    <div className="mt-4 h-[300px] w-full rounded-2xl border border-black/5 bg-gradient-to-b from-white/40 to-white/10 p-4 shadow-inner dark:border-white/5 dark:from-white/5 dark:to-transparent">
                         <LightweightLineChart
                             data={processedChartData}
                             xKey="date"

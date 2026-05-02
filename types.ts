@@ -7,6 +7,8 @@ export interface NavItem {
     icon: string;
     label: string;
     children?: NavItem[];
+    /** Permission key required to see this item (e.g. 'ads.campaigns.view.brand') */
+    permission?: string;
 }
 
 export interface AdminNavItem {
@@ -302,6 +304,14 @@ export interface BrandHubProfile {
     valueProp?: string;       // عرض القيمة: "نساعد [X] على تحقيق [Y] بطريقة [Z] بعكس المنافسين الذين [W]"
     brandPromise?: string;    // وعد البراند: جملة واحدة تعبر عن التزام البراند تجاه العميل
     messagingPillars?: string[]; // ركائز الرسائل: 3-5 محاور رئيسية يرتكز عليها كل المحتوى
+    // Visual brand assets — stored in extended_profile JSONB
+    brandAssets?: {
+        primaryColor: string;
+        secondaryColor: string;
+        accentColor: string;
+        fontPrimary: string;
+        fontSecondary: string;
+    };
 }
 
 // --- AI & Gemini Service Related ---
@@ -1630,6 +1640,47 @@ export interface CrmTask {
     updatedAt: string;
 }
 
+// ── Tickets ───────────────────────────────────────────────────────────────────
+
+export type CrmTicketStatus   = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type CrmTicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type CrmTicketSource   = 'email' | 'chat' | 'phone' | 'social' | 'manual';
+
+export interface CrmTicket {
+    id:               string;
+    brandId:          string;
+    customerId?:      string;
+    subject:          string;
+    description?:     string;
+    status:           CrmTicketStatus;
+    priority:         CrmTicketPriority;
+    source:           CrmTicketSource;
+    assigneeName?:    string;
+    firstResponseAt?: string;
+    resolvedAt?:      string;
+    tags:             string[];
+    createdAt:        string;
+    updatedAt:        string;
+}
+
+export interface CrmTicketStats {
+    total:                 number;
+    open:                  number;
+    inProgress:            number;
+    resolved:              number;
+    closed:                number;
+    urgent:                number;
+    avgResolutionMinutes?: number;
+}
+
+export interface CrmTicketFilters {
+    status?:    CrmTicketStatus[];
+    priority?:  CrmTicketPriority[];
+    search?:    string;
+    page?:      number;
+    pageSize?:  number;
+}
+
 export interface CrmStoreConnection {
     id: string;
     brandId: string;
@@ -1745,6 +1796,7 @@ export interface CrmCustomerFilters {
     minAov?: number;
     maxAov?: number;
     acquisitionSource?: string[];
+    gender?: string[];
     country?: string;
     city?: string;
     lastOrderAfter?: string;

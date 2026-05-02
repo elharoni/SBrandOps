@@ -194,8 +194,8 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                             <i className={`fas fa-chevron-down text-[11px] text-light-text-secondary transition-transform dark:text-dark-text-secondary ${isDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
-                        <div className={`absolute top-full z-50 mt-2 w-72 sm:w-80 overflow-hidden rounded-2xl border border-light-border dark:border-dark-border bg-white dark:bg-[#151b2a] shadow-[var(--shadow-directional)] ${ar ? 'right-0' : 'left-0'} max-w-[calc(100vw-2rem)] ${isDropdownOpen ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-1'} transition-all duration-150`}>
-                            <div className="border-b border-light-border/80 px-4 py-3 dark:border-dark-border/80">
+                        <div className={`absolute top-full z-50 mt-2 w-72 sm:w-80 overflow-hidden rounded-3xl border border-black/10 bg-white/70 shadow-2xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 ${ar ? 'right-0' : 'left-0'} max-w-[calc(100vw-2rem)] ${isDropdownOpen ? 'visible opacity-100 translate-y-0' : 'invisible opacity-0 -translate-y-1'} transition-all duration-150`}>
+                            <div className="border-b border-black/5 px-4 py-3 dark:border-white/5">
                                 <p className="section-kicker">{ar ? 'التبديل بين البراندات' : 'Switch brands'}</p>
                             </div>
 
@@ -206,11 +206,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                         <button
                                             key={brand.id}
                                             onClick={() => handleBrandSelect(brand.id)}
-                                            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-start transition-all ${
-                                                isActive
+                                            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-start transition-all ${isActive
                                                     ? 'bg-brand-primary/10 text-brand-primary'
-                                                    : 'text-light-text-secondary hover:bg-light-bg hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-bg dark:hover:text-dark-text'
-                                            }`}
+                                                    : 'text-light-text-secondary hover:bg-black/5 hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-white/10 dark:hover:text-dark-text'
+                                                }`}
                                         >
                                             <img src={brand.logoUrl} alt={brand.name} className="h-9 w-9 rounded-xl object-cover" />
                                             <div className="min-w-0 flex-1">
@@ -222,7 +221,7 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                                 })}
                             </div>
 
-                            <div className="border-t border-light-border/80 p-2 space-y-1 dark:border-dark-border/80">
+                            <div className="border-t border-black/5 p-2 space-y-1 dark:border-white/5">
                                 <button
                                     onClick={() => {
                                         onAddBrand();
@@ -262,11 +261,10 @@ export const Header: React.FC<HeaderProps> = React.memo(({
                     {/* Plan pill — always visible, pulses amber when near brand limit */}
                     <Link
                         to="/app/billing"
-                        className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
-                            isNearLimit
+                        className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${isNearLimit
                                 ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 animate-pulse'
                                 : 'bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20'
-                        }`}
+                            }`}
                         title={limits.maxBrands !== null ? `${brands.length} / ${limits.maxBrands} ${ar ? 'براند' : 'brands'}` : ''}
                     >
                         <i className="fas fa-bolt text-[9px]" />

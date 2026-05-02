@@ -683,6 +683,134 @@ html.dark .btn-secondary.loading::after, html.dark .btn-ghost.loading::after {
   }
 }
 
+/* ===================== Glass Morphism System ===================== */
+/*
+ * Global glass effect applied to all dark-card and dark-bg elements.
+ * Requires semi-transparent background so backdrop-filter has something to blur.
+ * The app-shell orbs in App.tsx provide the depth gradient that makes glass visible.
+ */
+
+/* ── Global dark-card override: semi-transparent + blur ──
+ * Targets both plain `bg-dark-card` and the dark: variant `dark:bg-dark-card`
+ */
+html.dark .bg-dark-card,
+html.dark .dark\:bg-dark-card {
+  background-color: rgba(21, 27, 42, 0.58) !important;
+  backdrop-filter: blur(18px) saturate(1.35) brightness(1.04);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35) brightness(1.04);
+}
+
+/* ── Borders become subtle glass edges ── */
+html.dark .border-dark-border {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* ── Named utility: .glass ── */
+.glass {
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+html.dark .glass {
+  background: rgba(21, 27, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ── Named utility: .glass-card (elevated cards) ── */
+.glass-card {
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+html.dark .glass-card {
+  background: rgba(21, 27, 42, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ── Named utility: .glass-panel (nested panels / tab content) ── */
+.glass-panel {
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+html.dark .glass-panel {
+  background: rgba(12, 19, 33, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+/* ── Named utility: .glass-modal (modal/dialog containers) ── */
+.glass-modal {
+  backdrop-filter: blur(28px) saturate(1.6) brightness(1.05);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6) brightness(1.05);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+html.dark .glass-modal {
+  background: rgba(21, 27, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ── Named utility: .glass-nav (sidebar / header bars) ── */
+.glass-nav {
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.82);
+}
+html.dark .glass-nav {
+  background: rgba(7, 14, 28, 0.78);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.30);
+}
+
+/* ── Named utility: .glass-chip (tags, badges, small items) ── */
+.glass-chip {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+html.dark .glass-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* ── Inline form inputs get subtle glass ── */
+html.dark input.bg-dark-bg,
+html.dark textarea.bg-dark-bg,
+html.dark select.bg-dark-bg {
+  background-color: rgba(12, 19, 33, 0.65) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Top-edge highlight on glass cards (subtle inner shine) ── */
+html.dark .glass-card,
+html.dark .glass-modal,
+html.dark .glass-panel {
+  position: relative;
+}
+html.dark .glass-card::after,
+html.dark .glass-modal::after,
+html.dark .glass-panel::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 30%, rgba(255,255,255,0.18) 60%, transparent 100%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
 /* ===================== Page Transition ===================== */
 @keyframes pageSlideIn {
   from { opacity: 0; transform: translateY(8px); }

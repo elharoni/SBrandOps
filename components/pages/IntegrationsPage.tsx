@@ -25,6 +25,7 @@ import {
     type ProviderConnectionInputMap,
 } from '../../services/providerConnectionService';
 import { connectSelectedAssets, fetchAvailableAssets, initiateSocialLogin } from '../../services/socialAuthService';
+import { auditTokenConnected, auditTokenDisconnected } from '../../services/auditService';
 import { SetupGuideModal, needsSetupGuide } from '../shared/SetupGuideModal';
 import { PlatformCatalogSection } from '../PlatformCatalogSection';
 import { disconnectSocialAccount, updateAccountStatus } from '../../services/socialAccountService';
@@ -1176,6 +1177,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 providerDialog.provider,
                 buildProviderPayload(providerDialog.provider, providerFormValues) as ProviderConnectionInputMap[typeof providerDialog.provider],
             );
+            void auditTokenConnected(providerDialog.provider, brandId);
             const linkedCount = result.linkedAssetLabels.length;
             addNotification(
                 NotificationType.Success,
@@ -1244,6 +1246,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         setLoadingPlatform(currentPlatform);
         try {
             await connectSelectedAssets(brandId, selectedAssets, currentPlatform, currentToken, { defaultPurposes: purposes, market });
+            void auditTokenConnected(currentPlatform, brandId);
             setSyncSummary({ platform: currentPlatform, count: selectedAssets.length, purposes });
             addNotification(NotificationType.Success, ar ? `تم ربط ${selectedAssets.length} ${selectedAssets.length === 1 ? 'حساب' : 'حسابات'} من ${currentPlatform} بنجاح.` : `${selectedAssets.length} ${currentPlatform} account${selectedAssets.length !== 1 ? 's' : ''} connected successfully.`);
             setIsAssetModalOpen(false);
@@ -1291,6 +1294,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         try {
             await initiateSocialLogin(account.platform);
             await updateAccountStatus(account.id, AccountStatus.Connected);
+            void auditTokenConnected(account.platform, brandId);
             addNotification(NotificationType.Success, ar ? `تمت إعادة توثيق ${account.platform}.` : `${account.platform} re-authenticated successfully.`);
             await refreshData();
         } catch (error) {
@@ -1309,6 +1313,24 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
         openProviderDialog(connection.provider as ConnectableBrandProvider, 'reconnect', connection);
     };
 
+    const handleCatalogDisconnect = (providerKey: string) => {
+        const SOCIAL_PLATFORM_KEYS = new Set(['facebook', 'instagram', 'tiktok', 'youtube', 'linkedin', 'x', 'pinterest']);
+        if (SOCIAL_PLATFORM_KEYS.has(providerKey)) {
+            const account = socialAccounts.find(a => a.platform?.toLowerCase() === providerKey);
+            if (account) {
+                setPendingDisconnect({ kind: 'social', id: account.id, label: `@${account.username || account.platform}` });
+            }
+        } else {
+            const connection = brandConnections.find(c =>
+                (c.provider === providerKey || (providerKey === 'meta_ads' && c.provider === 'meta')) &&
+                c.status !== 'disconnected',
+            );
+            if (connection) {
+                setPendingDisconnect({ kind: 'connection', id: connection.id, label: connection.external_account_name || providerKey });
+            }
+        }
+    };
+
     const handleDisconnectConfirm = async () => {
         if (!pendingDisconnect) return;
 
@@ -1322,6 +1344,7 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                 await disconnectBrandConnection(target.id);
             }
 
+            void auditTokenDisconnected(target.label, brandId);
             addNotification(NotificationType.Success, ar ? `تم فصل ${target.label}.` : `${target.label} disconnected successfully.`);
             setPendingDisconnect(null);
             await refreshData();
@@ -1392,15 +1415,23 @@ export const IntegrationsPage: React.FC<IntegrationsPageProps> = ({
                         socialAccounts={socialAccounts}
                         brandConnections={brandConnections}
                         onConnect={(providerKey) => {
-                            // Route to social OAuth or provider connect dialog
-                            if (['facebook','instagram','tiktok','youtube','linkedin','x','pinterest'].includes(providerKey)) {
-                                onNavigate('social-ops/accounts');
+                            const SOCIAL_PLATFORM_MAP: Record<string, SocialPlatform> = {
+                                facebook:  SocialPlatform.Facebook,
+                                instagram: SocialPlatform.Instagram,
+                                tiktok:    SocialPlatform.TikTok,
+                                x:         SocialPlatform.X,
+                                linkedin:  SocialPlatform.LinkedIn,
+                                pinterest: SocialPlatform.Pinterest,
+                            };
+                            const platform = SOCIAL_PLATFORM_MAP[providerKey];
+                            if (platform) {
+                                void handleConnectPlatform(platform);
                             } else {
                                 setIsIntentModalOpen(true);
                             }
                         }}
                         onManage={() => onNavigate('integration-os')}
-                        onDisconnect={() => { /* handled inside PlatformCatalogSection */ }}
+                        onDisconnect={handleCatalogDisconnect}
                         addNotification={addNotification}
                     />
                 </PageSection>

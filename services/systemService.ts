@@ -2,6 +2,7 @@
 import { supabase } from './supabaseClient';
 import { User, UserRole, SubscriptionPlan, PaymentRecord, ActiveSession, ApiKey } from '../types';
 import { getBillingOverview } from './billingManagementService';
+import { auditUserInvited, auditRoleChanged } from './auditService';
 
 // ── Type for getSystemData return ─────────────────────────────────────────────
 export interface SystemData {
@@ -193,6 +194,8 @@ export async function inviteUser(brandId: string, email: string, role: UserRole)
         .single();
 
     if (error) throw new Error(error.message);
+
+    void auditUserInvited(user.id, user.email ?? '', email, role, brandId);
     return mapRowToUser(data);
 }
 
@@ -231,6 +234,15 @@ export async function updateUserRole(brandId: string, userId: string, newRole: U
         }
     }
 
+    // Read old role before update for audit trail
+    const { data: prevRow } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('id', userId)
+        .eq('brand_id', brandId)
+        .maybeSingle();
+    const oldRole = prevRow?.role ?? 'unknown';
+
     const { data, error } = await supabase
         .from('team_members')
         .update({ role: newRole })
@@ -240,6 +252,8 @@ export async function updateUserRole(brandId: string, userId: string, newRole: U
         .single();
 
     if (error) throw new Error(error.message);
+
+    void auditRoleChanged(caller.id, userId, oldRole, newRole, brandId);
     return mapRowToUser(data);
 }
 

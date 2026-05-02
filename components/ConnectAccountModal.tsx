@@ -59,11 +59,11 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-light-card dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-black/10 bg-white/70 shadow-2xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 flex flex-col max-h-[90vh] animate-scale-in" onClick={e => e.stopPropagation()}>
+
                 {/* Header */}
-                <div className="p-5 border-b border-light-border dark:border-dark-border flex justify-between items-center bg-light-bg/50 dark:bg-dark-bg/50">
+                <div className="p-5 border-b border-black/10 dark:border-white/10 flex justify-between items-center bg-black/5 dark:bg-white/5">
                     <div>
                         <h2 className="text-xl font-bold text-light-text dark:text-dark-text">
                             {step === 1 ? 'إضافة قناة جديدة' : step === 2 ? 'المصادقة' : 'اختيار الصفحة'}
@@ -72,7 +72,7 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
                             {step === 1 ? 'اختر المنصة التي تريد ربطها' : step === 2 ? `تسجيل الدخول إلى ${selectedPlatform}` : 'اختر الصفحة أو الحساب لإدارته'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text transition-colors">
+                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg text-light-text-secondary dark:text-dark-text-secondary hover:bg-black/5 hover:text-light-text dark:hover:bg-white/10 dark:hover:text-dark-text transition-colors">
                         <i className="fas fa-times text-xl"></i>
                     </button>
                 </div>
@@ -81,10 +81,10 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
                 <div className="p-6 overflow-y-auto min-h-[300px] flex flex-col">
                     {step === 1 && (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 animate-fade-in">
-                             <style>{`
-                                @keyframes fade-in { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
-                                .animate-fade-in { animation: fade-in 0.3s ease-out; }
-                            `}</style>
+                            <style>{`
+                    @keyframes fade-in { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+                    .animate-fade-in { animation: fade-in 0.3s ease-out; }
+                `}</style>
                             {Object.values(SocialPlatform).map(platform => {
                                 const asset = PLATFORM_ASSETS[platform];
                                 return (
@@ -108,7 +108,7 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
                             <div className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl ${PLATFORM_ASSETS[selectedPlatform].color} text-white shadow-2xl`}>
                                 <i className={PLATFORM_ASSETS[selectedPlatform].icon}></i>
                             </div>
-                            
+
                             <div className="space-y-2">
                                 <h3 className="text-lg font-bold text-light-text dark:text-dark-text">ربط حساب {selectedPlatform}</h3>
                                 <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary max-w-xs mx-auto">
@@ -122,7 +122,7 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
                                     <span className="text-sm font-semibold">جارٍ الاتصال بـ {selectedPlatform}...</span>
                                 </div>
                             ) : (
-                                <button 
+                                <button
                                     onClick={handleLogin}
                                     className={`flex items-center gap-3 px-6 py-3 rounded-lg text-white font-bold shadow-lg hover:opacity-90 transition-transform hover:scale-105 ${PLATFORM_ASSETS[selectedPlatform].color}`}
                                 >
@@ -130,22 +130,21 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
                                     <span>المتابعة باستخدام {selectedPlatform}</span>
                                 </button>
                             )}
-                             {error && <p className="text-red-400 text-sm bg-red-400/10 p-2 rounded-md">{error}</p>}
+                            {error && <p className="text-red-400 text-sm bg-red-400/10 p-2 rounded-md">{error}</p>}
                         </div>
                     )}
 
                     {step === 3 && (
                         <div className="flex flex-col h-full animate-fade-in">
-                             <h3 className="font-bold text-light-text dark:text-dark-text mb-4">الصفحات المتوفرة ({fetchedAssets.length})</h3>
-                             <div className="space-y-2 overflow-y-auto max-h-60 flex-grow">
+                            <h3 className="font-bold text-light-text dark:text-dark-text mb-4">الصفحات المتوفرة ({fetchedAssets.length})</h3>
+                            <div className="space-y-2 overflow-y-auto max-h-60 flex-grow">
                                 {fetchedAssets.map(asset => (
-                                    <label 
-                                        key={asset.id} 
-                                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                                            selectedAsset?.id === asset.id 
-                                            ? 'border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary' 
-                                            : 'border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg'
-                                        }`}
+                                    <label
+                                        key={asset.id}
+                                        className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${selectedAsset?.id === asset.id
+                                                ? 'border-brand-primary bg-brand-primary/10 ring-1 ring-brand-primary'
+                                                : 'border-light-border dark:border-dark-border hover:bg-light-bg dark:hover:bg-dark-bg'
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <img src={asset.avatarUrl} alt={asset.name} className="w-10 h-10 rounded-full object-cover" />
@@ -156,29 +155,28 @@ export const ConnectAccountModal: React.FC<ConnectAccountModalProps> = ({ brandI
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                            selectedAsset?.id === asset.id ? 'border-brand-primary' : 'border-gray-400'
-                                        }`}>
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedAsset?.id === asset.id ? 'border-brand-primary' : 'border-gray-400'
+                                            }`}>
                                             {selectedAsset?.id === asset.id && <div className="w-2.5 h-2.5 rounded-full bg-brand-primary"></div>}
                                         </div>
-                                        <input 
-                                            type="radio" 
-                                            name="socialAsset" 
-                                            className="hidden" 
-                                            onChange={() => setSelectedAsset(asset)} 
+                                        <input
+                                            type="radio"
+                                            name="socialAsset"
+                                            className="hidden"
+                                            onChange={() => setSelectedAsset(asset)}
                                             checked={selectedAsset?.id === asset.id}
                                         />
                                     </label>
                                 ))}
-                             </div>
-                             <div className="mt-4 pt-4 border-t border-light-border dark:border-dark-border flex justify-end gap-3">
-                                <button 
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-light-border dark:border-dark-border flex justify-end gap-3">
+                                <button
                                     onClick={() => setStep(2)}
                                     className="px-4 py-2 text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text"
                                 >
                                     رجوع
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleFinalConnect}
                                     disabled={isLoading || !selectedAsset}
                                     className="bg-brand-primary hover:bg-brand-secondary text-white font-bold py-2 px-6 rounded-lg shadow disabled:opacity-50 disabled:cursor-not-allowed"

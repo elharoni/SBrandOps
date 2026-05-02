@@ -118,6 +118,9 @@ ORDER BY tablename;
 ```bash
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 supabase secrets set GEMINI_API_KEY=your_gemini_api_key
+supabase secrets set OPENAI_API_KEY=your_openai_api_key
+supabase secrets set OPENAI_FILE_ANALYSIS_MODEL=gpt-5.5
+supabase secrets set OPENAI_FILE_ANALYSIS_FALLBACK_MODEL=gpt-5
 supabase secrets set FACEBOOK_APP_SECRET=your_facebook_app_secret
 supabase secrets set INSTAGRAM_CLIENT_SECRET=your_instagram_client_secret
 supabase secrets set GOOGLE_CLIENT_SECRET=your_google_client_secret
@@ -288,7 +291,7 @@ vercel --prod
 [ ] إنشاء براند يحفظ في DB
 [ ] OAuthCallbackPage يستقبل Facebook redirect
 [ ] Token expiry warnings تظهر
-[ ] AI proxy (Gemini) يستجيب
+[ ] AI proxy (Gemini / OpenAI) يستجيب
 [ ] Inbox يجلب الرسائل
 [ ] Analytics sync يعمل (بعد 6 ساعات)
 [ ] Sentry يستقبل أخطاء تجريبية

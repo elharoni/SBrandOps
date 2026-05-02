@@ -6,6 +6,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { auditCrmImport, auditCrmBulkLifecycle } from './auditService';
 import {
     CrmCustomer,
     CrmOrder,
@@ -354,6 +355,18 @@ export async function getCustomers(
         if (filters.assignedTo) {
             query = query.eq('assigned_to', filters.assignedTo);
         }
+        if (filters.acquisitionSource?.length) {
+            query = query.in('acquisition_source', filters.acquisitionSource);
+        }
+        if (filters.gender?.length) {
+            query = query.in('gender', filters.gender);
+        }
+        if (filters.city) {
+            query = query.filter('metadata->>city', 'ilike', `%${filters.city}%`);
+        }
+        if (filters.country) {
+            query = query.filter('metadata->>country', 'ilike', `%${filters.country}%`);
+        }
         if (filters.hasRefunds === true) {
             query = query.gt('refund_count', 0);
         }
@@ -424,6 +437,72 @@ export async function createCustomer(
     }
 }
 
+// ── Bulk Import ───────────────────────────────────────────────────────────────
+
+export interface CrmImportResult {
+    inserted: number;
+    skipped: number;
+    errors: { rowIndex: number; reason: string }[];
+}
+
+export async function bulkImportCustomers(
+    brandId: string,
+    rows: Partial<CrmCustomer>[]
+): Promise<CrmImportResult> {
+    const result: CrmImportResult = { inserted: 0, skipped: 0, errors: [] };
+    const BATCH = 50;
+
+    for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH) {
+        const batch = rows.slice(batchStart, batchStart + BATCH);
+        const records: Record<string, unknown>[] = [];
+
+        batch.forEach((r, i) => {
+            const email = r.email?.toLowerCase().trim();
+            const phone = r.phone?.trim();
+            const firstName = r.firstName?.trim();
+            if (!email && !phone && !firstName) {
+                result.skipped++;
+                return;
+            }
+            records.push({
+                brand_id:            brandId,
+                first_name:          r.firstName?.trim() || null,
+                last_name:           r.lastName?.trim() || null,
+                email:               email || null,
+                phone:               phone || null,
+                gender:              r.gender || null,
+                birth_date:          r.birthDate || null,
+                language:            r.language || null,
+                acquisition_source:  r.acquisitionSource || null,
+                acquisition_channel: r.acquisitionChannel || null,
+                lifecycle_stage:     r.lifecycleStage ?? CrmLifecycleStage.Lead,
+                marketing_consent:   r.marketingConsent ?? false,
+                sms_consent:         r.smsConsent ?? false,
+                metadata:            r.metadata ?? {},
+            });
+        });
+
+        if (records.length === 0) continue;
+
+        try {
+            const { data, error } = await supabase
+                .from('crm_customers')
+                .upsert(records, { onConflict: 'brand_id,email', ignoreDuplicates: false })
+                .select('id');
+            if (error) {
+                result.errors.push({ rowIndex: batchStart, reason: error.message });
+            } else {
+                result.inserted += (data ?? []).length;
+            }
+        } catch (err) {
+            result.errors.push({ rowIndex: batchStart, reason: String(err) });
+        }
+    }
+
+    void auditCrmImport(brandId, result.inserted, result.skipped, result.errors.length);
+    return result;
+}
+
 export async function updateCustomer(
     brandId: string,
     customerId: string,
@@ -483,6 +562,7 @@ export async function bulkUpdateLifecycle(
             .eq('brand_id', brandId)
             .in('id', customerIds);
         if (error) { console.error('CRM bulkUpdateLifecycle:', error); return false; }
+        void auditCrmBulkLifecycle(brandId, customerIds.length, stage);
         return true;
     } catch {
         return false;

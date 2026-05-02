@@ -18,19 +18,25 @@ import {
     getCrossSellOpportunities,
     computeAndUpsertRfmScores,
     computeAndUpsertCohorts,
+    getCustomerDemographics,
+    getMarketingAttribution,
     RFM_SEGMENT_META,
+    CrmDemographics,
+    CrmMarketingAttribution,
 } from '../../../services/crmAnalyticsService';
 
 // ── Sub-tab types ─────────────────────────────────────────────────────────────
 
-type AnalyticsTab = 'rfm' | 'cohorts' | 'revenue' | 'churn' | 'crosssell';
+type AnalyticsTab = 'rfm' | 'cohorts' | 'revenue' | 'churn' | 'crosssell' | 'demographics' | 'marketing';
 
 const ANALYTICS_TABS: { id: AnalyticsTab; label: string; icon: string }[] = [
-    { id: 'rfm',      label: 'RFM',             icon: 'fa-bullseye' },
-    { id: 'cohorts',  label: 'الاحتفاظ',        icon: 'fa-th' },
-    { id: 'revenue',  label: 'الإيراد',          icon: 'fa-dollar-sign' },
-    { id: 'churn',    label: 'الاضطراب',         icon: 'fa-user-minus' },
-    { id: 'crosssell',label: 'فرص البيع',       icon: 'fa-crosshairs' },
+    { id: 'rfm',          label: 'RFM',             icon: 'fa-bullseye' },
+    { id: 'cohorts',      label: 'الاحتفاظ',        icon: 'fa-th' },
+    { id: 'revenue',      label: 'الإيراد',          icon: 'fa-dollar-sign' },
+    { id: 'churn',        label: 'الاضطراب',         icon: 'fa-user-minus' },
+    { id: 'crosssell',    label: 'فرص البيع',       icon: 'fa-crosshairs' },
+    { id: 'demographics', label: 'الديموغرافيا',    icon: 'fa-users' },
+    { id: 'marketing',    label: 'التسويق',          icon: 'fa-chart-pie' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,6 +72,18 @@ const RfmTab: React.FC<{ brandId: string }> = ({ brandId }) => {
     };
 
     if (loading) return <div className="space-y-2">{Array.from({length:6}).map((_,i)=><div key={i} className="h-10 bg-gray-200 rounded animate-pulse"/>)}</div>;
+
+    if (total === 0) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-bullseye" /></div>
+            <p className="font-semibold text-gray-600">لا توجد بيانات RFM بعد</p>
+            <p className="text-xs text-gray-400">استورد طلبات العملاء ثم اضغط "إعادة الحساب"</p>
+            <button onClick={handleRecompute} disabled={computing}
+                className="mt-2 flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-60">
+                {computing ? <><i className="fas fa-circle-notch fa-spin" /> جاري...</> : <><i className="fas fa-sync-alt" /> إعادة الحساب</>}
+            </button>
+        </div>
+    );
 
     return (
         <div className="space-y-4">
@@ -271,6 +289,14 @@ const RevenueTab: React.FC<{ brandId: string }> = ({ brandId }) => {
 
     if (loading) return <div className="space-y-3">{Array.from({length:4}).map((_,i)=><div key={i} className="h-14 bg-gray-200 rounded-xl animate-pulse"/>)}</div>;
 
+    if (data.length === 0) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-dollar-sign" /></div>
+            <p className="font-semibold text-gray-600">لا توجد بيانات إيراد بعد</p>
+            <p className="text-xs text-gray-400">أضف عملاء ذوي قيمة LTV لعرض التحليل</p>
+        </div>
+    );
+
     return (
         <div className="space-y-4">
             <div>
@@ -332,6 +358,14 @@ const ChurnTab: React.FC<{ brandId: string }> = ({ brandId }) => {
     const avgChurnRate = data.length ? data.reduce((s, d) => s + d.churnRate, 0) / data.length : 0;
 
     if (loading) return <div className="h-48 bg-gray-200 rounded-xl animate-pulse" />;
+
+    if (data.length === 0) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-user-minus" /></div>
+            <p className="font-semibold text-gray-600">لا توجد بيانات اضطراب بعد</p>
+            <p className="text-xs text-gray-400">البيانات تظهر بعد تسجيل طلبات العملاء</p>
+        </div>
+    );
 
     return (
         <div className="space-y-4">
@@ -467,6 +501,254 @@ const CrossSellTab: React.FC<{ brandId: string }> = ({ brandId }) => {
     );
 };
 
+// ── Demographics ──────────────────────────────────────────────────────────────
+
+const GENDER_COLORS: Record<string, string> = {
+    'ذكر': 'bg-blue-500', 'أنثى': 'bg-pink-500', 'غير محدد': 'bg-gray-400',
+};
+
+const DemographicsTab: React.FC<{ brandId: string }> = ({ brandId }) => {
+    const [data, setData]       = useState<CrmDemographics | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        void getCustomerDemographics(brandId).then(d => { setData(d); setLoading(false); });
+    }, [brandId]);
+
+    if (loading) return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-28 bg-gray-200 rounded-xl animate-pulse" />)}</div>;
+    if (!data) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-users" /></div>
+            <p className="font-semibold text-gray-600">تعذّر تحميل البيانات</p>
+        </div>
+    );
+    if (data.total === 0) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-users" /></div>
+            <p className="font-semibold text-gray-600">لا توجد بيانات ديموغرافية بعد</p>
+            <p className="text-xs text-gray-400">أضف عملاء مع بيانات الجنس والعمر والموقع</p>
+        </div>
+    );
+
+    return (
+        <div className="space-y-6">
+            {/* KPI row */}
+            <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-gray-900">{data.total.toLocaleString('ar')}</p>
+                    <p className="text-xs text-gray-500 mt-1">إجمالي العملاء</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-green-700">{data.consentRate}%</p>
+                    <p className="text-xs text-gray-500 mt-1">موافقة تسويقية</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-indigo-700">{data.languages[0]?.label ?? '—'}</p>
+                    <p className="text-xs text-gray-500 mt-1">اللغة الأكثر شيوعاً</p>
+                </div>
+            </div>
+
+            {/* Gender */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">الجنس</h3>
+                <div className="flex items-end gap-2 h-28 mb-3">
+                    {data.gender.map(g => (
+                        <div key={g.label} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-xs font-bold text-gray-600">{g.percent}%</span>
+                            <div
+                                className={`w-full rounded-t transition-all ${GENDER_COLORS[g.label] ?? 'bg-gray-400'}`}
+                                style={{ height: `${Math.max(g.percent, 4)}%`, minHeight: 8 }}
+                            />
+                            <span className="text-xs text-gray-500">{g.label}</span>
+                            <span className="text-[10px] text-gray-400">{g.count.toLocaleString('ar')}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Age groups */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-3">الفئات العمرية</h3>
+                <div className="space-y-2">
+                    {data.ageGroups.map(ag => (
+                        <div key={ag.label} className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-gray-600 w-20 text-right flex-shrink-0">{ag.label}</span>
+                            <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${ag.percent}%` }} />
+                            </div>
+                            <span className="text-xs font-bold text-gray-700 w-10 text-left flex-shrink-0">{ag.percent}%</span>
+                            <span className="text-xs text-gray-400 w-14 text-left flex-shrink-0">{ag.count.toLocaleString('ar')}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Cities + Languages in 2 columns */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-800 mb-3">أبرز المدن</h3>
+                    <div className="space-y-2">
+                        {data.cities.slice(0, 6).map((c, i) => (
+                            <div key={c.label} className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400 w-4 flex-shrink-0">{i + 1}</span>
+                                <span className="text-xs font-medium text-gray-700 flex-1 truncate">{c.label}</span>
+                                <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden max-w-[60px]">
+                                    <div className="h-full bg-teal-500 rounded-full" style={{ width: `${c.percent}%` }} />
+                                </div>
+                                <span className="text-xs font-bold text-gray-600 w-8 text-left flex-shrink-0">{c.percent}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-800 mb-3">اللغات</h3>
+                    <div className="space-y-2">
+                        {data.languages.map(l => (
+                            <div key={l.label} className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{l.label}</span>
+                                <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${l.percent}%` }} />
+                                </div>
+                                <span className="text-xs font-bold text-gray-600 w-8 text-left flex-shrink-0">{l.percent}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ── Marketing Attribution ─────────────────────────────────────────────────────
+
+const SOURCE_COLORS = ['bg-indigo-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500', 'bg-teal-500', 'bg-gray-400'];
+const CHANNEL_ICONS: Record<string, string> = {
+    instagram: 'fab fa-instagram', facebook: 'fab fa-facebook', google: 'fab fa-google',
+    tiktok: 'fab fa-tiktok', email: 'fas fa-envelope', twitter: 'fab fa-twitter',
+    youtube: 'fab fa-youtube', 'غير محدد': 'fas fa-globe',
+};
+
+const MarketingTab: React.FC<{ brandId: string }> = ({ brandId }) => {
+    const [data, setData]       = useState<CrmMarketingAttribution | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        void getMarketingAttribution(brandId).then(d => { setData(d); setLoading(false); });
+    }, [brandId]);
+
+    if (loading) return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}</div>;
+    if (!data) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-chart-pie" /></div>
+            <p className="font-semibold text-gray-600">تعذّر تحميل البيانات</p>
+        </div>
+    );
+    if (data.bySource.length === 0) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 text-2xl"><i className="fas fa-chart-pie" /></div>
+            <p className="font-semibold text-gray-600">لا توجد بيانات تسويقية بعد</p>
+            <p className="text-xs text-gray-400">أضف عملاء مع بيانات مصدر الاكتساب والقناة</p>
+        </div>
+    );
+
+    return (
+        <div className="space-y-6">
+            {/* Consent KPI */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <i className="fas fa-check-circle text-green-600 text-xl" />
+                </div>
+                <div>
+                    <p className="text-sm text-gray-500">نسبة الموافقة التسويقية</p>
+                    <p className="text-2xl font-bold text-gray-900">{data.consentRate}%</p>
+                </div>
+                <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden ms-4">
+                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${data.consentRate}%` }} />
+                </div>
+            </div>
+
+            {/* By Source */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-4">العملاء حسب مصدر الاكتساب</h3>
+                <div className="space-y-3">
+                    {data.bySource.map((s, i) => (
+                        <div key={s.source} className="space-y-1.5">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${SOURCE_COLORS[i % SOURCE_COLORS.length]}`} />
+                                <span className="text-sm font-semibold text-gray-800 capitalize flex-1">{s.source}</span>
+                                <span className="text-xs text-gray-400">{s.count.toLocaleString('ar')} عميل</span>
+                                <span className="text-xs text-gray-400">متوسط LTV: {formatCur(s.avgLtv)}</span>
+                                <span className="text-xs font-bold text-gray-700 w-10 text-left">{s.percent}%</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${SOURCE_COLORS[i % SOURCE_COLORS.length]}`} style={{ width: `${s.percent}%` }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* By Channel */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-800 mb-4">العملاء حسب القناة</h3>
+                <div className="grid grid-cols-2 gap-3">
+                    {data.byChannel.map((c, i) => (
+                        <div key={c.channel} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-white flex-shrink-0 ${SOURCE_COLORS[i % SOURCE_COLORS.length]}`}>
+                                <i className={`${CHANNEL_ICONS[c.channel] ?? 'fas fa-globe'} text-sm`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-800 capitalize truncate">{c.channel}</p>
+                                <p className="text-xs text-gray-400">{c.count.toLocaleString('ar')} · {c.percent}%</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Lifecycle by Source */}
+            {data.lifecycleBySource.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-800 mb-1">مرحلة العميل حسب المصدر</h3>
+                    <p className="text-xs text-gray-400 mb-4">توزيع دورة الحياة لكل قناة اكتساب</p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="border-b border-gray-100">
+                                    <th className="text-right font-medium text-gray-500 pb-2 pr-1">المصدر</th>
+                                    <th className="text-center font-medium text-gray-500 pb-2 px-3 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />عميل محتمل</span>
+                                    </th>
+                                    <th className="text-center font-medium text-gray-500 pb-2 px-3 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />نشط</span>
+                                    </th>
+                                    <th className="text-center font-medium text-gray-500 pb-2 px-3 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />VIP</span>
+                                    </th>
+                                    <th className="text-center font-medium text-gray-500 pb-2 px-3 whitespace-nowrap">
+                                        <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />مغادر</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {data.lifecycleBySource.map(row => (
+                                    <tr key={row.source} className="hover:bg-gray-50">
+                                        <td className="py-2.5 pr-1 font-semibold text-gray-700 capitalize">{row.source}</td>
+                                        <td className="py-2.5 px-3 text-center text-blue-600 font-medium">{row.lead}</td>
+                                        <td className="py-2.5 px-3 text-center text-green-600 font-medium">{row.active}</td>
+                                        <td className="py-2.5 px-3 text-center text-amber-600 font-medium">{row.vip}</td>
+                                        <td className="py-2.5 px-3 text-center text-red-500 font-medium">{row.churned}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 interface CrmAnalyticsPageProps {
@@ -504,11 +786,13 @@ export const CrmAnalyticsPage: React.FC<CrmAnalyticsPageProps> = ({ brandId }) =
 
             {/* Content */}
             <div>
-                {activeTab === 'rfm'      && <RfmTab       brandId={brandId} />}
-                {activeTab === 'cohorts'  && <CohortsTab   brandId={brandId} />}
-                {activeTab === 'revenue'  && <RevenueTab   brandId={brandId} />}
-                {activeTab === 'churn'    && <ChurnTab     brandId={brandId} />}
-                {activeTab === 'crosssell'&& <CrossSellTab brandId={brandId} />}
+                {activeTab === 'rfm'          && <RfmTab          brandId={brandId} />}
+                {activeTab === 'cohorts'      && <CohortsTab      brandId={brandId} />}
+                {activeTab === 'revenue'      && <RevenueTab      brandId={brandId} />}
+                {activeTab === 'churn'        && <ChurnTab        brandId={brandId} />}
+                {activeTab === 'crosssell'    && <CrossSellTab    brandId={brandId} />}
+                {activeTab === 'demographics' && <DemographicsTab brandId={brandId} />}
+                {activeTab === 'marketing'    && <MarketingTab    brandId={brandId} />}
             </div>
         </div>
     );

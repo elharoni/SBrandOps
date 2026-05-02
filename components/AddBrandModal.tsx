@@ -44,15 +44,14 @@ export const AddBrandModal: React.FC<AddBrandModalProps> = ({ onClose, onCreate,
     }
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-light-card dark:bg-dark-card rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-md rounded-3xl border border-black/10 bg-white/70 shadow-2xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 animate-scale-in" onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
-                    <div className="p-5 border-b border-light-border dark:border-dark-border flex justify-between items-center">
+                    <div className="p-5 border-b border-black/10 dark:border-white/10 flex justify-between items-center">
                         <h2 className="text-xl font-bold text-light-text dark:text-dark-text">إضافة براند جديد</h2>
                         <button type="button" onClick={onClose} className="text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text text-2xl">&times;</button>
                     </div>
                     <div className="p-6 space-y-4">
-                        {/* Quota warning if near or at limit */}
                         <QuotaWarning
                             currentCount={currentBrandCount}
                             maxCount={limits.maxBrands}
@@ -95,7 +94,7 @@ export const AddBrandModal: React.FC<AddBrandModalProps> = ({ onClose, onCreate,
                             </p>
                         )}
                     </div>
-                    <div className="p-4 bg-light-bg/50 dark:bg-dark-bg/50 border-t border-light-border dark:border-dark-border flex justify-end gap-3">
+                    <div className="p-4 border-t border-light-border dark:border-dark-border flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="text-light-text-secondary dark:text-dark-text-secondary font-bold py-2 px-4 rounded-lg hover:bg-light-bg dark:hover:bg-dark-bg hover:text-light-text dark:hover:text-dark-text">
                             إلغاء
                         </button>

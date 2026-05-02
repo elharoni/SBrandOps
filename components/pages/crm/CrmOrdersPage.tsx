@@ -6,7 +6,8 @@ import {
     CrmPaymentStatus,
     CrmShippingStatus,
 } from '../../../types';
-import { getOrders } from '../../../services/crmService';
+import { getOrders, createNote, createTask } from '../../../services/crmService';
+import { CrmTaskType, CrmTaskPriority } from '../../../types';
 import { useWindowedRows } from '../../../hooks/useWindowedRows';
 
 const ORDER_STATUS_COLOR: Record<string, string> = {
@@ -78,12 +79,19 @@ interface CrmOrdersPageProps {
     onCreateTask?: (orderId: string) => void;
 }
 
+type QuickActionType = 'note' | 'task';
+interface QuickAction { type: QuickActionType; orderId: string; customerId?: string }
+
 export const CrmOrdersPage: React.FC<CrmOrdersPageProps> = ({ brandId }) => {
     const [orders, setOrders] = useState<CrmOrder[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState<CrmOrderFilters>({ page: 1, pageSize: 50 });
     const [expanded, setExpanded] = useState<string | null>(null);
+    const [quickAction, setQuickAction] = useState<QuickAction | null>(null);
+    const [quickText, setQuickText] = useState('');
+    const [quickDue, setQuickDue] = useState('');
+    const [quickSaving, setQuickSaving] = useState(false);
 
     const {
         containerRef,
@@ -105,6 +113,33 @@ export const CrmOrdersPage: React.FC<CrmOrdersPageProps> = ({ brandId }) => {
     useEffect(() => {
         void load();
     }, [load]);
+
+    const openQuickAction = (type: QuickActionType, orderId: string, customerId?: string) => {
+        setQuickAction({ type, orderId, customerId });
+        setQuickText('');
+        setQuickDue('');
+    };
+
+    const cancelQuick = () => { setQuickAction(null); setQuickText(''); setQuickDue(''); };
+
+    const submitQuick = async () => {
+        if (!quickAction || !quickText.trim()) return;
+        setQuickSaving(true);
+        if (quickAction.type === 'note' && quickAction.customerId) {
+            await createNote(brandId, quickAction.customerId, quickText.trim());
+        } else if (quickAction.type === 'task') {
+            await createTask(brandId, {
+                orderId:    quickAction.orderId,
+                customerId: quickAction.customerId,
+                title:      quickText.trim(),
+                dueDate:    quickDue || undefined,
+                taskType:   CrmTaskType.FollowUp,
+                priority:   CrmTaskPriority.Medium,
+            });
+        }
+        setQuickSaving(false);
+        cancelQuick();
+    };
 
     const formatCurrency = (value: number) =>
         new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(value);
@@ -260,13 +295,60 @@ export const CrmOrdersPage: React.FC<CrmOrdersPageProps> = ({ brandId }) => {
 
                                                             <div>
                                                                 <p className="mb-1 text-xs font-medium text-gray-500">إجراءات</p>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <button className="text-left text-xs text-indigo-600 hover:underline">+ إضافة ملاحظة</button>
-                                                                    <button className="text-left text-xs text-indigo-600 hover:underline">+ إنشاء مهمة</button>
-                                                                    {order.trackingNumber && (
-                                                                        <p className="text-xs text-gray-500">رقم التتبع: {order.trackingNumber}</p>
-                                                                    )}
-                                                                </div>
+                                                                {quickAction?.orderId === order.id ? (
+                                                                    <div className="space-y-1.5">
+                                                                        <p className="text-xs font-semibold text-indigo-700">
+                                                                            {quickAction.type === 'note' ? '+ ملاحظة' : '+ مهمة'}
+                                                                        </p>
+                                                                        <input
+                                                                            autoFocus
+                                                                            value={quickText}
+                                                                            onChange={e => setQuickText(e.target.value)}
+                                                                            placeholder={quickAction.type === 'note' ? 'نص الملاحظة...' : 'عنوان المهمة...'}
+                                                                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none focus:border-indigo-400"
+                                                                        />
+                                                                        {quickAction.type === 'task' && (
+                                                                            <input
+                                                                                type="date"
+                                                                                value={quickDue}
+                                                                                onChange={e => setQuickDue(e.target.value)}
+                                                                                className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none focus:border-indigo-400"
+                                                                            />
+                                                                        )}
+                                                                        <div className="flex gap-1.5">
+                                                                            <button
+                                                                                onClick={() => void submitQuick()}
+                                                                                disabled={quickSaving || !quickText.trim()}
+                                                                                className="px-3 py-1 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                                                            >
+                                                                                {quickSaving ? '...' : 'حفظ'}
+                                                                            </button>
+                                                                            <button onClick={cancelQuick} className="px-3 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                                                                إلغاء
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <button
+                                                                            onClick={() => openQuickAction('note', order.id, order.customerId)}
+                                                                            disabled={!order.customerId}
+                                                                            className="text-left text-xs text-indigo-600 hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                                                                            title={!order.customerId ? 'لا يوجد عميل مرتبط' : undefined}
+                                                                        >
+                                                                            + إضافة ملاحظة
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => openQuickAction('task', order.id, order.customerId)}
+                                                                            className="text-left text-xs text-indigo-600 hover:underline"
+                                                                        >
+                                                                            + إنشاء مهمة
+                                                                        </button>
+                                                                        {order.trackingNumber && (
+                                                                            <p className="text-xs text-gray-500">رقم التتبع: {order.trackingNumber}</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </td>

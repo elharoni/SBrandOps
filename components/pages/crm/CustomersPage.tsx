@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PageScaffold, PageSection } from '../../shared/PageScaffold';
 import { AddCustomerModal } from './AddCustomerModal';
+import { ImportCustomersModal } from './ImportCustomersModal';
 import { CustomerProfilePage } from './CustomerProfilePage';
 import {
     CrmCustomer,
@@ -16,6 +17,7 @@ import {
     bulkAddTag,
     LIFECYCLE_STAGE_CONFIG,
 } from '../../../services/crmService';
+import { auditCrmExport } from '../../../services/auditService';
 import { useWindowedRows } from '../../../hooks/useWindowedRows';
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -165,12 +167,50 @@ const FiltersDrawer: React.FC<FiltersDrawerProps> = ({ filters, onChange, onClos
                 </div>
             </div>
 
+            {/* Gender */}
+            <div>
+                <label className="block text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary mb-2">الجنس</label>
+                <div className="flex flex-wrap gap-2">
+                    {[{ value: 'male', label: 'ذكر' }, { value: 'female', label: 'أنثى' }, { value: 'other', label: 'غير محدد' }].map(opt => {
+                        const active = filters.gender?.includes(opt.value);
+                        return (
+                            <button
+                                key={opt.value}
+                                onClick={() => {
+                                    const cur = filters.gender ?? [];
+                                    onChange({ gender: active ? cur.filter(x => x !== opt.value) : [...cur, opt.value] });
+                                }}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                                    active
+                                        ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                                        : 'bg-light-bg text-light-text-secondary border-light-border dark:bg-dark-bg dark:text-dark-text-secondary dark:border-dark-border hover:border-brand-primary'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* City */}
+            <div>
+                <label className="block text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary mb-2">المدينة</label>
+                <input
+                    type="text"
+                    value={filters.city ?? ''}
+                    placeholder="ابحث بالمدينة..."
+                    onChange={e => onChange({ city: e.target.value || undefined })}
+                    className="w-full bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl px-3 py-2 text-sm text-light-text dark:text-dark-text outline-none focus:border-brand-primary"
+                />
+            </div>
+
             <div className="pt-4 border-t border-light-border/40 dark:border-dark-border/40">
                 <button
                     onClick={() => onChange({
                         lifecycleStage: undefined, minOrders: undefined, maxOrders: undefined,
                         minSpent: undefined, maxSpent: undefined, acquisitionSource: undefined,
-                        hasRefunds: undefined,
+                        gender: undefined, city: undefined, hasRefunds: undefined,
                     })}
                     className="w-full btn rounded-xl bg-red-500/10 text-red-500 font-bold hover:bg-red-500 hover:text-white transition-all text-sm py-2.5"
                 >
@@ -197,6 +237,8 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ brandId, onViewCus
     const [showFilters, setShowFilters] = useState(false);
     const [filters, setFilters]     = useState<CrmCustomerFilters>({ page: 1, pageSize: 50 });
     const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [viewingCustomerId, setViewingCustomerId] = useState<string | null>(null);
     const searchRef                 = useRef<ReturnType<typeof setTimeout> | null>(null);
     const {
@@ -251,6 +293,45 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ brandId, onViewCus
         setSelected([]);
     };
 
+    const handleExport = async () => {
+        setIsExporting(true);
+        try {
+            const res = await getCustomers(brandId, { ...filters, page: 1, pageSize: 9999 });
+            const rows = res.data;
+
+            const headers = ['الاسم الأول', 'الاسم الأخير', 'البريد الإلكتروني', 'الجوال', 'المرحلة',
+                'المصدر', 'القناة', 'الجنس', 'الطلبات', 'إجمالي الإنفاق', 'تاريخ أول طلب', 'تاريخ آخر طلب'];
+
+            const escape = (v: unknown) => {
+                const s = String(v ?? '');
+                return s.includes(',') || s.includes('"') || s.includes('\n')
+                    ? `"${s.replace(/"/g, '""')}"` : s;
+            };
+
+            const csvLines = [
+                headers.join(','),
+                ...rows.map(c => [
+                    c.firstName, c.lastName, c.email, c.phone,
+                    LIFECYCLE_STAGE_CONFIG[c.lifecycleStage]?.labelAr ?? c.lifecycleStage,
+                    c.acquisitionSource, c.acquisitionChannel, c.gender,
+                    c.totalOrders, c.totalSpent, c.firstOrderDate, c.lastOrderDate,
+                ].map(escape).join(',')),
+            ];
+
+            const blob = new Blob(['﻿' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            void auditCrmExport(brandId, rows.length);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const formatCurrency = (n: number) =>
         new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(n);
 
@@ -263,6 +344,8 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ brandId, onViewCus
         filters.minOrders, filters.maxOrders,
         filters.minSpent, filters.maxSpent,
         filters.acquisitionSource?.length,
+        filters.gender?.length,
+        filters.city,
         filters.hasRefunds,
     ].filter(Boolean).length;
 
@@ -276,9 +359,17 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ brandId, onViewCus
             ]}
             actions={
                 <div className="flex items-center gap-3">
-                    <button className="btn rounded-xl bg-light-card border border-light-border dark:bg-dark-card dark:border-dark-border px-4 py-2.5 text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:shadow-sm transition-all shadow-inner">
-                        <i className="fas fa-file-export me-2" />
-                        تصدير
+                    <button
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="btn rounded-xl bg-light-card border border-light-border dark:bg-dark-card dark:border-dark-border px-4 py-2.5 text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:shadow-sm transition-all shadow-inner disabled:opacity-50"
+                    >
+                        <i className={`${isExporting ? 'fas fa-spinner fa-spin' : 'fas fa-file-export'} me-2`} />
+                        {isExporting ? 'جاري التصدير...' : 'تصدير'}
+                    </button>
+                    <button onClick={() => setIsImportOpen(true)} className="btn rounded-xl bg-light-card border border-light-border dark:bg-dark-card dark:border-dark-border px-4 py-2.5 text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:shadow-sm transition-all">
+                        <i className="fas fa-file-import me-2" />
+                        استيراد
                     </button>
                     <button onClick={() => setIsAddCustomerOpen(true)} className="btn rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand-primary/20 transition-all hover:-translate-y-0.5 active:scale-95">
                         <i className="fas fa-plus me-2" />
@@ -506,10 +597,18 @@ export const CustomersPage: React.FC<CustomersPageProps> = ({ brandId, onViewCus
             )}
 
             {isAddCustomerOpen && (
-                <AddCustomerModal 
-                    brandId={brandId} 
-                    onClose={() => setIsAddCustomerOpen(false)} 
-                    onCustomerAdded={() => { load(); }} 
+                <AddCustomerModal
+                    brandId={brandId}
+                    onClose={() => setIsAddCustomerOpen(false)}
+                    onCustomerAdded={() => { load(); }}
+                />
+            )}
+
+            {isImportOpen && (
+                <ImportCustomersModal
+                    brandId={brandId}
+                    onClose={() => setIsImportOpen(false)}
+                    onImported={() => { void load(); }}
                 />
             )}
 

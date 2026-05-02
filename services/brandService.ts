@@ -1,5 +1,6 @@
 import { Brand } from '../types';
 import { supabase } from './supabaseClient';
+import { auditBrandDeleted } from './auditService';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const logoFor = (name: string, url?: string | null) =>
@@ -97,6 +98,10 @@ export async function addBrand(
 export async function deleteBrand(brandId: string): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
 
+    // Read name before deletion for audit trail
+    const { data: brandRow } = await supabase.from('brands').select('name').eq('id', brandId).maybeSingle();
+    const brandName = brandRow?.name ?? brandId;
+
     const { error } = await supabase
         .from('brands')
         .delete()
@@ -107,8 +112,8 @@ export async function deleteBrand(brandId: string): Promise<void> {
         throw new Error(`فشل حذف البراند: ${error.message}`);
     }
 
-    // Decrement tenant brands_count (fire-and-forget)
     if (user) {
+        void auditBrandDeleted(user.id, brandId, brandName);
         void supabase.rpc('decrement_tenant_brands_count', { p_owner_id: user.id })
             .then(() => {}, () => {});
     }

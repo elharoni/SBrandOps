@@ -65,7 +65,7 @@ export async function getRfmScores(
         if (segment) q = q.eq('rfm_segment', segment);
 
         const { data, error } = await q;
-        if (error || !data) return MOCK_RFM_SCORES;
+        if (error || !data) return [];
         return data.map(r => rowToRfm(r as Record<string, unknown>));
     } catch {
         return MOCK_RFM_SCORES;
@@ -81,7 +81,7 @@ export async function getRfmDistribution(
             .select('rfm_segment')
             .eq('brand_id', brandId);
 
-        if (error || !data) return MOCK_RFM_DISTRIBUTION;
+        if (error || !data) return RFM_SEGMENT_META.map(m => ({ ...m, count: 0 }));
 
         const counts = new Map<CrmRfmSegment, number>();
         for (const row of data) {
@@ -229,7 +229,7 @@ export async function getRetentionCohorts(brandId: string): Promise<CrmRetention
             .order('cohort_month', { ascending: false })
             .order('period_number', { ascending: true });
 
-        if (error || !data) return MOCK_COHORTS;
+        if (error || !data) return [];
         return data.map(r => rowToCohort(r as Record<string, unknown>));
     } catch {
         return MOCK_COHORTS;
@@ -320,7 +320,7 @@ export async function getRevenueBySegment(brandId: string): Promise<CrmRevenueBy
             .select('lifecycle_stage, ltv')
             .eq('brand_id', brandId);
 
-        if (error || !data) return MOCK_REVENUE_BY_SEGMENT;
+        if (error || !data) return [];
 
         type Acc = { revenue: number; count: number };
         const acc = new Map<string, Acc>();
@@ -360,7 +360,7 @@ export async function getChurnTrends(brandId: string, months = 12): Promise<CrmC
             .select('lifecycle_stage, last_order_date, created_at')
             .eq('brand_id', brandId);
 
-        if (error || !data) return MOCK_CHURN_TRENDS;
+        if (error || !data) return [];
 
         const now = new Date();
         const trends: CrmChurnTrend[] = [];
@@ -418,7 +418,7 @@ export async function getCrossSellOpportunities(brandId: string, limit = 20): Pr
             .order('ltv', { ascending: false })
             .limit(limit);
 
-        if (error || !data) return MOCK_CROSS_SELL;
+        if (error || !data) return [];
 
         return data.map(row => {
             const r = row as Record<string, unknown>;
@@ -479,6 +479,170 @@ export async function getTopCustomersByRfm(
         }));
     } catch {
         return [];
+    }
+}
+
+// ── Demographics ──────────────────────────────────────────────────────────────
+
+export interface DemographicItem { label: string; count: number; percent: number }
+
+export interface CrmDemographics {
+    total: number;
+    gender: DemographicItem[];
+    ageGroups: DemographicItem[];
+    languages: DemographicItem[];
+    cities: DemographicItem[];
+    consentRate: number;
+}
+
+export async function getCustomerDemographics(brandId: string): Promise<CrmDemographics | null> {
+    try {
+        const { data, error } = await supabase
+            .from('crm_customers')
+            .select('gender, birth_date, language, metadata, marketing_consent')
+            .eq('brand_id', brandId);
+
+        if (error) return null;
+        if (!data || data.length === 0) return { total: 0, gender: [], ageGroups: [], languages: [], cities: [], consentRate: 0 };
+
+        const now = new Date();
+        const genderMap: Record<string, number> = {};
+        const ageMap: Record<string, number> = { 'أقل من 18': 0, '18–24': 0, '25–34': 0, '35–44': 0, '45–54': 0, '55+': 0, 'غير محدد': 0 };
+        const langMap: Record<string, number> = {};
+        const cityMap: Record<string, number> = {};
+        let consentCount = 0;
+        const total = data.length;
+
+        for (const row of data as Record<string, unknown>[]) {
+            const gender = ((row.gender as string) || 'غير محدد').toLowerCase();
+            const gLabel = gender === 'male' ? 'ذكر' : gender === 'female' ? 'أنثى' : gender === 'ذكر' || gender === 'أنثى' ? gender : 'غير محدد';
+            genderMap[gLabel] = (genderMap[gLabel] ?? 0) + 1;
+
+            const bd = row.birth_date as string | undefined;
+            if (bd) {
+                const age = now.getFullYear() - new Date(bd).getFullYear();
+                if (age < 18)       ageMap['أقل من 18']++;
+                else if (age < 25)  ageMap['18–24']++;
+                else if (age < 35)  ageMap['25–34']++;
+                else if (age < 45)  ageMap['35–44']++;
+                else if (age < 55)  ageMap['45–54']++;
+                else                ageMap['55+']++;
+            } else {
+                ageMap['غير محدد']++;
+            }
+
+            const lang = (row.language as string) || 'غير محدد';
+            langMap[lang] = (langMap[lang] ?? 0) + 1;
+
+            const meta = (row.metadata as Record<string, unknown>) ?? {};
+            const city = (meta.city as string) || 'غير محدد';
+            cityMap[city] = (cityMap[city] ?? 0) + 1;
+
+            if (row.marketing_consent) consentCount++;
+        }
+
+        const toItems = (map: Record<string, number>): DemographicItem[] =>
+            Object.entries(map)
+                .filter(([, c]) => c > 0)
+                .map(([label, count]) => ({ label, count, percent: Math.round((count / total) * 100) }))
+                .sort((a, b) => b.count - a.count);
+
+        return {
+            total,
+            gender:      toItems(genderMap),
+            ageGroups:   Object.entries(ageMap).filter(([, c]) => c > 0).map(([label, count]) => ({ label, count, percent: Math.round((count / total) * 100) })),
+            languages:   toItems(langMap).slice(0, 8),
+            cities:      toItems(cityMap).slice(0, 10),
+            consentRate: total > 0 ? Math.round((consentCount / total) * 100) : 0,
+        };
+    } catch {
+        return null;
+    }
+}
+
+// ── Marketing Attribution ─────────────────────────────────────────────────────
+
+export interface AttributionItem {
+    source: string;
+    count: number;
+    percent: number;
+    totalSpent: number;
+    avgLtv: number;
+}
+
+export interface CrmMarketingAttribution {
+    bySource: AttributionItem[];
+    byChannel: { channel: string; count: number; percent: number }[];
+    consentRate: number;
+    lifecycleBySource: { source: string; lead: number; active: number; vip: number; churned: number }[];
+}
+
+export async function getMarketingAttribution(brandId: string): Promise<CrmMarketingAttribution | null> {
+    try {
+        const { data, error } = await supabase
+            .from('crm_customers')
+            .select('acquisition_source, acquisition_channel, lifecycle_stage, total_spent, ltv, marketing_consent')
+            .eq('brand_id', brandId);
+
+        if (error) return null;
+        if (!data || data.length === 0) return { bySource: [], byChannel: [], consentRate: 0, lifecycleBySource: [] };
+
+        const total = data.length;
+        const sourceMap: Record<string, { count: number; spent: number; ltv: number }> = {};
+        const channelMap: Record<string, number> = {};
+        const lifecycleBySource: Record<string, { lead: number; active: number; vip: number; churned: number }> = {};
+        let consentCount = 0;
+
+        for (const row of data as Record<string, unknown>[]) {
+            const source  = (row.acquisition_source as string) || 'غير محدد';
+            const channel = (row.acquisition_channel as string) || 'غير محدد';
+            const stage   = (row.lifecycle_stage as string) || '';
+            const spent   = Number(row.total_spent ?? 0);
+            const ltv     = Number(row.ltv ?? 0);
+
+            if (!sourceMap[source]) sourceMap[source] = { count: 0, spent: 0, ltv: 0 };
+            sourceMap[source].count++;
+            sourceMap[source].spent += spent;
+            sourceMap[source].ltv   += ltv;
+
+            channelMap[channel] = (channelMap[channel] ?? 0) + 1;
+
+            if (!lifecycleBySource[source]) lifecycleBySource[source] = { lead: 0, active: 0, vip: 0, churned: 0 };
+            if (stage === 'lead' || stage === 'prospect')             lifecycleBySource[source].lead++;
+            else if (stage === 'active' || stage === 'repeat' || stage === 'first_purchase') lifecycleBySource[source].active++;
+            else if (stage === 'vip')                                  lifecycleBySource[source].vip++;
+            else if (stage === 'churned')                              lifecycleBySource[source].churned++;
+
+            if (row.marketing_consent) consentCount++;
+        }
+
+        const bySource: AttributionItem[] = Object.entries(sourceMap)
+            .map(([source, v]) => ({
+                source,
+                count:      v.count,
+                percent:    Math.round((v.count / total) * 100),
+                totalSpent: v.spent,
+                avgLtv:     v.count > 0 ? Math.round(v.ltv / v.count) : 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        const byChannel = Object.entries(channelMap)
+            .map(([channel, count]) => ({ channel, count, percent: Math.round((count / total) * 100) }))
+            .sort((a, b) => b.count - a.count);
+
+        const lifecycleArr = Object.entries(lifecycleBySource)
+            .map(([source, v]) => ({ source, ...v }))
+            .sort((a, b) => (b.active + b.vip) - (a.active + a.vip))
+            .slice(0, 6);
+
+        return {
+            bySource,
+            byChannel,
+            consentRate: total > 0 ? Math.round((consentCount / total) * 100) : 0,
+            lifecycleBySource: lifecycleArr,
+        };
+    } catch {
+        return null;
     }
 }
 
@@ -550,3 +714,38 @@ const MOCK_CROSS_SELL: CrmCrossSellOpportunity[] = [
     { customerId: 'c2', customerName: 'سارة القحطاني', currentSegment: 'promising', recommendedProducts: ['بكجات ذكية', 'كود خصم'],   potentialValue: 1_800 },
     { customerId: 'c3', customerName: 'خالد الرشيدي',  currentSegment: 'active',   recommendedProducts: ['اشتراك متميز', 'VIP'],      potentialValue: 5_100 },
 ];
+
+const MOCK_DEMOGRAPHICS: CrmDemographics = {
+    total: 1250,
+    gender:    [{ label: 'ذكر', count: 720, percent: 58 }, { label: 'أنثى', count: 430, percent: 34 }, { label: 'غير محدد', count: 100, percent: 8 }],
+    ageGroups: [{ label: '25–34', count: 480, percent: 38 }, { label: '35–44', count: 310, percent: 25 }, { label: '18–24', count: 220, percent: 18 }, { label: '45–54', count: 150, percent: 12 }, { label: '55+', count: 50, percent: 4 }, { label: 'غير محدد', count: 40, percent: 3 }],
+    languages: [{ label: 'ar', count: 980, percent: 78 }, { label: 'en', count: 200, percent: 16 }, { label: 'غير محدد', count: 70, percent: 6 }],
+    cities:    [{ label: 'الرياض', count: 450, percent: 36 }, { label: 'جدة', count: 280, percent: 22 }, { label: 'الدمام', count: 160, percent: 13 }, { label: 'مكة', count: 110, percent: 9 }, { label: 'غير محدد', count: 250, percent: 20 }],
+    consentRate: 72,
+};
+
+const MOCK_MARKETING: CrmMarketingAttribution = {
+    bySource: [
+        { source: 'social',      count: 420, percent: 34, totalSpent: 840_000,  avgLtv: 2_000 },
+        { source: 'organic',     count: 310, percent: 25, totalSpent: 680_000,  avgLtv: 2_194 },
+        { source: 'paid',        count: 250, percent: 20, totalSpent: 500_000,  avgLtv: 2_000 },
+        { source: 'email',       count: 150, percent: 12, totalSpent: 375_000,  avgLtv: 2_500 },
+        { source: 'referral',    count:  80, percent:  6, totalSpent: 200_000,  avgLtv: 2_500 },
+        { source: 'غير محدد',   count:  40, percent:  3, totalSpent:  40_000,  avgLtv: 1_000 },
+    ],
+    byChannel: [
+        { channel: 'instagram', count: 380, percent: 30 },
+        { channel: 'google',    count: 290, percent: 23 },
+        { channel: 'facebook',  count: 210, percent: 17 },
+        { channel: 'tiktok',    count: 140, percent: 11 },
+        { channel: 'email',     count: 150, percent: 12 },
+        { channel: 'غير محدد', count:  80, percent:  7 },
+    ],
+    consentRate: 72,
+    lifecycleBySource: [
+        { source: 'social',   lead: 80, active: 280, vip: 40, churned: 20 },
+        { source: 'organic',  lead: 50, active: 210, vip: 30, churned: 20 },
+        { source: 'paid',     lead: 90, active: 130, vip: 15, churned: 15 },
+        { source: 'email',    lead: 10, active: 110, vip: 20, churned: 10 },
+    ],
+};

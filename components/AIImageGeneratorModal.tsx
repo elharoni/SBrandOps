@@ -39,9 +39,9 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
     const [prompt, setPrompt] = useState(initialPrompt ?? '');
     const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>('1:1');
 
-    const logoUrl       = brand?.logoUrl || '';
-    const brandColors   = extractBrandColors(brandProfile?.styleGuidelines);
-    const brandContext  = buildBrandPromptContext(brand, brandProfile);
+    const logoUrl = brand?.logoUrl || '';
+    const brandColors = extractBrandColors(brandProfile?.styleGuidelines);
+    const brandContext = buildBrandPromptContext(brand, brandProfile);
 
     // Style hint shown in prompt placeholder
     const brandStyleHint = brandProfile
@@ -168,10 +168,10 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
     const selectedCount = images.filter(img => img.selected).length;
 
     return (
-        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-dark-card rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] border border-dark-border" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="rounded-3xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/50 backdrop-blur-2xl backdrop-saturate-150 w-full max-w-3xl flex flex-col max-h-[92vh]" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="p-5 border-b border-dark-border flex-shrink-0">
+                <div className="p-5 border-b border-white/10 flex-shrink-0">
                     <div className="flex justify-between items-center">
                         <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
                             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary/20 text-brand-secondary">
@@ -246,7 +246,7 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                                         : (ar ? 'صف الصورة التي تريدها بدقة...' : 'Describe the image you want in detail...')
                                 }
                                 rows={3}
-                                className="w-full rounded-xl border border-dark-border bg-dark-bg px-4 py-3 text-sm text-white outline-none resize-none placeholder:text-dark-text-secondary/50 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20"
+                                className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none resize-none placeholder:text-dark-text-secondary/50 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20"
                             />
                         </div>
 
@@ -258,7 +258,7 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                             <select
                                 value={provider}
                                 onChange={e => setProvider(e.target.value as AIImageProvider)}
-                                className="w-full rounded-xl border border-dark-border bg-dark-bg px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
+                                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
                             >
                                 <option value="pollinations">{ar ? 'المستقر (مجاني - غير محدود)' : 'Stable (Free & Unlimited)'}</option>
                                 <option value="google">{ar ? 'Google Imagen 4 (احترافي)' : 'Google Imagen 4 (Pro)'}</option>
@@ -274,7 +274,7 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                             <select
                                 value={aspectRatio}
                                 onChange={e => setAspectRatio(e.target.value as any)}
-                                className="w-full rounded-xl border border-dark-border bg-dark-bg px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
+                                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white outline-none focus:border-brand-primary/60"
                             >
                                 <option value="1:1">{ar ? 'مربع (1:1)' : 'Square (1:1)'}</option>
                                 <option value="16:9">{ar ? 'أفقي (16:9)' : 'Landscape (16:9)'}</option>
@@ -295,11 +295,10 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                                         key={n}
                                         type="button"
                                         onClick={() => setCount(n)}
-                                        className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all ${
-                                            count === n
+                                        className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all ${count === n
                                                 ? 'bg-brand-primary text-white shadow-sm'
-                                                : 'border border-dark-border bg-dark-bg text-dark-text-secondary hover:border-brand-primary/40 hover:text-white'
-                                        }`}
+                                                : 'border border-white/10 bg-black/20 text-dark-text-secondary hover:border-brand-primary/40 hover:text-white'
+                                            }`}
                                     >
                                         {n}
                                     </button>
@@ -372,11 +371,10 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                                 {images.map((img, i) => (
                                     <div
                                         key={img.id}
-                                        className={`group relative overflow-hidden rounded-xl border-2 cursor-pointer transition-all ${
-                                            img.selected
+                                        className={`group relative overflow-hidden rounded-xl border-2 cursor-pointer transition-all ${img.selected
                                                 ? 'border-brand-primary shadow-[0_0_0_3px_rgba(var(--color-brand-primary),0.2)]'
                                                 : 'border-dark-border hover:border-dark-text-secondary/40'
-                                        }`}
+                                            }`}
                                         onClick={() => toggleSelect(img.id)}
                                     >
                                         <img
@@ -390,11 +388,10 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                                         <div className={`absolute inset-0 transition-all ${img.selected ? 'bg-brand-primary/15' : 'bg-transparent group-hover:bg-black/20'}`} />
 
                                         {/* Checkmark */}
-                                        <div className={`absolute top-2 start-2 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${
-                                            img.selected
+                                        <div className={`absolute top-2 start-2 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${img.selected
                                                 ? 'border-brand-primary bg-brand-primary text-white'
                                                 : 'border-white/60 bg-black/40 text-transparent group-hover:border-white'
-                                        }`}>
+                                            }`}>
                                             <i className="fas fa-check text-[10px]" />
                                         </div>
 
@@ -431,7 +428,7 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
 
                     {/* Empty state */}
                     {!isLoading && images.length === 0 && !error && (
-                        <div className="flex min-h-[200px] items-center justify-center rounded-2xl border-2 border-dashed border-dark-border bg-dark-bg/60">
+                        <div className="flex min-h-[200px] items-center justify-center rounded-2xl border-2 border-dashed border-white/10 bg-black/20">
                             <div className="text-center text-dark-text-secondary/50">
                                 <i className="fas fa-images mb-2 block text-4xl" />
                                 <p className="text-sm">{ar ? 'ستظهر الصور هنا' : 'Images will appear here'}</p>
@@ -441,10 +438,10 @@ export const AIImageGeneratorModal: React.FC<AIImageGeneratorModalProps> = ({
                 </div>
 
                 {/* Footer actions */}
-                <div className="flex-shrink-0 flex items-center justify-between gap-3 border-t border-dark-border bg-dark-bg/50 p-4">
+                <div className="flex-shrink-0 flex items-center justify-between gap-3 border-t border-white/10 bg-black/20 p-4">
                     <button
                         onClick={onClose}
-                        className="rounded-xl border border-dark-border px-4 py-2.5 text-sm font-semibold text-dark-text-secondary transition-colors hover:border-dark-text-secondary/40 hover:text-white"
+                        className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-dark-text-secondary transition-colors hover:bg-white/5 hover:text-white"
                     >
                         {ar ? 'إلغاء' : 'Cancel'}
                     </button>

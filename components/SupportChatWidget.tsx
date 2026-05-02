@@ -22,20 +22,20 @@ import {
 
 const INITIAL_SUGGESTIONS = {
     ar: [
-        { label: 'مشكلة في ربط المنصات',        text: 'لدي مشكلة في ربط حسابي بـ Facebook أو Instagram' },
-        { label: 'الذكاء الاصطناعي لا يعمل',     text: 'الذكاء الاصطناعي لا يرد على طلباتي' },
-        { label: 'كيف أستخدم Campaign Brain؟',   text: 'كيف أستخدم Campaign Brain لإنشاء حملة تسويقية؟' },
-        { label: 'مشكلة في النشر',               text: 'المنشورات لا تُنشر على المنصات' },
-        { label: 'مشكلة في تسجيل الدخول',        text: 'لا أستطيع تسجيل الدخول إلى حسابي' },
-        { label: 'استفسار عن الباقات',            text: 'ما الفرق بين الباقات المتاحة؟' },
+        { label: 'مشكلة في ربط المنصات', text: 'لدي مشكلة في ربط حسابي بـ Facebook أو Instagram' },
+        { label: 'الذكاء الاصطناعي لا يعمل', text: 'الذكاء الاصطناعي لا يرد على طلباتي' },
+        { label: 'كيف أستخدم Campaign Brain؟', text: 'كيف أستخدم Campaign Brain لإنشاء حملة تسويقية؟' },
+        { label: 'مشكلة في النشر', text: 'المنشورات لا تُنشر على المنصات' },
+        { label: 'مشكلة في تسجيل الدخول', text: 'لا أستطيع تسجيل الدخول إلى حسابي' },
+        { label: 'استفسار عن الباقات', text: 'ما الفرق بين الباقات المتاحة؟' },
     ],
     en: [
-        { label: 'Platform connection issue',  text: 'I have an issue connecting my Facebook or Instagram account' },
-        { label: 'AI not responding',          text: 'The AI features are not working or responding' },
+        { label: 'Platform connection issue', text: 'I have an issue connecting my Facebook or Instagram account' },
+        { label: 'AI not responding', text: 'The AI features are not working or responding' },
         { label: 'How to use Campaign Brain?', text: 'How do I use Campaign Brain to create a marketing campaign?' },
-        { label: 'Publishing not working',     text: 'My posts are not being published to social platforms' },
-        { label: 'Login problem',              text: 'I cannot log in to my account' },
-        { label: 'Plan & pricing inquiry',     text: 'What are the differences between the available plans?' },
+        { label: 'Publishing not working', text: 'My posts are not being published to social platforms' },
+        { label: 'Login problem', text: 'I cannot log in to my account' },
+        { label: 'Plan & pricing inquiry', text: 'What are the differences between the available plans?' },
     ],
 };
 
@@ -88,24 +88,24 @@ const TicketForm: React.FC<TicketFormProps> = ({
     ar, onSubmit, onCancel, isLoading,
     prefillTitle = '', prefillDescription = '', prefillCategory = 'other', prefillPriority = 'medium',
 }) => {
-    const [title, setTitle]             = useState(prefillTitle);
+    const [title, setTitle] = useState(prefillTitle);
     const [description, setDescription] = useState(prefillDescription);
-    const [priority, setPriority]       = useState<SupportTicketPriority>(prefillPriority);
-    const [category, setCategory]       = useState<SupportTicketCategory>(prefillCategory);
+    const [priority, setPriority] = useState<SupportTicketPriority>(prefillPriority);
+    const [category, setCategory] = useState<SupportTicketCategory>(prefillCategory);
 
     const categories: { value: SupportTicketCategory; label: string }[] = [
         { value: 'technical', label: ar ? 'مشكلة تقنية' : 'Technical Issue' },
-        { value: 'billing',   label: ar ? 'الدفع والاشتراك' : 'Billing' },
-        { value: 'feature',   label: ar ? 'طلب ميزة' : 'Feature Request' },
-        { value: 'bug',       label: ar ? 'خطأ في التطبيق' : 'Bug Report' },
-        { value: 'other',     label: ar ? 'أخرى' : 'Other' },
+        { value: 'billing', label: ar ? 'الدفع والاشتراك' : 'Billing' },
+        { value: 'feature', label: ar ? 'طلب ميزة' : 'Feature Request' },
+        { value: 'bug', label: ar ? 'خطأ في التطبيق' : 'Bug Report' },
+        { value: 'other', label: ar ? 'أخرى' : 'Other' },
     ];
 
     const priorities: { value: SupportTicketPriority; label: string }[] = [
-        { value: 'low',    label: ar ? 'منخفضة' : 'Low'    },
+        { value: 'low', label: ar ? 'منخفضة' : 'Low' },
         { value: 'medium', label: ar ? 'متوسطة' : 'Medium' },
-        { value: 'high',   label: ar ? 'عالية'  : 'High'   },
-        { value: 'urgent', label: ar ? 'عاجلة'  : 'Urgent' },
+        { value: 'high', label: ar ? 'عالية' : 'High' },
+        { value: 'urgent', label: ar ? 'عاجلة' : 'Urgent' },
     ];
 
     return (
@@ -151,9 +151,9 @@ const TicketForm: React.FC<TicketFormProps> = ({
 
 const MessageBubble: React.FC<{ msg: SupportChatMessage; ar: boolean }> = ({ msg, ar }) => {
     const isUser = msg.senderType === 'user';
-    const isAI   = msg.senderType === 'ai';
-    const imgData   = (msg.metadata as any)?.imageData   as string | undefined;
-    const imgMime   = (msg.metadata as any)?.imageMimeType as string | undefined;
+    const isAI = msg.senderType === 'ai';
+    const imgData = (msg.metadata as any)?.imageData as string | undefined;
+    const imgMime = (msg.metadata as any)?.imageMimeType as string | undefined;
 
     return (
         <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -212,28 +212,28 @@ type WidgetView = 'chat' | 'ticket-form' | 'ticket-success';
 
 export const SupportChatWidget: React.FC = () => {
     const { language } = useLanguage();
-    const { user }     = useAuth();
+    const { user } = useAuth();
     const { activeBrand } = useBrandStore();
     const ar = language === 'ar';
 
-    const [isOpen, setIsOpen]               = useState(false);
-    const [view, setView]                   = useState<WidgetView>('chat');
-    const [messages, setMessages]           = useState<SupportChatMessage[]>([]);
-    const [inputText, setInputText]         = useState('');
-    const [isTyping, setIsTyping]           = useState(false);
-    const [session, setSession]             = useState<SupportChatSession | null>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const [view, setView] = useState<WidgetView>('chat');
+    const [messages, setMessages] = useState<SupportChatMessage[]>([]);
+    const [inputText, setInputText] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [session, setSession] = useState<SupportChatSession | null>(null);
     const [isCreatingTicket, setIsCreatingTicket] = useState(false);
-    const [lastAICategory, setLastAICategory]     = useState<SupportTicketCategory | null>(null);
-    const [lastAIPriority, setLastAIPriority]     = useState<SupportTicketPriority | null>(null);
-    const [ticketNumber, setTicketNumber]   = useState<number | null>(null);
-    const [unreadCount, setUnreadCount]     = useState(0);
-    const [attachedFile, setAttachedFile]   = useState<AttachedFile | null>(null);
+    const [lastAICategory, setLastAICategory] = useState<SupportTicketCategory | null>(null);
+    const [lastAIPriority, setLastAIPriority] = useState<SupportTicketPriority | null>(null);
+    const [ticketNumber, setTicketNumber] = useState<number | null>(null);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
     const [showInitialChips, setShowInitialChips] = useState(true);
     const [showContextChips, setShowContextChips] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const inputRef       = useRef<HTMLInputElement>(null);
-    const fileInputRef   = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -242,13 +242,13 @@ export const SupportChatWidget: React.FC = () => {
     useEffect(() => { scrollToBottom(); }, [messages, isTyping, scrollToBottom]);
 
     const makeWelcomeMsg = useCallback((sessionId = 'local'): SupportChatMessage => ({
-        id:         'welcome',
+        id: 'welcome',
         sessionId,
         senderType: 'ai',
-        content:    ar
+        content: ar
             ? 'مرحباً! أنا مساعدك في SBrandOps. كيف يمكنني مساعدتك اليوم؟'
             : "Hello! I'm your SBrandOps assistant. How can I help you today?",
-        createdAt:  new Date().toISOString(),
+        createdAt: new Date().toISOString(),
     }), [ar]);
 
     useEffect(() => {
@@ -273,7 +273,7 @@ export const SupportChatWidget: React.FC = () => {
                 if (newSession) setSession(newSession);
             }
         })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, user]);
 
     // ── File attachment ──────────────────────────────────────────────────────
@@ -290,12 +290,12 @@ export const SupportChatWidget: React.FC = () => {
         const reader = new FileReader();
         reader.onload = ev => {
             const dataUrl = ev.target?.result as string;
-            const base64  = dataUrl.split(',')[1];
+            const base64 = dataUrl.split(',')[1];
             setAttachedFile({
                 base64,
-                mimeType:   file.type,
+                mimeType: file.type,
                 previewUrl: dataUrl,
-                name:       file.name,
+                name: file.name,
             });
         };
         reader.readAsDataURL(file);
@@ -323,13 +323,13 @@ export const SupportChatWidget: React.FC = () => {
         }
 
         const userMsg: SupportChatMessage = {
-            id:         crypto.randomUUID(),
-            sessionId:  activeSession?.id ?? 'local',
+            id: crypto.randomUUID(),
+            sessionId: activeSession?.id ?? 'local',
             senderType: 'user',
-            senderId:   user!.id,
-            content:    userContent,
-            metadata:   file ? { imageData: file.base64, imageMimeType: file.mimeType } as any : undefined,
-            createdAt:  new Date().toISOString(),
+            senderId: user!.id,
+            content: userContent,
+            metadata: file ? { imageData: file.base64, imageMimeType: file.mimeType } as any : undefined,
+            createdAt: new Date().toISOString(),
         };
         setMessages(prev => [...prev, userMsg]);
 
@@ -353,17 +353,17 @@ export const SupportChatWidget: React.FC = () => {
             );
 
             const aiMsg: SupportChatMessage = {
-                id:         crypto.randomUUID(),
-                sessionId:  activeSession?.id ?? 'local',
+                id: crypto.randomUUID(),
+                sessionId: activeSession?.id ?? 'local',
                 senderType: 'ai',
-                content:    aiResponse.reply,
-                metadata:   {
-                    category:      aiResponse.category,
-                    priority:      aiResponse.priority,
-                    canResolve:    aiResponse.canResolve,
+                content: aiResponse.reply,
+                metadata: {
+                    category: aiResponse.category,
+                    priority: aiResponse.priority,
+                    canResolve: aiResponse.canResolve,
                     suggestTicket: aiResponse.suggestTicket,
                 },
-                createdAt:  new Date().toISOString(),
+                createdAt: new Date().toISOString(),
             };
             setMessages(prev => [...prev, aiMsg]);
             setLastAICategory(aiResponse.category);
@@ -376,13 +376,13 @@ export const SupportChatWidget: React.FC = () => {
             if (!isOpen) setUnreadCount(prev => prev + 1);
         } catch {
             setMessages(prev => [...prev, {
-                id:         crypto.randomUUID(),
-                sessionId:  activeSession?.id ?? 'local',
+                id: crypto.randomUUID(),
+                sessionId: activeSession?.id ?? 'local',
                 senderType: 'ai',
-                content:    ar
+                content: ar
                     ? 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى أو فتح تذكرة دعم.'
                     : 'Sorry, an error occurred. Please try again or open a support ticket.',
-                createdAt:  new Date().toISOString(),
+                createdAt: new Date().toISOString(),
             }]);
         } finally {
             setIsTyping(false);
@@ -412,14 +412,14 @@ export const SupportChatWidget: React.FC = () => {
                 .join('\n');
 
             const ticket = await createTicket({
-                sessionId:   session?.id,
-                userId:      user.id,
-                brandId:     activeBrand?.id,
-                title:       data.title,
+                sessionId: session?.id,
+                userId: user.id,
+                brandId: activeBrand?.id,
+                title: data.title,
                 description: `${data.description}\n\n${ar ? '--- سياق المحادثة ---' : '--- Chat Context ---'}\n${conversationSummary}`,
-                priority:    data.priority,
-                category:    data.category,
-                language:    language as 'ar' | 'en',
+                priority: data.priority,
+                category: data.category,
+                language: language as 'ar' | 'en',
             });
 
             if (ticket) {
@@ -455,12 +455,12 @@ export const SupportChatWidget: React.FC = () => {
             {/* Chat Panel */}
             {isOpen && (
                 <div
-                    className={`fixed bottom-6 ${ar ? 'left-6' : 'right-6'} z-50 w-[370px] max-w-[calc(100vw-2rem)] flex flex-col rounded-2xl shadow-2xl border border-light-border dark:border-dark-border bg-light-bg dark:bg-dark-bg overflow-hidden`}
+                    className={`fixed bottom-6 ${ar ? 'left-6' : 'right-6'} z-50 w-[370px] max-w-[calc(100vw-2rem)] flex flex-col rounded-3xl shadow-2xl shadow-black/10 border border-black/10 bg-white/70 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 overflow-hidden`}
                     style={{ height: '560px' }}
                     dir={ar ? 'rtl' : 'ltr'}
                 >
                     {/* Header */}
-                    <div className="flex items-center gap-3 px-4 py-3 bg-brand-primary text-white flex-shrink-0">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-brand-primary/90 text-white flex-shrink-0 backdrop-blur-md border-b border-white/10">
                         <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
                             <i className="fas fa-headset text-sm" />
                         </div>
@@ -483,7 +483,7 @@ export const SupportChatWidget: React.FC = () => {
                     </div>
 
                     {/* Body */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 bg-transparent">
                         {view === 'chat' && (
                             <>
                                 {messages.map(msg => (
@@ -587,7 +587,7 @@ export const SupportChatWidget: React.FC = () => {
 
                     {/* Input Area */}
                     {view === 'chat' && (
-                        <div className="flex-shrink-0 border-t border-light-border dark:border-dark-border px-3 py-2.5 space-y-2">
+                        <div className="flex-shrink-0 border-t border-black/10 dark:border-white/10 px-3 py-2.5 space-y-2 bg-white/40 dark:bg-black/20 backdrop-blur-md">
                             {/* Attachment preview */}
                             {attachedFile && (
                                 <div className="flex items-center gap-2 rounded-xl bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border px-2 py-1.5">
@@ -626,7 +626,7 @@ export const SupportChatWidget: React.FC = () => {
                                     onKeyDown={handleKeyDown}
                                     placeholder={ar ? 'اكتب رسالتك...' : 'Type your message...'}
                                     disabled={isTyping}
-                                    className="flex-1 rounded-xl border border-light-border dark:border-dark-border bg-light-card dark:bg-dark-card px-3 py-2 text-sm text-light-text dark:text-dark-text outline-none focus:border-brand-primary disabled:opacity-50"
+                                    className="flex-1 rounded-xl border border-black/5 dark:border-white/5 bg-white/50 dark:bg-black/40 px-3 py-2 text-sm text-light-text dark:text-dark-text outline-none focus:border-brand-primary disabled:opacity-50 placeholder:text-light-text-secondary dark:placeholder:text-dark-text-secondary"
                                 />
 
                                 <button
