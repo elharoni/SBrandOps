@@ -46,6 +46,17 @@ const INDUSTRY_OPTIONS = [
     'أعمال خيرية وغير ربحية', 'طاقة وبيئة واستدامة', 'تجميل ومكياج وعطور', 'أخرى',
 ];
 
+// Google Fonts dynamic loader — injects a <link> once per font family
+const _loadedFonts = new Set<string>();
+function loadGoogleFont(family: string) {
+    if (_loadedFonts.has(family)) return;
+    _loadedFonts.add(family);
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;700&display=swap`;
+    document.head.appendChild(link);
+}
+
 // Brand Hub uploaded file analysis is handled server-side via OpenAI Responses API.
 const INLINE_PDF_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -66,7 +77,7 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
         industry: '',
         description: '',
         targetAudience: '',
-        ageRange: '25-40',
+        ageRange: [] as string[],
         tones: [] as string[],
         platforms: [] as string[],
     });
@@ -137,7 +148,7 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
                 industry: prefill.industry || f.industry,
                 description: prefill.description || f.description,
                 targetAudience: prefill.targetAudience || f.targetAudience,
-                ageRange: prefill.ageRange || f.ageRange,
+                ageRange: prefill.ageRange ? [prefill.ageRange] : f.ageRange,
                 tones: prefill.tones.length ? prefill.tones : f.tones,
                 platforms: prefill.platforms.length ? prefill.platforms : f.platforms,
             }));
@@ -174,7 +185,7 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
 
     const handleGenerate = async () => {
         setIsLoading(true);
-        const fullDesc = `${form.description} | الصناعة: ${form.industry} | الجمهور: ${form.targetAudience} (${form.ageRange}) | النبرة: ${form.tones.join(', ')} | المنصات: ${form.platforms.join(', ')}`;
+        const fullDesc = `${form.description} | الصناعة: ${form.industry} | الجمهور: ${form.targetAudience} (${form.ageRange.join(', ')}) | النبرة: ${form.tones.join(', ')} | المنصات: ${form.platforms.join(', ')}`;
 
         // Save the analyzed file to the document library (fire-and-forget)
         if (fileEntry) {
@@ -199,7 +210,7 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
         const formExtracted: Partial<BrandHubProfile> = {
             ...(form.description    && { description:           form.description }),
             ...(form.targetAudience && { targetAudienceSummary: form.targetAudience }),
-            ...(form.ageRange       && { ageRange:              [form.ageRange] }),
+            ...(form.ageRange.length > 0 && { ageRange: form.ageRange }),
         };
 
         try {
@@ -390,14 +401,18 @@ const AIOnboardingModal: React.FC<{ brandId: string; brandName: string; onClose:
                             </div>
 
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 mb-2">الفئة العمرية الرئيسية</label>
-                                <div className="grid grid-cols-5 gap-2">
-                                    {['18-24', '25-34', '35-44', '45-54', '55+'].map(r => (
-                                        <button key={r} onClick={() => setForm(f => ({ ...f, ageRange: r }))}
-                                            className={`py-2.5 rounded-xl text-sm font-bold transition-all border ${form.ageRange === r ? 'border-brand-pink bg-brand-pink/20 text-brand-pink shadow-md shadow-brand-pink/20' : 'border-dark-border text-slate-500 hover:border-brand-pink/40 hover:text-slate-300'}`}>
-                                            {r}
-                                        </button>
-                                    ))}
+                                <label className="block text-xs font-semibold text-slate-400 mb-2">الفئة العمرية <span className="text-slate-500 font-normal">(اختر واحدة أو أكثر)</span></label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['13-17', '18-24', '25-34', '35-44', '45-54', '55+'].map(r => {
+                                        const active = form.ageRange.includes(r);
+                                        return (
+                                            <button key={r} type="button"
+                                                onClick={() => setForm(f => ({ ...f, ageRange: active ? f.ageRange.filter(a => a !== r) : [...f.ageRange, r] }))}
+                                                className={`py-2.5 rounded-xl text-sm font-bold transition-all border ${active ? 'border-brand-pink bg-brand-pink/20 text-brand-pink shadow-md shadow-brand-pink/20' : 'border-dark-border text-slate-500 hover:border-brand-pink/40 hover:text-slate-300'}`}>
+                                                {r}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -540,6 +555,13 @@ const VoiceTabContent: React.FC<{
     addNotification: (type: NotificationType, message: string) => void;
 }> = ({ profile, brandId, addNotification }) => {
     const [voice, setVoice] = useState<BrandVoice>(profile.brandVoice);
+    const prevVoiceRef = useRef(profile.brandVoice);
+    useEffect(() => {
+        if (profile.brandVoice !== prevVoiceRef.current) {
+            prevVoiceRef.current = profile.brandVoice;
+            setVoice(profile.brandVoice);
+        }
+    }, [profile.brandVoice]);
     const [isSaving, setIsSaving] = useState(false);
     const [newKeyword, setNewKeyword] = useState('');
     const [newNegKw, setNewNegKw] = useState('');
@@ -872,6 +894,13 @@ const AudienceTabContent: React.FC<{
     addNotification: (type: NotificationType, message: string) => void;
 }> = ({ profile, brandId, addNotification }) => {
     const [personas, setPersonas] = useState(profile.brandAudiences);
+    const prevAudiencesRef = useRef(profile.brandAudiences);
+    useEffect(() => {
+        if (profile.brandAudiences !== prevAudiencesRef.current) {
+            prevAudiencesRef.current = profile.brandAudiences;
+            setPersonas(profile.brandAudiences);
+        }
+    }, [profile.brandAudiences]);
     const [editing, setEditing] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [form, setForm] = useState<{ personaName: string; description: string; keyEmotions: string; painPoints: string }>({
@@ -1208,6 +1237,11 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         fontSecondary: initialProfile.brandAssets?.fontSecondary ?? 'Inter',
         extraColors: [] as string[],
     });
+    useEffect(() => {
+        loadGoogleFont(brandAssets.fontPrimary);
+        loadGoogleFont(brandAssets.fontSecondary);
+    }, [brandAssets.fontPrimary, brandAssets.fontSecondary]);
+
     const [isSavingAssets, setIsSavingAssets] = useState(false);
     const [isSavingIdentity, setIsSavingIdentity] = useState(false);
     const [expandedCat, setExpandedCat] = useState<string | null>(null);
@@ -1944,8 +1978,21 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
                                     </label>
                                     <p className="text-xs text-dark-text-secondary">PNG, SVG, JPG — حتى 5MB</p>
                                     {brandAssets.logoPreview && (
-                                        <button onClick={() => setBrandAssets(prev => ({ ...prev, logoPreview: '', logoUrl: '' }))}
-                                            className="text-xs text-red-400 hover:text-red-300">
+                                        <button onClick={async () => {
+                                            const cleared = { ...brandAssets, logoPreview: '', logoUrl: '' };
+                                            setBrandAssets(cleared);
+                                            try {
+                                                await updateBrandProfile(brandId, {
+                                                    brandAssets: {
+                                                        primaryColor:   cleared.primaryColor,
+                                                        secondaryColor: cleared.secondaryColor,
+                                                        accentColor:    cleared.accentColor,
+                                                        fontPrimary:    cleared.fontPrimary,
+                                                        fontSecondary:  cleared.fontSecondary,
+                                                    },
+                                                });
+                                            } catch { /* silent */ }
+                                        }} className="text-xs text-red-400 hover:text-red-300">
                                             <i className="fas fa-trash me-1"></i>حذف الشعار
                                         </button>
                                     )}
