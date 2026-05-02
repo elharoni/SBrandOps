@@ -1229,8 +1229,7 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         }
     }, [initialProfile]);
     
-    const handleAIOnboarding = (partialProfile: Partial<BrandHubProfile>) => {
-        // Deep merge the partial profile into the existing empty one
+    const handleAIOnboarding = async (partialProfile: Partial<BrandHubProfile>) => {
         const newProfile: BrandHubProfile = {
             ...profile,
             ...partialProfile,
@@ -1242,7 +1241,12 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         };
         setProfile(newProfile);
         onUpdate(newProfile);
-        addNotification(NotificationType.Success, "تم إنشاء هوية البراند الأولية بنجاح!");
+        try {
+            await updateBrandProfile(brandId, newProfile);
+            addNotification(NotificationType.Success, "✅ تم إنشاء هوية البراند وحفظها بنجاح!");
+        } catch {
+            addNotification(NotificationType.Warning, "تم إنشاء هوية البراند — اضغط 'حفظ التغييرات' لتأكيد الحفظ");
+        }
     };
     
     const handleEvaluateContent = async () => {
