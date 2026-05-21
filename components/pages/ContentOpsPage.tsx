@@ -1,11 +1,11 @@
 
 // components/pages/ContentOpsPage.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { ContentPiece, ContentStatus, NotificationType, BrandHubProfile, Comment, MediaItem, BrainstormedIdea, SocialPlatform, PLATFORM_ASSETS, AIQualityCheckResult, User, ContentGoal, PublisherBrief } from '../../types';
-import { generateStructuredContent, improveContentWithAI, performAIQualityCheck, analyzeImageForContent, generateAIContentIdeas, modifyContent, generateContentVariations, reformatContent } from '../../services/geminiService';
+import React, { useState, useEffect } from 'react';
+import { ContentPiece, ContentStatus, NotificationType, BrandHubProfile, Comment, MediaItem, SocialPlatform, PLATFORM_ASSETS, AIQualityCheckResult, User, ContentGoal, PublisherBrief } from '../../types';
+import { generateStructuredContent, improveContentWithAI, performAIQualityCheck, analyzeImageForContent, generateAIContentIdeas, modifyContent, generateContentVariations } from '../../services/geminiService';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { getContentBriefs } from '../../services/competitiveIntelService';
-import { scoreAndSave, getContentScore } from '../../services/contentScoringService';
+import { scoreAndSave } from '../../services/contentScoringService';
 import type { ContentScoreResult } from '../../services/contentScoringService';
 import { ContentScoreBadge, ContentScorePanel } from '../ContentScoreBadge';
 import { AssetLibraryPage } from './AssetLibraryPage';

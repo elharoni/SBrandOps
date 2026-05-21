@@ -10,7 +10,6 @@ import { CampaignsList } from '../ads/CampaignsList';
 import { CreateCampaignWizard } from '../ads/CreateCampaignWizard';
 import { AdAnalytics } from '../ads/AdAnalytics';
 import { ProviderConnectionCallout } from '../shared/ProviderConnectionCallout';
-import { generateContentPlan } from '../../services/geminiService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ActiveTab = 'dashboard' | 'campaigns' | 'analytics' | 'copy' | 'health' | 'scaling';

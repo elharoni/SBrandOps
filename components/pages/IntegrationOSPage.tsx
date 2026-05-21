@@ -15,7 +15,6 @@ import {
 } from '../../services/socialAccountService';
 import {
     MetaAdAccountOption,
-    ConnectMetaAdsResult,
     getAdAccounts,
     connectMetaAdAccount,
     saveMetaAdSelection,

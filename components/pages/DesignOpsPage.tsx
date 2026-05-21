@@ -9,7 +9,7 @@ import { uploadFile }          from '../../services/storageService';
 import { createDesignAsset, deleteDesignAsset } from '../../services/designAssetsService';
 import { createDesignJob, runDesignJob }         from '../../services/designJobsService';
 import { AIImageProvider, enhanceImagePrompt }    from '../../services/geminiService';
-import { buildFinalPrompt }    from '../../services/designWorkflowsService';
+
 import { extractBrandColors }  from '../../services/brandDesignUtils';
 import { DesignEditorModal }   from '../DesignEditorModal';
 
@@ -147,7 +147,7 @@ const SOURCE_BADGE: Record<string, { label: string; style: React.CSSProperties }
 export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
     brandId, brand, brandProfile, designAssets, designWorkflows, recentJobs,
     addNotification, onSendToPublisher, onAssetAdded, onJobAdded,
-    onJobUpdated, onAssetDeleted, onRefresh,
+    onJobUpdated, onAssetDeleted, onRefresh: _onRefresh,
 }) => {
     // ── Generator state ──────────────────────────────────────────────────────
     const [topic,            setTopic]            = useState('');
@@ -235,7 +235,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
         setPickedAsset(null);
 
         // Enhance prompt first if not already done
-        let finalTopic = topic;
+        let finalTopic: string;
         if (!enhancedPrompt) {
             try {
                 setProgressMsg('جاري تحويل النص لبرومت احترافي...');
@@ -326,7 +326,7 @@ export const DesignOpsPage: React.FC<DesignOpsPageProps> = ({
         }
     }, [topic, enhancedPrompt, selectedFormat, selectedTone, cta, activePreset, useBrandColors, variantCount,
         brandName, brandColors, selectedPlatform, brandId, brand, brandProfile, designWorkflows,
-        addNotification, onJobAdded, onJobUpdated, onAssetAdded]);
+        addNotification, onJobAdded, onJobUpdated, onAssetAdded, imageProvider]);
 
     // ── Upload ────────────────────────────────────────────────────────────────
 

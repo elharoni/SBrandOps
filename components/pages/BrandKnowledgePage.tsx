@@ -585,11 +585,24 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
             const values     = profile.values?.join('، ') ?? '';
 
             const prompt = buildAIPrompt(activeType, brandName, industry, description, audience, values);
-            const result = await callAIProxy({ model: 'gemini-2.0-flash', prompt, feature: 'knowledge_quickfill', brand_id: brandId });
-
-            // Parse JSON — strip markdown code fences if present
-            const raw = result.text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-            const parsed: { title: string; content: string }[] = JSON.parse(raw);
+            const result = await callAIProxy({
+                model: 'gemini-2.0-flash',
+                prompt,
+                feature: 'knowledge_quickfill',
+                brand_id: brandId,
+                schema: {
+                    type: 'ARRAY',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            title: { type: 'STRING' },
+                            content: { type: 'STRING' },
+                        },
+                        required: ['title', 'content'],
+                    },
+                },
+            });
+            const parsed: { title: string; content: string }[] = JSON.parse(result.text);
 
             setAISuggestions(
                 parsed.slice(0, 8).map((item, i) => ({

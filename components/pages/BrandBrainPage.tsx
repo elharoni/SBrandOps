@@ -134,7 +134,7 @@ function SkillCard({ skillType, stats }: { skillType: string; stats: SkillStats 
     );
 }
 
-export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandName, addNotification, onNavigate }) => {
+export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandName, addNotification: _addNotification, onNavigate }) => {
     const [activeTab, setActiveTab]       = useState<ActiveTab>('skills');
     const [period, setPeriod]             = useState<PeriodDays>(30);
     const [skillsReport, setSkillsReport] = useState<Record<string, SkillStats>>({});

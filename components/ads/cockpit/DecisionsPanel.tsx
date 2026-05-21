@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { NotificationType } from '../../../types';
 import {
     AdDecision,
+    AutoExecutedDecision,
     getPendingDecisions,
+    getAutoExecutedDecisions,
     approveDecision,
     rejectDecision,
     generateDecisions,
@@ -146,19 +148,60 @@ const DecisionCard: React.FC<CardProps> = ({ decision, currency, actionLoading, 
     );
 };
 
+// ── Auto-executed history card ────────────────────────────────────────────────
+
+const AutoHistoryCard: React.FC<{ d: AutoExecutedDecision; currency: string }> = ({ d, currency }) => {
+    const m = d.supportingMetrics;
+    const isKill  = d.decisionType === 'kill';
+    const color   = isKill
+        ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900'
+        : 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900';
+    const label   = isKill ? 'أُوقف تلقائياً' : `رُفعت تلقائياً +${d.scalePercent ?? 0}%`;
+    const icon    = isKill ? 'fa-circle-stop text-red-500' : 'fa-arrow-trend-up text-green-500';
+
+    return (
+        <div className={`flex items-start gap-3 p-3 rounded-xl border ${color}`}>
+            <div className="w-7 h-7 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shrink-0 mt-0.5">
+                <i className={`fa ${icon} text-xs`} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{d.targetName}</span>
+                    <span className="text-[10px] text-gray-400 shrink-0">
+                        {new Date(d.autoExecutedAt).toLocaleString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+                {m.cpa != null && m.target_cpa != null && (
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                        CPA: {m.cpa.toFixed(0)} {currency} / هدف: {m.target_cpa.toFixed(0)} {currency}
+                        {m.cpa_multiplier != null && ` · ${m.cpa_multiplier.toFixed(1)}×`}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // ── DecisionsPanel ────────────────────────────────────────────────────────────
 
 const DecisionsPanel: React.FC<Props> = ({ brandId, currency, addNotification }) => {
-    const [decisions,    setDecisions]    = useState<AdDecision[]>([]);
-    const [loading,      setLoading]      = useState(false);
-    const [generating,   setGenerating]   = useState(false);
+    const [decisions,     setDecisions]     = useState<AdDecision[]>([]);
+    const [autoHistory,   setAutoHistory]   = useState<AutoExecutedDecision[]>([]);
+    const [showHistory,   setShowHistory]   = useState(false);
+    const [loading,       setLoading]       = useState(false);
+    const [generating,    setGenerating]    = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
 
     const loadDecisions = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await getPendingDecisions(brandId);
-            setDecisions(data);
+            const [pending, history] = await Promise.all([
+                getPendingDecisions(brandId),
+                getAutoExecutedDecisions(brandId, 10),
+            ]);
+            setDecisions(pending);
+            setAutoHistory(history);
         } catch {
             // non-fatal — panel stays empty
         } finally {
@@ -245,7 +288,8 @@ const DecisionsPanel: React.FC<Props> = ({ brandId, currency, addNotification })
             </div>
 
             {/* Body */}
-            <div className="p-4">
+            <div className="p-4 space-y-4">
+                {/* Pending decisions */}
                 {loading ? (
                     <div className="flex flex-col gap-3">
                         {[1, 2].map(i => (
@@ -276,6 +320,37 @@ const DecisionsPanel: React.FC<Props> = ({ brandId, currency, addNotification })
                                 onReject={handleReject}
                             />
                         ))}
+                    </div>
+                )}
+
+                {/* Auto-executed history */}
+                {autoHistory.length > 0 && (
+                    <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                        <button
+                            onClick={() => setShowHistory(h => !h)}
+                            className="flex items-center justify-between w-full text-right group"
+                        >
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center">
+                                    <i className="fa fa-robot text-white text-[9px]" />
+                                </div>
+                                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                    سجل التنفيذ التلقائي
+                                </span>
+                                <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    {autoHistory.length}
+                                </span>
+                            </div>
+                            <i className={`fa fa-chevron-${showHistory ? 'up' : 'down'} text-xs text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-all`} />
+                        </button>
+
+                        {showHistory && (
+                            <div className="mt-3 flex flex-col gap-2">
+                                {autoHistory.map(d => (
+                                    <AutoHistoryCard key={d.id} d={d} currency={currency} />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

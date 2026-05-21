@@ -113,7 +113,6 @@ export const AssetLibraryPage: React.FC<AssetLibraryPageProps> = ({
             if (!file.type.startsWith('image/')) continue;
             try {
                 const url = URL.createObjectURL(file);
-                const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
                 await createDesignAsset(brandId, {
                     name: file.name.replace(/\.[^.]+$/, ''),
                     url,

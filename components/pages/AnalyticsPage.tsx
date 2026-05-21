@@ -583,7 +583,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
         void loadReferences();
 
         return () => { isMounted = false; };
-    }, [brandId, period]);
+    }, [brandId, period, addNotification]);
 
     const activeTabMeta = ANALYTICS_TABS.find((tab) => tab.id === activeTab) ?? ANALYTICS_TABS[0];
 

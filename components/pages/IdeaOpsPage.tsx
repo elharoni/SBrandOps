@@ -1,8 +1,8 @@
 // components/pages/IdeaOpsPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrainstormedIdea, BrandHubProfile, NotificationType, IdeaTestPlan, SocialPlatform, PLATFORM_ASSETS, ContentStatus } from '../../types';
+import { BrainstormedIdea, BrandHubProfile, NotificationType, IdeaTestPlan } from '../../types';
 import { brainstormContentIdeas, generateIdeaTestPlan } from '../../services/geminiService';
-import { getBrainstormedIdeas, addBrainstormedIdea } from '../../services/ideaOpsService';
+import { getBrainstormedIdeas } from '../../services/ideaOpsService';
 
 interface IdeaOpsPageProps {
     brandProfile: BrandHubProfile;

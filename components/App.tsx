@@ -201,12 +201,15 @@ const AppShell: React.FC = () => {
     const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
     const trial = useTrialStatus();
 
-    const resolvedBrandProfile     = useMemo(() => buildFallbackBrandProfile(activeBrand?.name ?? ''),     [activeBrand?.name]);
     const resolvedAnalyticsData    = useMemo(() => buildFallbackAnalyticsData(),    []);
     const resolvedAdsDashboardData = useMemo(() => buildFallbackAdsDashboardData(), []);
     const resolvedSystemData       = useMemo(() => buildFallbackSystemData(),       []);
     const hasLiveGoogleAdsConnection = hasLiveProviderConnection(brandConnections, ['google_ads']);
     const { data: fetchedBrandProfile } = usePageBrandProfile(activeBrand?.id, activeBrand?.name ?? '');
+    const resolvedBrandProfile = useMemo(
+        () => fetchedBrandProfile ?? buildFallbackBrandProfile(activeBrand?.name ?? ''),
+        [fetchedBrandProfile, activeBrand?.name],
+    );
 
     // ── Effects ───────────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@
  *
  * M1: real campaign data grouped by funnel layer, 7-day CPA sparklines, MTD KPIs, sync.
  * M2: BMB chat panel (البيير) + CPA targets CRUD editor.
+ * M4-B: Automation mode editor (semi-auto / full-auto with pg_cron scheduling).
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -17,11 +18,13 @@ import {
     getCockpitAdAccount,
     getAutomationPolicy,
 } from '../../services/cockpitService';
-import CockpitHeader    from '../ads/cockpit/CockpitHeader';
-import CampaignsBoard   from '../ads/cockpit/CampaignsBoard';
-import DecisionsPanel   from '../ads/cockpit/DecisionsPanel';
-import BMBPanel         from '../ads/cockpit/BMBPanel';
-import CPATargetsEditor from '../ads/cockpit/CPATargetsEditor';
+import CockpitHeader          from '../ads/cockpit/CockpitHeader';
+import CampaignsBoard         from '../ads/cockpit/CampaignsBoard';
+import DecisionsPanel         from '../ads/cockpit/DecisionsPanel';
+import BMBPanel               from '../ads/cockpit/BMBPanel';
+import CPATargetsEditor       from '../ads/cockpit/CPATargetsEditor';
+import AutomationPolicyEditor from '../ads/cockpit/AutomationPolicyEditor';
+import MediaPlannerPanel      from '../ads/cockpit/MediaPlannerPanel';
 
 interface Props {
     brandId:         string;
@@ -34,8 +37,9 @@ const AdsMediaBuyerCockpit: React.FC<Props> = ({ brandId, brandName, addNotifica
     const [kpis,         setKpis]         = useState<CockpitKPIs>({ mtdSpend: 0, mtdBudget: null, cpaTofu: null, cpaMofu: null, cpaBofu: null, currency: 'EGP' });
     const [adAccount,    setAdAccount]    = useState<CockpitAdAccount | null>(null);
     const [policy,       setPolicy]       = useState<AutomationPolicy | null>(null);
-    const [loading,      setLoading]      = useState(true);
-    const [showCpaEditor, setShowCpaEditor] = useState(false);
+    const [loading,         setLoading]         = useState(true);
+    const [showCpaEditor,   setShowCpaEditor]   = useState(false);
+    const [showPolicyEditor, setShowPolicyEditor] = useState(false);
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -81,6 +85,7 @@ const AdsMediaBuyerCockpit: React.FC<Props> = ({ brandId, brandName, addNotifica
                 addNotification={addNotification}
                 onSyncComplete={loadData}
                 onEditCpa={() => setShowCpaEditor(true)}
+                onEditPolicy={() => setShowPolicyEditor(true)}
             />
 
             {/* Body */}
@@ -120,6 +125,13 @@ const AdsMediaBuyerCockpit: React.FC<Props> = ({ brandId, brandName, addNotifica
                         brandId={brandId}
                         addNotification={addNotification}
                     />
+
+                    {/* Media Plan Generator */}
+                    <MediaPlannerPanel
+                        brandId={brandId}
+                        currency={kpis.currency}
+                        addNotification={addNotification}
+                    />
                 </div>
             </div>
 
@@ -131,6 +143,18 @@ const AdsMediaBuyerCockpit: React.FC<Props> = ({ brandId, brandName, addNotifica
                     initial={{ tofu: kpis.cpaTofu, mofu: kpis.cpaMofu, bofu: kpis.cpaBofu }}
                     onSaved={handleCpaSaved}
                     onClose={() => setShowCpaEditor(false)}
+                    addNotification={addNotification}
+                />
+            )}
+
+            {/* Automation Policy Editor modal */}
+            {showPolicyEditor && (
+                <AutomationPolicyEditor
+                    brandId={brandId}
+                    currency={kpis.currency}
+                    initial={policy}
+                    onSaved={setPolicy}
+                    onClose={() => setShowPolicyEditor(false)}
                     addNotification={addNotification}
                 />
             )}

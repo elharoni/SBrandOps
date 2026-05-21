@@ -10,7 +10,7 @@ import {
     MarketingPlan, MarketingPlanStatus, SocialPlatform, PLATFORM_ASSETS,
     NotificationType, BrandHubProfile, PublisherBrief,
     AiContentPlan, AiContentPlanItem, AiPriorityRecommendation, AiMonthlyPlan,
-    PlanObjectiveType,
+    PlanObjectiveType, SkillType,
 } from '../../types';
 import {
     getMarketingPlans, addMarketingPlan, updateMarketingPlan, deleteMarketingPlan,
@@ -22,7 +22,7 @@ import {
 import { saveSkillExecution } from '../../services/skillEngine';
 import { useBrandStore } from '../../stores/brandStore';
 import { EvaluationButtons } from '../shared/EvaluationButtons';
-import { SkillType } from '../../types';
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

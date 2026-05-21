@@ -6,18 +6,15 @@ import {
     InboxConversation, NotificationType, PLATFORM_ASSETS,
     BrandHubProfile, ConversationIntent, ConversationSentiment,
     ConversationStatus, ConversationPriority, SocialPlatform, SkillType,
-    InboxItemType, ReplyMode, OpportunityStage, InboxOpportunity, InboxFollowup,
+    InboxItemType, ReplyMode, OpportunityStage,
 } from '../../types';
 import {
-    getConversations, replyToConversation, markConversationRead,
+    getConversations, getConversation, replyToConversation, markConversationRead,
     updateConversationStatus, updateConversationPriority,
     addConversationTag, removeConversationTag, persistConversationAnalysis,
     getConversationNotes, addConversationNote,
     createCrmLeadFromConversation, createOrderFromInboxConversation,
     getSocialMessagesAsConversations, markSocialMessageRead,
-    calculateLeadScore, detectItemType,
-    getOpportunity, upsertOpportunity,
-    getFollowups, createFollowup, completeFollowup,
     ConversationNote,
 } from '../../services/inboxService';
 import { analyzeConversation } from '../../services/geminiService';
@@ -115,26 +112,9 @@ const ITEM_TYPE_CONFIG: Record<InboxItemType, { label: string; icon: string; col
     story_reply:        { label: 'رد Story',        icon: 'fa-film',             color: 'text-rose-500'    },
 };
 
-const OPPORTUNITY_STAGES: Record<OpportunityStage, { label: string; color: string }> = {
-    new_inquiry:       { label: 'استفسار جديد',   color: 'text-slate-500'   },
-    qualified_lead:    { label: 'ليد مؤهل',       color: 'text-blue-500'    },
-    price_sent:        { label: 'تم إرسال السعر', color: 'text-indigo-500'  },
-    negotiation:       { label: 'مفاوضة',         color: 'text-yellow-600'  },
-    order_confirmed:   { label: 'تأكيد الطلب',    color: 'text-emerald-500' },
-    payment_pending:   { label: 'انتظار الدفع',   color: 'text-orange-500'  },
-    closed_won:        { label: '✅ مغلق — ربح',  color: 'text-green-600'   },
-    closed_lost:       { label: '❌ مغلق — خسارة', color: 'text-red-500'   },
-};
-
-const NEXT_ACTION_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-    reply_price:       { label: 'ارسل السعر',        icon: 'fa-tag',              color: 'text-green-600'  },
-    ask_size:          { label: 'اسأل عن المقاس',    icon: 'fa-ruler',            color: 'text-blue-600'   },
-    create_lead:       { label: 'أنشئ ليد',          icon: 'fa-user-plus',        color: 'text-purple-600' },
-    create_order:      { label: 'أنشئ طلب',          icon: 'fa-cart-shopping',    color: 'text-brand-primary' },
-    follow_up:         { label: 'تابع العميل',       icon: 'fa-clock-rotate-left', color: 'text-yellow-600' },
-    hide_comment:      { label: 'أخفِ التعليق',      icon: 'fa-eye-slash',        color: 'text-gray-600'   },
-    escalate_support:  { label: 'رفع للدعم',         icon: 'fa-headset',          color: 'text-orange-600' },
-};
+// These configs are reserved for future CRM opportunity & next-action panels
+// const OPPORTUNITY_STAGES = ...
+// const NEXT_ACTION_CONFIG = ...
 
 const TAG_COLORS: Record<string, string> = {
     'hot-lead':      'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
@@ -866,7 +846,7 @@ const ActionPanel: React.FC<{
             .finally(() => { if (!cancelled) setAnalysisLoading(false); });
 
         return () => { cancelled = true; };
-    }, [brandId, conversation.id, brandProfile]);
+    }, [brandId, conversation, brandProfile]);
 
     // Fetch notes when tab changes
     useEffect(() => {
@@ -1783,9 +1763,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
                     const convId = payload.new?.conversation_id as string | undefined;
                     if (!convId) return;
                     // Re-fetch only the affected conversation
-                    const updated = await import('../../services/inboxService').then(m =>
-                        m.getConversation(effectiveBrandId, convId)
-                    );
+                    const updated = await getConversation(effectiveBrandId, convId);
                     if (updated) {
                         setConversations(prev => {
                             const exists = prev.some(c => c.id === convId);

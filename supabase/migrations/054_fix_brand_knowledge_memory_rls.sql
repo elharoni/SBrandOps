@@ -2,6 +2,7 @@
 
 -- ── brand_knowledge ──────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Users manage own brand knowledge" ON public.brand_knowledge;
+DROP POLICY IF EXISTS "brand_knowledge_member_access"   ON public.brand_knowledge;
 
 CREATE POLICY "brand_knowledge_member_access"
   ON public.brand_knowledge
@@ -9,10 +10,10 @@ CREATE POLICY "brand_knowledge_member_access"
   USING  (brand_id = ANY(crm_user_brand_ids()))
   WITH CHECK (brand_id = ANY(crm_user_brand_ids()));
 
--- (super admin policy already exists on this table)
-
 -- ── brand_memory ─────────────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "brand_memory_all" ON public.brand_memory;
+DROP POLICY IF EXISTS "brand_memory_all"             ON public.brand_memory;
+DROP POLICY IF EXISTS "brand_memory_member_access"   ON public.brand_memory;
+DROP POLICY IF EXISTS "super_admin_all_brand_memory" ON public.brand_memory;
 
 CREATE POLICY "brand_memory_member_access"
   ON public.brand_memory

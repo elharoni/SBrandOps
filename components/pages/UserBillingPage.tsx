@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+
 import { usePlanLimits } from '../../hooks/usePlanLimits';
 import { PRICING_PLANS } from '../../config/pricingPlans';
 import { useLanguage } from '../../context/LanguageContext';

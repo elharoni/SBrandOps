@@ -85,7 +85,7 @@ interface VideoStudioPageProps {
 
 export const VideoStudioPage: React.FC<VideoStudioPageProps> = ({
     addNotification,
-    brandId,
+    brandId: _brandId,
     marketingPlans = [],
     onNavigate,
 }) => {

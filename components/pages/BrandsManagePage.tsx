@@ -439,6 +439,7 @@ export const BrandsManagePage: React.FC<BrandsManagePageProps> = ({
     const [duplicatingBrand,   setDuplicatingBrand]  = useState<Brand | null>(null);
 
     // ── Load intelligence scores for all brands ───────────────────────────────
+    const brandsKey = brands.map(b => b.id).join(',');
     useEffect(() => {
         if (!brands.length) return;
 
@@ -495,7 +496,7 @@ export const BrandsManagePage: React.FC<BrandsManagePageProps> = ({
         };
 
         brands.forEach(b => load(b));
-    }, [brands.map(b => b.id).join(',')]);
+    }, [brandsKey]);
 
     // ── Actions ──────────────────────────────────────────────────────────────
 

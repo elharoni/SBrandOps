@@ -37,3 +37,6 @@ supabase/.temp
 *.sln
 *.sw?
 .vercel
+
+# Agent worktrees (local AI tooling — not part of source)
+.claude/worktrees/

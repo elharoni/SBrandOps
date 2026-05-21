@@ -1,4 +1,4 @@
-﻿
+
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandHubProfile, BrandVoice, NotificationType, BrandConsistencyEvaluation, BrandGoal, BrandLanguage, BusinessModel, SkillStats } from '../../types';
@@ -6,7 +6,7 @@ import { generateInitialBrandProfile, evaluateContentConsistency } from '../../s
 import { analyzeBrandFiles, buildWizardPrefillFromAnalysis, BrandFileAnalysisResult } from '../../services/brandFileAnalysisService';
 import { getBrandFileExt, getBrandFileMimeType, isBrandFileBinaryExt, isSupportedBrandFileExt, mapOpenAIAnalysisToBrandImport } from '../../services/brandFileAnalysisShared';
 import { getBrandKnowledge } from '../../services/brandKnowledgeService';
-import { callAIProxy, Type } from '../../services/aiProxy';
+import { callAIProxy } from '../../services/aiProxy';
 import { extractTextFromPdf } from '../../services/pdfExtractor';
 import { getBrandSkillsReport } from '../../services/evaluationService';
 import { getBrandDocuments, deleteBrandDocument, addBrandDocument, BrandDocument, BrandDocType, DOC_TYPE_LABELS } from '../../services/brandDocumentService';
@@ -1329,6 +1329,8 @@ export const BrandHubPage: React.FC<BrandHubPageProps> = ({ brandId, initialProf
         // Check if the profile is "empty" to trigger onboarding
         if (!initialProfile.industry && initialProfile.brandAudiences.length === 0) {
             setShowOnboarding(true);
+        } else {
+            setShowOnboarding(false);
         }
     }, [initialProfile]);
     

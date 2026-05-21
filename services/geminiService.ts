@@ -2319,7 +2319,6 @@ export async function generateCampaignBrief(
     kpis: string[];
     timeline: string;
 }> {
-    const { buildBrandSystemPrompt } = await import('./brandBrainService');
     const systemPrompt = buildBrandSystemPrompt(brandBrain, 'full');
 
     const prompt = `
@@ -2380,7 +2379,6 @@ export async function generateContentCalendar(
     upcomingOccasions: Array<{ name: string; day: number }> = [],
     model = 'gemini-2.5-flash',
 ): Promise<CalendarItem[]> {
-    const { buildBrandSystemPrompt } = await import('./brandBrainService');
     const systemPrompt = buildBrandSystemPrompt(brandBrain, 'standard');
 
     const monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -2450,7 +2448,6 @@ export async function qualifyLead(
     brandBrain: BrandBrainContext,
     model = 'gemini-2.5-pro',
 ): Promise<LeadQualResult> {
-    const { buildBrandSystemPrompt } = await import('./brandBrainService');
     const systemPrompt = buildBrandSystemPrompt(brandBrain, 'full');
 
     const prompt = `
@@ -2505,7 +2502,6 @@ export async function generateFollowUpSequence(
     brandBrain: BrandBrainContext,
     model = 'gemini-2.5-flash',
 ): Promise<FollowUpMessage[]> {
-    const { buildBrandSystemPrompt } = await import('./brandBrainService');
     const systemPrompt = buildBrandSystemPrompt(brandBrain, 'full');
 
     const prompt = `

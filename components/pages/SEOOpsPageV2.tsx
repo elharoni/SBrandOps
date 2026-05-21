@@ -11,7 +11,7 @@ import {
     getCannibalizationIssues, getRankingGapPages, getDecayedPages, getOrphanPages,
     getKeywordClusters, getKeywordMap, detectKeywordGaps,
     getContentBriefs, updateBriefStatus, runAutoIssueDetection, updateIssueStatus,
-    getSeoBusinessImpact, getChangeLogs, computePageAuditScore,
+    getSeoBusinessImpact, computePageAuditScore,
     type SeoOverviewKPIs, type SeoPage, type SeoIssue, type SeoOpportunity,
     type SeoKeywordMapping, type SeoContentBrief, type SeoBusinessImpactRow,
     type IssueStatus, type BriefStatus, type SeoKeywordCluster, type SeoDataScope,

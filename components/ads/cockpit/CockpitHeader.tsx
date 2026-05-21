@@ -11,6 +11,7 @@ interface Props {
     addNotification:  (type: NotificationType, msg: string) => void;
     onSyncComplete:   () => void;
     onEditCpa:        () => void;
+    onEditPolicy:     () => void;
 }
 
 const HEALTH_CONFIG = {
@@ -30,7 +31,7 @@ function fmt(n: number, decimals = 0): string {
 }
 
 const CockpitHeader: React.FC<Props> = ({
-    brandName, adAccount, kpis, policy, brandId, addNotification, onSyncComplete, onEditCpa,
+    brandName, adAccount, kpis, policy, brandId, addNotification, onSyncComplete, onEditCpa, onEditPolicy,
 }) => {
     const [syncing, setSyncing] = useState(false);
 
@@ -114,12 +115,17 @@ const CockpitHeader: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Automation mode */}
+                    {/* Automation mode — clickable */}
                     <div className="text-center">
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">الأتمتة</p>
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${modeCfg.className}`}>
+                        <button
+                            onClick={onEditPolicy}
+                            title="تعديل إعدادات الأتمتة"
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold hover:opacity-80 transition-opacity cursor-pointer ${modeCfg.className}`}
+                        >
                             ● {modeCfg.label}
-                        </span>
+                            <i className="fa fa-pen text-[9px] opacity-70" />
+                        </button>
                     </div>
 
                     {/* Sync button */}

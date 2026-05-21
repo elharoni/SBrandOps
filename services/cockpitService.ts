@@ -48,11 +48,14 @@ export interface CockpitAdAccount {
 }
 
 export interface AutomationPolicy {
-    mode:                     'manual' | 'auto' | 'tiered';
-    maxAutoLaunchAdsetBudget: number;
-    maxAutoScalePercent:      number;
-    killCpaMultiplier:        number;
-    monthlyBudget:            number | null;
+    mode:                       'manual' | 'auto' | 'tiered';
+    maxAutoLaunchAdsetBudget:   number;
+    maxAutoScalePercent:        number;
+    killCpaMultiplier:          number;
+    killWindowHours:            number;
+    maxDailySpendPerCampaign:   number;
+    tieredAutoLaunchLayers:     string[];
+    monthlyBudget:              number | null;
 }
 
 // ── Campaigns ─────────────────────────────────────────────────────────────────
@@ -216,18 +219,51 @@ export async function getCockpitAdAccount(brandId: string): Promise<CockpitAdAcc
 export async function getAutomationPolicy(brandId: string): Promise<AutomationPolicy | null> {
     const { data } = await supabase
         .from('automation_policies')
-        .select('mode, max_auto_launch_adset_budget, max_auto_scale_percent, kill_cpa_multiplier, monthly_budget')
+        .select('mode, max_auto_launch_adset_budget, max_auto_scale_percent, kill_cpa_multiplier, kill_window_hours, max_daily_spend_per_campaign, tiered_auto_launch_layers, monthly_budget')
         .eq('brand_id', brandId)
         .maybeSingle();
 
     if (!data) return null;
     return {
-        mode:                     data.mode ?? 'manual',
-        maxAutoLaunchAdsetBudget: Number(data.max_auto_launch_adset_budget ?? 500),
-        maxAutoScalePercent:      Number(data.max_auto_scale_percent ?? 20),
-        killCpaMultiplier:        Number(data.kill_cpa_multiplier ?? 2.0),
-        monthlyBudget:            data.monthly_budget ? Number(data.monthly_budget) : null,
+        mode:                       data.mode ?? 'manual',
+        maxAutoLaunchAdsetBudget:   Number(data.max_auto_launch_adset_budget ?? 500),
+        maxAutoScalePercent:        Number(data.max_auto_scale_percent ?? 20),
+        killCpaMultiplier:          Number(data.kill_cpa_multiplier ?? 2.0),
+        killWindowHours:            Number(data.kill_window_hours ?? 48),
+        maxDailySpendPerCampaign:   Number(data.max_daily_spend_per_campaign ?? 2000),
+        tieredAutoLaunchLayers:     (data.tiered_auto_launch_layers as string[]) ?? ['tofu'],
+        monthlyBudget:              data.monthly_budget ? Number(data.monthly_budget) : null,
     };
+}
+
+export async function saveAutomationPolicy(
+    brandId: string,
+    policy: {
+        mode:                     'manual' | 'auto' | 'tiered';
+        killCpaMultiplier:        number;
+        killWindowHours:          number;
+        maxAutoScalePercent:      number;
+        maxDailySpendPerCampaign: number;
+        monthlyBudget:            number | null;
+    },
+): Promise<{ ok: boolean; error?: string }> {
+    const { error } = await supabase
+        .from('automation_policies')
+        .upsert(
+            {
+                brand_id:                     brandId,
+                mode:                         policy.mode,
+                kill_cpa_multiplier:          policy.killCpaMultiplier,
+                kill_window_hours:            policy.killWindowHours,
+                max_auto_scale_percent:       policy.maxAutoScalePercent,
+                max_daily_spend_per_campaign: policy.maxDailySpendPerCampaign,
+                monthly_budget:               policy.monthlyBudget,
+                updated_at:                   new Date().toISOString(),
+            },
+            { onConflict: 'brand_id' },
+        );
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
 }
 
 // ── CPA targets CRUD ──────────────────────────────────────────────────────────
@@ -415,6 +451,314 @@ export async function generateDecisions(brandId: string): Promise<{ decisions: A
     const data = await resp.json() as { run_id?: string | null; inserted?: number };
     const freshDecisions = await getPendingDecisions(brandId);
     return { decisions: freshDecisions, runId: data.run_id ?? null };
+}
+
+// ── Auto-executed decisions history ──────────────────────────────────────────
+
+export interface AutoExecutedDecision {
+    id:              string;
+    targetName:      string;
+    decisionType:    'scale' | 'kill';
+    reasoning:       string;
+    autoExecutedAt:  string;
+    supportingMetrics: {
+        cpa?:            number | null;
+        target_cpa?:     number | null;
+        cpa_multiplier?: number | null;
+        spend?:          number | null;
+    };
+    scalePercent: number | null;
+}
+
+export async function getAutoExecutedDecisions(brandId: string, limit = 20): Promise<AutoExecutedDecision[]> {
+    const { data, error } = await supabase
+        .from('ad_decisions')
+        .select('*')
+        .eq('brand_id', brandId)
+        .eq('auto_actor', 'automation')
+        .eq('status', 'executed')
+        .order('auto_executed_at', { ascending: false })
+        .limit(limit);
+
+    if (error || !data?.length) return [];
+
+    const campaignIds = data
+        .filter((d: { target_type: string }) => d.target_type === 'campaign')
+        .map((d: { target_id: string }) => d.target_id);
+
+    const nameMap: Record<string, string> = {};
+    if (campaignIds.length > 0) {
+        const { data: camps } = await supabase
+            .from('ad_campaigns')
+            .select('id, name')
+            .in('id', campaignIds);
+        for (const c of camps ?? []) nameMap[c.id] = c.name;
+    }
+
+    return data.map((d: Record<string, unknown>) => ({
+        id:               d.id as string,
+        targetName:       nameMap[d.target_id as string] ?? String(d.target_id).slice(0, 8) + '…',
+        decisionType:     d.decision_type as 'scale' | 'kill',
+        reasoning:        (d.reasoning as string) ?? '',
+        autoExecutedAt:   (d.auto_executed_at as string) ?? (d.executed_at as string),
+        supportingMetrics:(d.supporting_metrics as AutoExecutedDecision['supportingMetrics']) ?? {},
+        scalePercent:     d.scale_percent as number | null ?? null,
+    }));
+}
+
+// ── Manual bmb-scheduler trigger ─────────────────────────────────────────────
+
+export async function triggerScheduler(trigger: 'manual' = 'manual'): Promise<{ ok: boolean; processed: number; auto_executed: number; error?: string }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return { ok: false, processed: 0, auto_executed: 0, error: 'Session expired' };
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    try {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/bmb-scheduler`, {
+            method:  'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'X-Trigger':     trigger,
+            },
+            body: JSON.stringify({}),
+        });
+        const data = await resp.json().catch(() => ({})) as { processed?: number; auto_executed?: number; error?: string };
+        if (!resp.ok) return { ok: false, processed: 0, auto_executed: 0, error: data.error ?? `HTTP ${resp.status}` };
+        return { ok: true, processed: data.processed ?? 0, auto_executed: data.auto_executed ?? 0 };
+    } catch (e) {
+        return { ok: false, processed: 0, auto_executed: 0, error: String(e) };
+    }
+}
+
+// ── Media Plans ───────────────────────────────────────────────────────────────
+
+export interface MediaPlanLayerKPIs {
+    cpa_target:         number | null;
+    roas_target:        number | null;
+    impressions_target: number | null;
+    ctr_target:         number | null;
+}
+
+export interface MediaPlanLayer {
+    budget_amount:  number;
+    budget_pct:     number;
+    objective:      string;
+    kpis:           MediaPlanLayerKPIs;
+    audience_notes: string;
+    ad_formats:     string[];
+}
+
+export interface MediaPlanCreativeBrief {
+    layer:    string;
+    format:   string;
+    headline: string;
+    body:     string;
+    cta:      string;
+    notes:    string;
+}
+
+export interface MediaPlanAudienceSpec {
+    layer:          string;
+    type:           string;
+    description:    string;
+    estimated_size: string;
+}
+
+export interface MediaPlan {
+    id:              string;
+    name:            string;
+    objective:       string;
+    status:          'draft' | 'pending_approval' | 'approved' | 'executing' | 'live' | 'completed' | 'rejected';
+    totalBudget:     number;
+    currency:        string;
+    startDate:       string | null;
+    endDate:         string | null;
+    brief:           string | null;
+    strategySummary: string | null;
+    funnelLayers: {
+        tofu: MediaPlanLayer;
+        mofu: MediaPlanLayer;
+        bofu: MediaPlanLayer;
+    };
+    kpis: {
+        overall_cpa_target: number | null;
+        roas_target:        number | null;
+        reach_target:       number | null;
+    };
+    creativeBriefs:  MediaPlanCreativeBrief[];
+    audiencePlan:    MediaPlanAudienceSpec[];
+    approvedBy:      string | null;
+    approvedAt:      string | null;
+    rejectedReason:  string | null;
+    createdAt:       string;
+}
+
+function defaultLayer(): MediaPlanLayer {
+    return {
+        budget_amount: 0, budget_pct: 0, objective: '',
+        kpis: { cpa_target: null, roas_target: null, impressions_target: null, ctr_target: null },
+        audience_notes: '', ad_formats: [],
+    };
+}
+
+function mapMediaPlan(row: Record<string, unknown>): MediaPlan {
+    const fl = (row.funnel_layers ?? {}) as {
+        tofu?: Partial<MediaPlanLayer>;
+        mofu?: Partial<MediaPlanLayer>;
+        bofu?: Partial<MediaPlanLayer>;
+    };
+    return {
+        id:              (row.id              as string) ?? '',
+        name:            (row.name            as string) ?? '',
+        objective:       (row.objective       as string) ?? '',
+        status:          (row.status          as MediaPlan['status']) ?? 'draft',
+        totalBudget:     Number(row.total_budget ?? 0),
+        currency:        (row.currency        as string) ?? 'EGP',
+        startDate:       (row.start_date      as string) ?? null,
+        endDate:         (row.end_date        as string) ?? null,
+        brief:           (row.brief           as string) ?? null,
+        strategySummary: (row.strategy_summary as string) ?? null,
+        funnelLayers: {
+            tofu: { ...defaultLayer(), ...(fl.tofu ?? {}) } as MediaPlanLayer,
+            mofu: { ...defaultLayer(), ...(fl.mofu ?? {}) } as MediaPlanLayer,
+            bofu: { ...defaultLayer(), ...(fl.bofu ?? {}) } as MediaPlanLayer,
+        },
+        kpis:           (row.kpis as MediaPlan['kpis']) ?? { overall_cpa_target: null, roas_target: null, reach_target: null },
+        creativeBriefs: (row.creative_briefs as MediaPlanCreativeBrief[]) ?? [],
+        audiencePlan:   (row.audience_plan   as MediaPlanAudienceSpec[])  ?? [],
+        approvedBy:     (row.approved_by     as string) ?? null,
+        approvedAt:     (row.approved_at     as string) ?? null,
+        rejectedReason: (row.rejected_reason as string) ?? null,
+        createdAt:      (row.created_at      as string) ?? '',
+    };
+}
+
+export async function createMediaPlan(
+    brandId:     string,
+    brief:       string,
+    totalBudget: number,
+    currency:    string,
+    startDate:   string | null,
+    endDate:     string | null,
+): Promise<{ planId: string; plan: MediaPlan }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error('Session expired');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+
+    const resp = await fetch(`${supabaseUrl}/functions/v1/bmb-media-planner`, {
+        method:  'POST',
+        headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+            brand_id:     brandId,
+            brief,
+            total_budget: totalBudget,
+            currency,
+            start_date:   startDate,
+            end_date:     endDate,
+        }),
+    });
+
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error((err as { error?: string }).error ?? `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json() as { plan_id: string; plan: Record<string, unknown> };
+    return { planId: data.plan_id, plan: mapMediaPlan(data.plan) };
+}
+
+export async function getMediaPlans(brandId: string): Promise<MediaPlan[]> {
+    const { data, error } = await supabase
+        .from('media_plans')
+        .select('*')
+        .eq('brand_id', brandId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+    if (error || !data?.length) return [];
+    return (data as Record<string, unknown>[]).map(mapMediaPlan);
+}
+
+export async function approveMediaPlan(
+    planId: string,
+): Promise<{ ok: boolean; error?: string; campaignsCreated?: number }> {
+    const { data: planRow, error: loadErr } = await supabase
+        .from('media_plans')
+        .select('*')
+        .eq('id', planId)
+        .eq('status', 'pending_approval')
+        .maybeSingle();
+
+    if (loadErr || !planRow) return { ok: false, error: 'الخطة غير موجودة أو تمت معالجتها' };
+
+    const plan  = mapMediaPlan(planRow as Record<string, unknown>);
+    const layers: Array<'tofu' | 'mofu' | 'bofu'> = ['tofu', 'mofu', 'bofu'];
+
+    const campaigns = layers
+        .filter(l => plan.funnelLayers[l].budget_amount > 0)
+        .map(l => {
+            const layerData = plan.funnelLayers[l];
+            let budgetDaily: number | null = null;
+            if (plan.startDate && plan.endDate) {
+                const days = Math.max(1, Math.round(
+                    (new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / 86_400_000,
+                ));
+                budgetDaily = Math.round(layerData.budget_amount / days);
+            }
+            return {
+                brand_id:        planRow.brand_id,
+                provider:        'meta',
+                name:            `${plan.name} — ${l.toUpperCase()}`,
+                status:          'paused',
+                internal_status: 'draft',
+                funnel_layer:    l,
+                objective:       plan.objective,
+                budget_daily:    budgetDaily,
+                media_plan_id:   planId,
+            };
+        });
+
+    if (campaigns.length > 0) {
+        const { error: insertErr } = await supabase.from('ad_campaigns').insert(campaigns);
+        if (insertErr) return { ok: false, error: insertErr.message };
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error: updateErr } = await supabase
+        .from('media_plans')
+        .update({
+            status:      'approved',
+            approved_by: user?.id ?? null,
+            approved_at: new Date().toISOString(),
+            updated_at:  new Date().toISOString(),
+        })
+        .eq('id', planId);
+
+    if (updateErr) return { ok: false, error: updateErr.message };
+    return { ok: true, campaignsCreated: campaigns.length };
+}
+
+export async function rejectMediaPlan(
+    planId: string,
+    reason?: string,
+): Promise<{ ok: boolean; error?: string }> {
+    const { error } = await supabase
+        .from('media_plans')
+        .update({
+            status:          'rejected',
+            rejected_reason: reason ?? null,
+            updated_at:      new Date().toISOString(),
+        })
+        .eq('id', planId)
+        .eq('status', 'pending_approval');
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
 }
 
 // ── Manual sync trigger ───────────────────────────────────────────────────────

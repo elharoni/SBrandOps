@@ -748,7 +748,11 @@ async function handleTextGeneration(
   }
 
   const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  // Gemini 2.5+ thinking models return thought parts before the response part.
+  // Skip parts with thought:true to get the actual text/JSON response.
+  const parts: Array<{ text?: string; thought?: boolean }> = data.candidates?.[0]?.content?.parts ?? [];
+  const responsePart = parts.find(p => !p.thought) ?? parts[0] ?? {};
+  const text = responsePart?.text ?? '';
   const usageMetadata: Record<string, number> = data.usageMetadata ?? {};
   return { text, usageMetadata };
 }
