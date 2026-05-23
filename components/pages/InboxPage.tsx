@@ -1563,10 +1563,6 @@ const SyncBanner: React.FC<{
     syncResult: SyncResponse | null;
     onGoToIntegrations: () => void;
 }> = ({ onSync, syncing, syncResult, onGoToIntegrations }) => {
-    const hasTokenError = syncResult?.results.some(
-        r => r.errorCode === 'token_expired' || r.errorCode === 'permission_denied' || r.errorCode === 'no_token',
-    ) ?? false;
-
     const hasInstagramResult = syncResult?.results.some(r => r.platform.toLowerCase() === 'instagram') ?? false;
     const instagramHasNoConversations = syncResult?.results.some(
         r => r.platform.toLowerCase() === 'instagram' && !r.error && r.conversationsSynced === 0,
@@ -1597,47 +1593,59 @@ const SyncBanner: React.FC<{
 
             {syncResult && (
                 <div className="w-full space-y-3">
-                    {syncResult.results.map((r, i) => (
-                        <div key={i} className={`flex items-start gap-3 p-4 rounded-2xl text-right ${r.error ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'}`}>
-                            <i className={`fas mt-0.5 ${r.error ? 'fa-circle-exclamation text-red-500' : 'fa-circle-check text-green-500'}`} />
-                            <div className="flex-1 min-w-0 text-right">
-                                <p className={`text-sm font-semibold ${r.error ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>
-                                    {r.platform} — {r.accountName}
-                                </p>
-                                {r.error ? (
-                                    <div className="mt-1 space-y-2">
-                                        <p className="text-xs text-red-600 dark:text-red-400">
-                                            {r.errorCode === 'no_token' && 'لا يوجد توكن — تحقق من ربط الحساب'}
-                                            {r.errorCode === 'permission_denied' && 'صلاحية pages_messaging مفقودة — أعد ربط الحساب'}
-                                            {r.errorCode === 'token_expired' && 'انتهت صلاحية التوكن — يجب إعادة ربط الحساب'}
-                                            {r.errorCode === 'api_error' && `خطأ API: ${r.error}`}
-                                            {!['no_token', 'permission_denied', 'token_expired', 'api_error'].includes(r.errorCode || '') && r.error}
+                    {syncResult.results.map((r, i) => {
+                        const isInstagram = r.platform.toLowerCase() === 'instagram';
+                        const isFacebook = r.platform.toLowerCase() === 'facebook';
+                        return (
+                            <div key={i} className={`flex items-start gap-3 p-4 rounded-2xl text-right ${r.error ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'}`}>
+                                <i className={`fas mt-0.5 ${r.error ? 'fa-circle-exclamation text-red-500' : 'fa-circle-check text-green-500'}`} />
+                                <div className="flex-1 min-w-0 text-right">
+                                    <div className="flex items-center gap-1.5 mb-1.5 justify-start">
+                                        {isFacebook && <i className="fab fa-facebook text-[#1877F2] text-sm" />}
+                                        {isInstagram && <i className="fab fa-instagram text-[#E1306C] text-sm" />}
+                                        <p className={`text-sm font-semibold ${r.error ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>
+                                            {r.platform} — {r.accountName}
                                         </p>
-                                        {(r.errorCode === 'token_expired' || r.errorCode === 'permission_denied' || r.errorCode === 'no_token') && (
-                                            <button
-                                                onClick={onGoToIntegrations}
-                                                className="flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:underline"
-                                            >
-                                                <i className="fas fa-plug text-[10px]" />
-                                                اذهب إلى الإعدادات وأعد الربط
-                                            </button>
-                                        )}
                                     </div>
-                                ) : (
-                                    <div className="mt-0.5">
-                                        <p className="text-xs text-green-600 dark:text-green-400">
-                                            {r.conversationsSynced} محادثة · {r.messagesSynced} رسالة
-                                        </p>
-                                        {r.conversationsSynced === 0 && (r as any).debug && (
-                                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 leading-relaxed">
-                                                ⚠️ {(r as any).debug}
+                                    {r.error ? (
+                                        <div className="mt-1 space-y-2">
+                                            <p className="text-xs text-red-600 dark:text-red-400">
+                                                {r.errorCode === 'no_token' && 'لا يوجد توكن — تحقق من ربط الحساب'}
+                                                {r.errorCode === 'permission_denied' && (
+                                                    isInstagram
+                                                        ? 'صلاحية instagram_manage_messages مفقودة — أعد ربط الحساب'
+                                                        : 'صلاحية pages_messaging مفقودة — أعد ربط الحساب'
+                                                )}
+                                                {r.errorCode === 'token_expired' && 'انتهت صلاحية التوكن — يجب إعادة ربط الحساب'}
+                                                {r.errorCode === 'api_error' && `خطأ API: ${r.error}`}
+                                                {!['no_token', 'permission_denied', 'token_expired', 'api_error'].includes(r.errorCode || '') && r.error}
                                             </p>
-                                        )}
-                                    </div>
-                                )}
+                                            {(r.errorCode === 'token_expired' || r.errorCode === 'permission_denied' || r.errorCode === 'no_token') && (
+                                                <button
+                                                    onClick={onGoToIntegrations}
+                                                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 hover:bg-red-200 dark:bg-red-950/40 dark:hover:bg-red-900/40 text-red-700 dark:text-red-300 text-xs font-bold rounded-xl transition-colors border border-red-200/50 dark:border-red-800/40"
+                                                >
+                                                    <i className="fas fa-plug text-[10px]" />
+                                                    اذهب إلى الإعدادات وأعد الربط
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="mt-0.5">
+                                            <p className="text-xs text-green-600 dark:text-green-400">
+                                                {r.conversationsSynced} محادثة · {r.messagesSynced} رسالة
+                                            </p>
+                                            {r.conversationsSynced === 0 && (r as any).debug && (
+                                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 leading-relaxed">
+                                                    ⚠️ {(r as any).debug}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {/* Instagram Advanced Access notice */}
                     {hasInstagramResult && instagramHasNoConversations && (
@@ -1664,24 +1672,6 @@ const SyncBanner: React.FC<{
                             </button>
                         </p>
                     )}
-                </div>
-            )}
-
-            {hasTokenError && (
-                <div className="w-full p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-center gap-3 text-right">
-                    <i className="fas fa-triangle-exclamation text-amber-500" />
-                    <div className="flex-1">
-                        <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">انتهت صلاحية الربط</p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                            أعد ربط حسابك لاستئناف جلب الرسائل تلقائياً.
-                        </p>
-                    </div>
-                    <button
-                        onClick={onGoToIntegrations}
-                        className="flex-shrink-0 px-3 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-colors"
-                    >
-                        إعادة الربط
-                    </button>
                 </div>
             )}
 
