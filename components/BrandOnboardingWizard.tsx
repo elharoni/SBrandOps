@@ -468,8 +468,8 @@ Return JSON only.`;
                     toneDescription,
                     keywords,
                     negativeKeywords: [],
-                    toneStrength: 0.5,
-                    toneSentiment: 0.5,
+                    toneStrength: 50,
+                    toneSentiment: 50,
                 },
                 brandAudiences: targetAudienceSummary
                     ? [{

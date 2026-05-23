@@ -9,6 +9,24 @@ export function invalidateProfileCache(brandId: string): void {
     profileCache.delete(brandId);
 }
 
+// --- Helpers: Metric Conversions (UI 0-100 <-> DB 0.0-1.0) ---
+function uiToDbMetric(val: any): number {
+    if (val === null || val === undefined) return 0.5;
+    const num = Number(val);
+    if (isNaN(num)) return 0.5;
+    const clamped = Math.max(0, Math.min(100, num));
+    return Math.round(clamped) / 100;
+}
+
+// Map db decimal metrics (0-1) to UI scale (0-100)
+function dbToUiMetric(val: any): number {
+    if (val === null || val === undefined) return 50;
+    const num = Number(val);
+    if (isNaN(num)) return 50;
+    const clamped = Math.max(0, Math.min(1, num));
+    return Math.round(clamped * 100);
+}
+
 // --- Helper: Build empty profile ---
 const getEmptyBrandProfile = (brandName: string): BrandHubProfile => ({
     brandName,
@@ -20,8 +38,8 @@ const getEmptyBrandProfile = (brandName: string): BrandHubProfile => ({
         toneDescription: [],
         keywords: [],
         negativeKeywords: [],
-        toneStrength: 0.5,
-        toneSentiment: 0.5,
+        toneStrength: 50,
+        toneSentiment: 50,
         voiceGuidelines: { dos: [], donts: [] },
     },
     brandAudiences: [],
@@ -42,8 +60,8 @@ function mapToProfile(data: any, brandName: string): BrandHubProfile {
             toneDescription: data.tone_description || [],
             keywords: data.voice_keywords || [],
             negativeKeywords: data.negative_keywords || [],
-            toneStrength: data.tone_strength ?? 0.5,
-            toneSentiment: data.tone_sentiment ?? 0.5,
+            toneStrength: dbToUiMetric(data.tone_strength),
+            toneSentiment: dbToUiMetric(data.tone_sentiment),
             voiceGuidelines: data.voice_guidelines || { dos: [], donts: [] },
         },
         brandAudiences: data.brand_audiences || [],
@@ -121,8 +139,8 @@ export async function updateBrandProfile(brandId: string, profile: Partial<Brand
         if (bv.toneDescription !== undefined) upsertData.tone_description = bv.toneDescription;
         if (bv.keywords !== undefined) upsertData.voice_keywords = bv.keywords;
         if (bv.negativeKeywords !== undefined) upsertData.negative_keywords = bv.negativeKeywords;
-        if (bv.toneStrength !== undefined) upsertData.tone_strength = bv.toneStrength;
-        if (bv.toneSentiment !== undefined) upsertData.tone_sentiment = bv.toneSentiment;
+        if (bv.toneStrength !== undefined) upsertData.tone_strength = uiToDbMetric(bv.toneStrength);
+        if (bv.toneSentiment !== undefined) upsertData.tone_sentiment = uiToDbMetric(bv.toneSentiment);
         if (bv.voiceGuidelines !== undefined) upsertData.voice_guidelines = bv.voiceGuidelines;
     }
 

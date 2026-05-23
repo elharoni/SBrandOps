@@ -184,7 +184,7 @@ export const AIOnboardingModal: React.FC<AIOnboardingModalProps> = ({ brandId, b
             ...(form.targetAudience && { targetAudienceSummary: form.targetAudience }),
             ...(form.ageRange.length > 0  && { ageRange: form.ageRange }),
             ...(form.tones.length > 0 && {
-                brandVoice: { toneDescription: form.tones, keywords: [], negativeKeywords: [], toneStrength: 50, toneSentiment: 0.5, voiceGuidelines: { dos: [], donts: [] } },
+                brandVoice: { toneDescription: form.tones, keywords: [], negativeKeywords: [], toneStrength: 50, toneSentiment: 50, voiceGuidelines: { dos: [], donts: [] } },
             }),
         };
 
