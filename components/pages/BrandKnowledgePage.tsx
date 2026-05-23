@@ -2,6 +2,7 @@
 // Brand Knowledge Base — قاعدة معرفة البراند (المنتجات / FAQ / سياسات / منافسين / سكريبتات)
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { NotificationType, BrandKnowledgeEntry, BrandKnowledgeType, Brand } from '../../types';
 import {
     getBrandKnowledge,
@@ -81,16 +82,22 @@ const AIQuickFillModal: React.FC<{
     onEditField: (id: number, field: 'editTitle' | 'editContent', value: string) => void;
     onSave: () => void;
     onClose: () => void;
-}> = ({ ar, tabLabelAr, tabLabelEn, isGenerating, suggestions, isSaving, onToggleStatus, onEditField, onSave, onClose }) => {
+    error?: { type: 'quota' | 'other'; message: string } | null;
+    onUpgrade?: () => void;
+}> = ({ ar, tabLabelAr, tabLabelEn, isGenerating, suggestions, isSaving, onToggleStatus, onEditField, onSave, onClose, error, onUpgrade }) => {
     const approvedCount = suggestions.filter(s => s.status === 'approved').length;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-dark-border bg-dark-card shadow-2xl">
+            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl border border-white/10 bg-slate-900/90 backdrop-blur-md shadow-2xl overflow-hidden relative">
+                {/* Glowing light orb background */}
+                <div className="absolute -top-24 -left-24 w-48 h-48 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-brand-secondary/10 rounded-full blur-3xl pointer-events-none" />
+
                 {/* Header */}
-                <div className="flex items-center justify-between border-b border-dark-border px-6 py-4">
+                <div className="relative z-10 flex items-center justify-between border-b border-white/5 px-6 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/15">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/15 border border-brand-primary/20">
                             <i className="fas fa-wand-magic-sparkles text-brand-secondary text-sm" />
                         </div>
                         <div>
@@ -102,18 +109,45 @@ const AIQuickFillModal: React.FC<{
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary hover:text-white transition-colors">
+                    <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-dark-text-secondary hover:text-white hover:bg-white/5 hover:border-white/20 transition-all">
                         <i className="fas fa-xmark text-sm" />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
-                    {isGenerating ? (
-                        <div className="py-20 text-center">
-                            <i className="fas fa-wand-magic-sparkles fa-spin text-3xl text-brand-secondary mb-4 block" />
+                <div className="relative z-10 flex-1 overflow-y-auto px-6 py-5 space-y-3">
+                    {error ? (
+                        <div className="py-12 text-center space-y-4">
+                            <div className={`w-16 h-16 rounded-2xl mx-auto flex items-center justify-center border ${error.type === 'quota' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
+                                <i className={`fas ${error.type === 'quota' ? 'fa-crown' : 'fa-circle-exclamation'} text-3xl`} />
+                            </div>
+                            <div className="max-w-md mx-auto px-4">
+                                <p className="font-bold text-white text-lg">
+                                    {error.type === 'quota' 
+                                        ? (ar ? 'وصلت للحد الأقصى للاستخدام' : 'Usage limit reached') 
+                                        : (ar ? 'فشل التوليد التلقائي' : 'AI Generation Failed')}
+                                </p>
+                                <p className="text-xs text-dark-text-secondary mt-2 leading-relaxed">
+                                    {error.message}
+                                </p>
+                            </div>
+                            {error.type === 'quota' && onUpgrade && (
+                                <button
+                                    onClick={onUpgrade}
+                                    className="mt-2 rounded-xl bg-gradient-to-r from-brand-pink to-brand-purple hover:opacity-90 px-6 py-2.5 text-xs font-bold text-white transition-all shadow-md hover:-translate-y-0.5 transform duration-200"
+                                >
+                                    {ar ? 'ترقية الباقة الآن' : 'Upgrade Plan Now'}
+                                </button>
+                            )}
+                        </div>
+                    ) : isGenerating ? (
+                        <div className="py-20 text-center space-y-4">
+                            <div className="relative inline-block">
+                                <i className="fas fa-wand-magic-sparkles text-4xl text-brand-secondary mb-2 animate-pulse" />
+                                <div className="absolute inset-0 bg-brand-secondary/20 blur-xl rounded-full scale-150 animate-ping -z-10" />
+                            </div>
                             <p className="font-bold text-white">{ar ? 'AI يحلل ملف براندك...' : 'AI is analyzing your brand...'}</p>
-                            <p className="text-xs text-dark-text-secondary mt-1">{ar ? 'يستغرق 5-10 ثوانٍ' : 'Takes 5-10 seconds'}</p>
+                            <p className="text-xs text-dark-text-secondary">{ar ? 'يستغرق 5-10 ثوانٍ' : 'Takes 5-10 seconds'}</p>
                         </div>
                     ) : suggestions.length === 0 ? (
                         <div className="py-16 text-center text-dark-text-secondary">
@@ -130,31 +164,31 @@ const AIQuickFillModal: React.FC<{
                             {suggestions.map(s => (
                                 <div
                                     key={s.id}
-                                    className={`rounded-2xl border p-4 transition-all ${
-                                        s.status === 'approved'  ? 'border-emerald-500/40 bg-emerald-500/5' :
-                                        s.status === 'rejected'  ? 'border-dark-border/30 bg-dark-bg/30 opacity-50' :
-                                        s.status === 'editing'   ? 'border-brand-primary/40 bg-brand-primary/5' :
-                                        'border-dark-border bg-dark-bg/40'
+                                    className={`rounded-2xl border p-4 transition-all duration-300 ${
+                                        s.status === 'approved'  ? 'border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.05)]' :
+                                        s.status === 'rejected'  ? 'border-white/5 bg-slate-950/20 opacity-40' :
+                                        s.status === 'editing'   ? 'border-brand-primary/40 bg-brand-primary/10 shadow-[0_0_15px_rgba(37,99,235,0.05)]' :
+                                        'border-white/5 bg-slate-900/40 hover:border-white/10 hover:bg-slate-900/60'
                                     }`}
                                 >
                                     {s.status === 'editing' ? (
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             <input
                                                 value={s.editTitle}
                                                 onChange={e => onEditField(s.id, 'editTitle', e.target.value)}
-                                                className="w-full rounded-xl border border-dark-border bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-brand-primary/60"
+                                                className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 transition-all"
                                             />
                                             <textarea
                                                 value={s.editContent}
                                                 onChange={e => onEditField(s.id, 'editContent', e.target.value.slice(0, 3000))}
                                                 rows={3}
-                                                className="w-full resize-none rounded-xl border border-dark-border bg-dark-bg px-3 py-2 text-sm text-white outline-none focus:border-brand-primary/60"
+                                                className="w-full resize-none rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 transition-all"
                                             />
                                             <button
                                                 onClick={() => onToggleStatus(s.id, 'approved')}
-                                                className="text-xs font-bold text-emerald-400 hover:text-emerald-300"
+                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
                                             >
-                                                <i className="fas fa-check me-1" />
+                                                <i className="fas fa-check text-[10px]" />
                                                 {ar ? 'حفظ التعديل' : 'Save Edit'}
                                             </button>
                                         </div>
@@ -164,14 +198,14 @@ const AIQuickFillModal: React.FC<{
                                                 <p className="font-semibold text-white text-sm">{s.title}</p>
                                                 <p className="mt-1 text-xs text-dark-text-secondary leading-relaxed line-clamp-3">{s.content}</p>
                                             </div>
-                                            <div className="flex flex-shrink-0 items-center gap-1">
+                                            <div className="flex flex-shrink-0 items-center gap-1.5">
                                                 <button
                                                     onClick={() => onToggleStatus(s.id, s.status === 'approved' ? 'pending' : 'approved')}
                                                     title={ar ? 'وافق' : 'Approve'}
-                                                    className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-colors ${
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-all ${
                                                         s.status === 'approved'
-                                                            ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-400'
-                                                            : 'border-dark-border text-dark-text-secondary hover:border-emerald-500/40 hover:text-emerald-400'
+                                                            ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                                            : 'border-white/10 bg-slate-950/30 text-dark-text-secondary hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400'
                                                     }`}
                                                 >
                                                     <i className="fas fa-check" />
@@ -179,17 +213,17 @@ const AIQuickFillModal: React.FC<{
                                                 <button
                                                     onClick={() => onToggleStatus(s.id, 'editing')}
                                                     title={ar ? 'عدّل' : 'Edit'}
-                                                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-dark-border text-xs text-dark-text-secondary transition-colors hover:border-brand-primary/40 hover:text-brand-secondary"
+                                                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-slate-950/30 text-xs text-dark-text-secondary transition-all hover:border-brand-primary/40 hover:bg-brand-primary/10 hover:text-brand-secondary"
                                                 >
                                                     <i className="fas fa-pen" />
                                                 </button>
                                                 <button
                                                     onClick={() => onToggleStatus(s.id, s.status === 'rejected' ? 'pending' : 'rejected')}
                                                     title={ar ? 'ارفض' : 'Reject'}
-                                                    className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-colors ${
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs transition-all ${
                                                         s.status === 'rejected'
-                                                            ? 'border-rose-500/60 bg-rose-500/20 text-rose-400'
-                                                            : 'border-dark-border text-dark-text-secondary hover:border-rose-400/40 hover:text-rose-400'
+                                                            ? 'border-rose-500/40 bg-rose-500/20 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
+                                                            : 'border-white/10 bg-slate-950/30 text-dark-text-secondary hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-400'
                                                     }`}
                                                 >
                                                     <i className="fas fa-xmark" />
@@ -205,20 +239,20 @@ const AIQuickFillModal: React.FC<{
 
                 {/* Footer */}
                 {!isGenerating && suggestions.length > 0 && (
-                    <div className="flex items-center justify-between border-t border-dark-border px-6 py-4">
+                    <div className="relative z-10 flex items-center justify-between border-t border-white/5 px-6 py-4">
                         <p className="text-xs text-dark-text-secondary">
                             {ar
                                 ? `${approvedCount} من ${suggestions.length} موافق عليه`
                                 : `${approvedCount} of ${suggestions.length} approved`}
                         </p>
                         <div className="flex gap-2">
-                            <button onClick={onClose} className="rounded-xl border border-dark-border px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-white transition-colors">
+                            <button onClick={onClose} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:bg-white/5 hover:text-white transition-all">
                                 {ar ? 'إلغاء' : 'Cancel'}
                             </button>
                             <button
                                 onClick={onSave}
                                 disabled={approvedCount === 0 || isSaving}
-                                className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary px-5 py-2 text-sm font-bold text-white shadow-lg shadow-brand-primary/20 transition-all hover:opacity-95 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0"
                             >
                                 <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'} text-xs`} />
                                 {ar ? `حفظ الموافق عليها (${approvedCount})` : `Save Approved (${approvedCount})`}
@@ -316,38 +350,50 @@ const EntryCard: React.FC<{
     onDelete: (id: string) => void;
     onHistory: (entry: BrandKnowledgeEntry) => void;
     isDeleting: boolean;
-}> = ({ entry, ar, onEdit, onDelete, onHistory, isDeleting }) => (
-    <div className="rounded-2xl border border-dark-border bg-dark-bg/50 p-4 transition-all hover:border-dark-border/80">
-        <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-                <p className="font-semibold text-white text-sm">{entry.title}</p>
-                <p className="mt-1.5 text-xs leading-relaxed text-dark-text-secondary line-clamp-3">{entry.content}</p>
-            </div>
-            <div className="flex flex-shrink-0 items-center gap-1.5">
-                <button
-                    onClick={() => onHistory(entry)}
-                    title={ar ? 'سجل الإصدارات' : 'Version history'}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary transition-colors hover:border-violet-400/40 hover:text-violet-400"
-                >
-                    <i className="fas fa-clock-rotate-left text-xs" />
-                </button>
-                <button
-                    onClick={() => onEdit(entry)}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary transition-colors hover:border-brand-primary/40 hover:text-brand-secondary"
-                >
-                    <i className="fas fa-pen text-xs" />
-                </button>
-                <button
-                    onClick={() => onDelete(entry.id)}
-                    disabled={isDeleting}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary transition-colors hover:border-rose-400/40 hover:text-rose-400 disabled:opacity-40"
-                >
-                    <i className="fas fa-trash text-xs" />
-                </button>
+}> = ({ entry, ar, onEdit, onDelete, onHistory, isDeleting }) => {
+    const typeBorderColor = {
+        product: 'border-s-brand-secondary/60',
+        faq: 'border-s-teal-400/60',
+        policy: 'border-s-indigo-400/60',
+        competitor: 'border-s-amber-400/60',
+        scenario_script: 'border-s-pink-400/60',
+    }[entry.type] || 'border-s-brand-primary/60';
+
+    return (
+        <div className={`rounded-2xl border border-white/5 border-s-2 ${typeBorderColor} bg-slate-900/35 p-4 transition-all duration-300 hover:border-white/10 hover:border-s-3 hover:bg-slate-900/60 hover:shadow-[0_0_20px_rgba(255,255,255,0.02)] hover:-translate-y-0.5 transform relative overflow-hidden group`}>
+            <div className="flex items-start gap-4">
+                <div className="min-w-0 flex-1">
+                    <p className="font-bold text-white text-sm group-hover:text-brand-secondary transition-colors duration-250">{entry.title}</p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-dark-text-secondary/80 line-clamp-3">{entry.content}</p>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-1.5">
+                    <button
+                        onClick={() => onHistory(entry)}
+                        title={ar ? 'سجل الإصدارات' : 'Version history'}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-slate-950/40 text-dark-text-secondary hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-violet-400 transition-all duration-200"
+                    >
+                        <i className="fas fa-clock-rotate-left text-xs" />
+                    </button>
+                    <button
+                        onClick={() => onEdit(entry)}
+                        title={ar ? 'تعديل' : 'Edit'}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-slate-950/40 text-dark-text-secondary hover:border-brand-primary/40 hover:bg-brand-primary/10 hover:text-brand-secondary transition-all duration-200"
+                    >
+                        <i className="fas fa-pen text-xs" />
+                    </button>
+                    <button
+                        onClick={() => onDelete(entry.id)}
+                        disabled={isDeleting}
+                        title={ar ? 'حذف' : 'Delete'}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-slate-950/40 text-dark-text-secondary hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-400 disabled:opacity-40 transition-all duration-200"
+                    >
+                        <i className="fas fa-trash text-xs" />
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 // ── Entry form ────────────────────────────────────────────────────────────────
 
@@ -363,7 +409,8 @@ const EntryForm: React.FC<{
     const [content, setContent] = useState(initial?.content ?? '');
 
     return (
-        <div className="rounded-2xl border border-brand-primary/20 bg-brand-primary/5 p-5 space-y-4">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-md p-5 space-y-4 shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-24 h-24 bg-brand-primary/5 rounded-full blur-2xl pointer-events-none" />
             <p className="text-[11px] font-black uppercase tracking-widest text-brand-secondary">
                 {initial ? (ar ? 'تعديل الإدخال' : 'Edit Entry') : (ar ? 'إضافة جديد' : 'Add New')}
             </p>
@@ -371,7 +418,7 @@ const EntryForm: React.FC<{
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 placeholder={ar ? tab.placeholderTitleAr : tab.placeholderTitleEn}
-                className="w-full rounded-xl border border-dark-border bg-dark-bg px-4 py-2.5 text-sm text-white outline-none transition focus:border-brand-primary/60 placeholder:text-dark-text-secondary/50"
+                className="w-full rounded-xl border border-white/10 bg-slate-950/40 px-4 py-2.5 text-sm text-white outline-none transition-all focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 placeholder:text-dark-text-secondary/40"
             />
             <div className="relative">
                 <textarea
@@ -379,14 +426,14 @@ const EntryForm: React.FC<{
                     onChange={e => setContent(e.target.value.slice(0, 3000))}
                     rows={4}
                     placeholder={ar ? tab.placeholderContentAr : tab.placeholderContentEn}
-                    className={`w-full resize-none rounded-xl border bg-dark-bg px-4 py-2.5 text-sm text-white outline-none transition placeholder:text-dark-text-secondary/50 ${
+                    className={`w-full resize-none rounded-xl border bg-slate-950/40 px-4 py-2.5 text-sm text-white outline-none transition-all placeholder:text-dark-text-secondary/40 ${
                         content.length > 2700
-                            ? 'border-red-500/60 focus:border-red-500'
-                            : 'border-dark-border focus:border-brand-primary/60'
+                            ? 'border-red-500/40 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+                            : 'border-white/10 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20'
                     }`}
                 />
                 <span className={`absolute bottom-2 end-3 text-[10px] font-mono ${
-                    content.length > 2700 ? 'text-red-400' : 'text-dark-text-secondary/50'
+                    content.length > 2700 ? 'text-red-400' : 'text-dark-text-secondary/40'
                 }`}>
                     {content.length}/3000
                 </span>
@@ -394,14 +441,14 @@ const EntryForm: React.FC<{
             <div className="flex justify-end gap-2">
                 <button
                     onClick={onCancel}
-                    className="rounded-xl border border-dark-border px-4 py-2 text-sm font-semibold text-dark-text-secondary transition-colors hover:text-white"
+                    className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-dark-text-secondary transition-all hover:bg-white/5 hover:text-white"
                 >
                     {ar ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                     onClick={() => onSave(title.trim(), content.trim())}
                     disabled={!title.trim() || !content.trim() || isSaving || content.length > 3000}
-                    className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary px-5 py-2 text-sm font-bold text-white shadow-lg shadow-brand-primary/20 transition-all hover:opacity-95 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
                 >
                     <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-check'} text-xs`} />
                     {ar ? 'حفظ' : 'Save'}
@@ -421,17 +468,26 @@ interface BrandKnowledgePageProps {
     brandId: string;
     brand?: Brand;
     addNotification: (type: NotificationType, message: string) => void;
+    onNavigate?: (page: string) => void;
 }
 
 export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
     brandId,
     brand,
     addNotification,
+    onNavigate,
 }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
 
-    const [activeType, setActiveType]           = useState<BrandKnowledgeType>('product');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeType: BrandKnowledgeType = (rawTab && ['product', 'faq', 'policy', 'competitor', 'scenario_script'].includes(rawTab))
+        ? (rawTab as BrandKnowledgeType)
+        : 'product';
+    const setActiveType = (type: BrandKnowledgeType) => {
+        setSearchParams({ tab: type }, { replace: true });
+    };
     const [entries, setEntries]                 = useState<BrandKnowledgeEntry[]>([]);
     const [isLoading, setIsLoading]             = useState(true);
     const [showForm, setShowForm]               = useState(false);
@@ -439,6 +495,15 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
     const [isSaving, setIsSaving]               = useState(false);
     const [deletingId, setDeletingId]           = useState<string | null>(null);
     const [search, setSearch]                   = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [aiError, setAIError]                 = useState<{ type: 'quota' | 'other'; message: string } | null>(null);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [search]);
 
     // AI Quick-Fill state
     const [showAIModal, setShowAIModal]         = useState(false);
@@ -576,6 +641,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
         setShowAIModal(true);
         setIsGenerating(true);
         setAISuggestions([]);
+        setAIError(null);
         try {
             const brandName = brand?.name ?? 'براند';
             const profile = await getBrandHubProfile(brandId, brandName);
@@ -586,7 +652,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
 
             const prompt = buildAIPrompt(activeType, brandName, industry, description, audience, values);
             const result = await callAIProxy({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
                 prompt,
                 feature: 'knowledge_quickfill',
                 brand_id: brandId,
@@ -615,11 +681,18 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                 }))
             );
         } catch (err) {
-            setShowAIModal(false);
             if (err instanceof AIQuotaError) {
-                addNotification(NotificationType.Error, ar ? 'تجاوزت حد الاستخدام اليومي للذكاء الاصطناعي.' : 'AI daily quota exceeded.');
+                setAIError({
+                    type: 'quota',
+                    message: ar
+                        ? 'لقد تجاوزت حد الاستخدام اليومي للذكاء الاصطناعي للباقة الحالية. يمكنك ترقية خطتك للوصول غير المحدود، أو المحاولة مرة أخرى غداً.'
+                        : 'You have reached the daily AI usage limit for your current plan. Please upgrade your plan for unlimited access, or try again tomorrow.'
+                });
             } else {
-                addNotification(NotificationType.Error, ar ? 'فشل التوليد التلقائي. حاول مرة أخرى.' : 'AI generation failed. Try again.');
+                setAIError({
+                    type: 'other',
+                    message: ar ? 'فشل التوليد التلقائي. حاول مرة أخرى.' : 'AI generation failed. Please try again.'
+                });
             }
         } finally {
             setIsGenerating(false);
@@ -671,8 +744,8 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
     const visibleEntries = entries
         .filter(e => e.type === activeType)
         .filter(e => {
-            if (!search) return true;
-            const q = search.toLowerCase();
+            if (!debouncedSearch) return true;
+            const q = debouncedSearch.toLowerCase();
             return e.title.toLowerCase().includes(q) || e.content.toLowerCase().includes(q);
         });
 
@@ -718,7 +791,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
             </div>
 
             {/* Stats strip */}
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-3">
                 {KNOWLEDGE_TABS.map(t => {
                     const cnt = countByType(t.type);
                     const active = t.type === activeType;
@@ -726,19 +799,19 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                         <button
                             key={t.type}
                             onClick={() => { setActiveType(t.type); setShowForm(false); setEditingEntry(null); setSearch(''); }}
-                            className={`flex flex-col items-center gap-1.5 rounded-2xl border py-3 px-2 transition-all ${
+                            className={`flex flex-col items-center gap-2 rounded-2xl border py-3.5 px-2 transition-all transform duration-300 relative overflow-hidden group ${
                                 active
-                                    ? 'border-brand-primary/40 bg-brand-primary/10'
-                                    : 'border-dark-border bg-dark-card hover:border-dark-border/60'
+                                    ? 'border-brand-primary/45 bg-gradient-to-tr from-brand-primary/20 to-brand-secondary/20 text-white shadow-lg shadow-brand-primary/10 scale-[1.03]'
+                                    : 'border-white/5 bg-slate-900/35 text-dark-text-secondary hover:border-white/15 hover:bg-slate-900/55 hover:text-white hover:-translate-y-0.5'
                             }`}
                         >
-                            <i className={`fas ${t.icon} text-sm ${active ? 'text-brand-secondary' : 'text-dark-text-secondary'}`} />
-                            <span className={`text-[11px] font-bold leading-tight text-center ${active ? 'text-white' : 'text-dark-text-secondary'}`}>
-                                {ar ? t.labelAr.split(' ')[0] : t.labelEn.split(' ')[0]}
+                            <i className={`fas ${t.icon} text-sm ${active ? 'text-brand-secondary animate-pulse' : 'text-dark-text-secondary group-hover:text-white transition-colors'}`} />
+                            <span className={`text-[11px] font-bold leading-tight text-center ${active ? 'text-white' : 'text-dark-text-secondary group-hover:text-white/90 transition-colors'}`}>
+                                {ar ? t.labelAr : t.labelEn}
                             </span>
                             {cnt > 0 && (
-                                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
-                                    active ? 'bg-brand-primary/30 text-brand-secondary' : 'bg-dark-bg text-dark-text-secondary'
+                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-black transition-all ${
+                                    active ? 'bg-brand-primary/30 text-brand-secondary border border-brand-primary/30' : 'bg-slate-950/60 text-dark-text-secondary border border-white/5'
                                 }`}>
                                     {cnt}
                                 </span>
@@ -749,7 +822,8 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
             </div>
 
             {/* Active tab content */}
-            <div className="surface-panel rounded-2xl p-6 space-y-5">
+            <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-2xl p-6 space-y-5 shadow-2xl relative overflow-hidden">
+                <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-brand-primary/5 rounded-full blur-3xl pointer-events-none" />
                 {/* Tab header + search */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -757,8 +831,8 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                             <i className={`fas ${tab.icon} text-brand-secondary`} />
                         </div>
                         <div>
-                            <h2 className="font-bold text-white">{ar ? tab.labelAr : tab.labelEn}</h2>
-                            <p className="text-xs text-dark-text-secondary">{visibleEntries.length} {ar ? 'إدخال' : 'entries'}</p>
+                            <h2 className="font-bold text-white text-sm">{ar ? tab.labelAr : tab.labelEn}</h2>
+                            <p className="text-[10px] text-dark-text-secondary">{visibleEntries.length} {ar ? 'إدخال' : 'entries'}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -766,7 +840,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                             <button
                                 onClick={handleOpenAI}
                                 disabled={isGenerating}
-                                className="flex items-center gap-1.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-xs font-bold text-brand-secondary transition-colors hover:bg-brand-primary/20 disabled:opacity-50"
+                                className="flex items-center gap-1.5 rounded-xl border border-brand-primary/30 bg-brand-primary/10 px-3 py-2 text-xs font-bold text-brand-secondary transition-all hover:bg-brand-primary/20 disabled:opacity-50"
                             >
                                 <i className={`fas ${isGenerating ? 'fa-spinner fa-spin' : 'fa-wand-magic-sparkles'} text-[10px]`} />
                                 {ar ? 'توليد AI' : 'AI Fill'}
@@ -778,14 +852,14 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                                 placeholder={ar ? 'بحث...' : 'Search...'}
-                                className="rounded-xl border border-dark-border bg-dark-bg ps-8 pe-3 py-2 text-xs text-white outline-none transition w-44 focus:border-brand-primary/60 placeholder:text-dark-text-secondary/50"
+                                className="rounded-xl border border-white/10 bg-slate-950/40 ps-8 pe-3 py-2 text-xs text-white outline-none transition w-48 focus:border-brand-primary/60 focus:ring-2 focus:ring-brand-primary/20 placeholder:text-dark-text-secondary/50"
                             />
                         </div>
                     </div>
                 </div>
 
                 {/* Hint banner */}
-                <div className="flex items-start gap-3 rounded-xl border border-dark-border bg-dark-bg/40 p-3.5">
+                <div className="flex items-start gap-3 rounded-xl border border-white/5 bg-slate-950/30 p-3.5">
                     <i className="fas fa-circle-info text-brand-secondary mt-0.5 flex-shrink-0" />
                     <p className="text-xs leading-relaxed text-dark-text-secondary">
                         {ar ? tab.hintAr : tab.hintEn}
@@ -824,14 +898,15 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                         ))}
                     </div>
                 ) : (
-                    <div className="py-14 text-center">
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-dark-bg">
-                            <i className={`fas ${tab.icon} text-2xl text-dark-text-secondary/40`} />
+                    <div className="py-14 text-center rounded-2xl bg-slate-900/30 border border-white/5 backdrop-blur-sm p-6 shadow-xl relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/5 to-transparent pointer-events-none" />
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 text-dark-text-secondary border border-white/5 group-hover:scale-110 transition-transform duration-300">
+                            <i className={`fas ${tab.icon} text-2xl text-brand-secondary`} />
                         </div>
-                        <p className="font-bold text-white mb-1">
+                        <p className="font-bold text-white text-base mb-1">
                             {ar ? 'لا توجد إدخالات بعد' : 'No entries yet'}
                         </p>
-                        <p className="text-xs text-dark-text-secondary mb-5 max-w-xs mx-auto">
+                        <p className="text-xs text-dark-text-secondary mb-5 max-w-xs mx-auto leading-relaxed">
                             {ar
                                 ? 'أضف أول إدخال وابدأ في تعليم AI كل شيء عن براندك.'
                                 : 'Add your first entry and start teaching AI everything about your brand.'}
@@ -839,7 +914,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                         {!showForm && (
                             <button
                                 onClick={() => { setEditingEntry(null); setShowForm(true); }}
-                                className="inline-flex items-center gap-2 rounded-xl bg-brand-primary/10 px-5 py-2.5 text-sm font-bold text-brand-secondary transition-colors hover:bg-brand-primary/20"
+                                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-primary to-brand-secondary px-6 py-3 text-xs font-black text-white transition-all shadow-md shadow-brand-primary/20 hover:scale-[1.03] transform"
                             >
                                 <i className="fas fa-plus text-xs" />
                                 {ar ? `إضافة ${tab.labelAr.split(' ')[0]}` : `Add ${tab.labelEn.split(' ')[0]}`}
@@ -862,19 +937,24 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                 onToggleStatus={handleToggleSuggestionStatus}
                 onEditField={handleEditSuggestionField}
                 onSave={handleSaveAISuggestions}
-                onClose={() => { setShowAIModal(false); setAISuggestions([]); }}
+                onClose={() => { setShowAIModal(false); setAISuggestions([]); setAIError(null); }}
+                error={aiError}
+                onUpgrade={() => { setShowAIModal(false); onNavigate?.('billing'); }}
             />
         )}
 
         {/* Version History Modal */}
         {historyEntry && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryEntry(null)} />
-                <div className="relative z-10 w-full max-w-lg rounded-2xl border border-dark-border bg-dark-card shadow-2xl flex flex-col max-h-[80vh]">
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setHistoryEntry(null)} />
+                <div className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+                    {/* Glowing light orb background */}
+                    <div className="absolute -top-24 -left-24 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
+
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-dark-border flex-shrink-0">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-shrink-0 relative z-10">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 border border-violet-500/20">
                                 <i className="fas fa-clock-rotate-left text-violet-400 text-sm" />
                             </div>
                             <div>
@@ -882,13 +962,13 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                                 <p className="text-xs text-dark-text-secondary truncate max-w-[200px]">{historyEntry.title}</p>
                             </div>
                         </div>
-                        <button onClick={() => setHistoryEntry(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-dark-border text-dark-text-secondary hover:text-white transition-colors">
+                        <button onClick={() => setHistoryEntry(null)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-dark-text-secondary hover:bg-white/5 hover:text-white transition-all">
                             <i className="fas fa-xmark text-sm" />
                         </button>
                     </div>
 
                     {/* Body */}
-                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 relative z-10">
                         {historyLoading ? (
                             <div className="py-12 text-center">
                                 <i className="fas fa-spinner fa-spin text-2xl text-violet-400" />
@@ -901,7 +981,7 @@ export const BrandKnowledgePage: React.FC<BrandKnowledgePageProps> = ({
                             </div>
                         ) : (
                             historyItems.map(v => (
-                                <div key={v.id} className="rounded-2xl border border-dark-border bg-dark-bg/50 p-4 space-y-2">
+                                <div key={v.id} className="rounded-2xl border border-white/5 bg-slate-950/40 p-4 space-y-2 hover:border-white/10 transition-colors">
                                     <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs font-black text-violet-400">v{v.versionNumber}</span>

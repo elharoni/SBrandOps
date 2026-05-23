@@ -3,6 +3,7 @@
  * Tabs: RFM Distribution · Retention Cohorts · Revenue by Segment · Churn Trends · Cross-sell Opportunities
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     CrmRfmSegment,
     CrmRetentionCohort,
@@ -756,7 +757,14 @@ interface CrmAnalyticsPageProps {
 }
 
 export const CrmAnalyticsPage: React.FC<CrmAnalyticsPageProps> = ({ brandId }) => {
-    const [activeTab, setActiveTab] = useState<AnalyticsTab>('rfm');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: AnalyticsTab = (rawTab && ['rfm', 'cohorts', 'revenue', 'churn', 'crosssell', 'demographics', 'marketing'].includes(rawTab))
+        ? (rawTab as AnalyticsTab)
+        : 'rfm';
+    const setActiveTab = (tab: AnalyticsTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
 
     return (
         <div className="space-y-4">

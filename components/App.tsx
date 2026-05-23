@@ -167,6 +167,7 @@ const AppShell: React.FC = () => {
         viewMode, activeBrandPage, activeAdminPage,
         isAuthenticated, isAdmin, authPage,
         setActiveBrandPage, setActiveAdminPage, setViewMode, setAuthPage,
+        isLoading: authLoading,
     });
 
     // ── Mobile: auto-redirect dashboard → mobile-home ────────────────────────
@@ -544,7 +545,7 @@ const AppShell: React.FC = () => {
                             activePageId={activeBrandPage}
                         />
                         <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-6 lg:pb-6 pb-24">
-                            <ErrorBoundary key={activeBrandPage}>
+                            <ErrorBoundary key={activeBrandPage.split('/')[0]}>
                                 <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ تحميل الصفحة...' : 'Loading page...'} />}>
                                     <BrandRouter
                                         activePage={activeBrandPage}

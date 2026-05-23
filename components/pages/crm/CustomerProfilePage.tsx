@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     CrmCustomer, CrmOrder, CrmNote, CrmActivity, CrmTask, CrmCustomerTag,
     CrmLifecycleStage, CrmActivityEventType, CrmTaskPriority, CrmTaskStatus, CrmTaskType,
@@ -412,7 +413,14 @@ export const CustomerProfilePage: React.FC<CustomerProfilePageProps> = ({ brandI
     const [activities, setActivities] = useState<CrmActivity[]>([]);
     const [tasks, setTasks]           = useState<CrmTask[]>([]);
     const [tags, setTags]             = useState<CrmCustomerTag[]>([]);
-    const [activeTab, setActiveTab]   = useState<Tab>('overview');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: Tab = (rawTab && ['overview', 'orders', 'timeline', 'notes', 'tasks', 'messages'].includes(rawTab))
+        ? (rawTab as Tab)
+        : 'overview';
+    const setActiveTab = (tab: Tab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
     const [loading, setLoading]       = useState(true);
     const [showLifecycleMenu, setShowLifecycleMenu] = useState(false);
 

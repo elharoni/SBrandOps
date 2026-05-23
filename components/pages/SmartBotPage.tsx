@@ -10,7 +10,10 @@ import {
     getBotPersonas, createBotPersona, updateBotPersona, updateBotPersonaStatus,
     deleteBotPersona, getBotConversations, saveBotConversation,
     incrementConversationCount, buildBotSystemPrompt, getBotReply, generateBrandFAQ,
+    getBotAnalytics, BotAnalyticsResult,
 } from '../../services/smartBotService';
+import { BotFlowBuilder } from '../shared/BotFlowBuilder';
+import { BotTriggerEditor, TriggerConfig, DEFAULT_TRIGGER_CONFIG } from '../shared/BotTriggerEditor';
 
 // ── Template Definitions ──────────────────────────────────────────────────────
 
@@ -185,7 +188,7 @@ const BOT_TEMPLATES: BotTemplate[] = [
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type TabId = 'templates' | 'mybots' | 'conversations';
+type TabId = 'templates' | 'mybots' | 'conversations' | 'analytics';
 
 interface SmartBotPageProps {
     brandId: string;
@@ -206,8 +209,7 @@ interface WizardState {
     extraKnowledge: string;
     greetingMessage: string;
     closingMessage: string;
-    trigger: BotTrigger;
-    triggerKeywords: string;
+    triggerConfig: TriggerConfig;
     saving: boolean;
 }
 
@@ -216,7 +218,7 @@ const DEFAULT_WIZARD: WizardState = {
     name: '', emoji: '🤖',
     personality: 'professional', language: 'arabic', persuasionLevel: 2,
     extraKnowledge: '', greetingMessage: '', closingMessage: '',
-    trigger: 'dm-received', triggerKeywords: '',
+    triggerConfig: DEFAULT_TRIGGER_CONFIG,
     saving: false,
 };
 
@@ -234,6 +236,13 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
     const [conversations, setConversations] = useState<BotConversation[]>([]);
     const [convoLoading, setConvoLoading]   = useState(false);
     const [generatingFAQ, setGeneratingFAQ] = useState(false);
+
+    // Flow Builder
+    const [flowBuilderPersona, setFlowBuilderPersona] = useState<BotPersona | null>(null);
+
+    // Analytics
+    const [analytics, setAnalytics]         = useState<BotAnalyticsResult | null>(null);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
     // Demo chat
     const [showDemo, setShowDemo]               = useState(false);
@@ -277,6 +286,12 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
         if (tab !== 'conversations') return;
         setConvoLoading(true);
         getBotConversations(brandId).then(c => { setConversations(c); setConvoLoading(false); });
+    }, [tab, brandId]);
+
+    useEffect(() => {
+        if (tab !== 'analytics') return;
+        setAnalyticsLoading(true);
+        getBotAnalytics(brandId).then(r => { setAnalytics(r); setAnalyticsLoading(false); });
     }, [tab, brandId]);
 
     // ── Demo open / close ─────────────────────────────────────────────────────
@@ -375,8 +390,11 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
             persuasionLevel: p.persuasionLevel,
             greetingMessage: p.greetingMessage,
             closingMessage: p.closingMessage,
-            trigger: p.trigger,
-            triggerKeywords: p.triggerKeywords.join(', '),
+            triggerConfig: {
+                ...DEFAULT_TRIGGER_CONFIG,
+                trigger: p.trigger,
+                triggerKeywords: p.triggerKeywords.join(', '),
+            },
         });
         setShowBuilder(true);
     };
@@ -445,8 +463,8 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                 systemPrompt,
                 greetingMessage: wizard.greetingMessage,
                 closingMessage:  wizard.closingMessage,
-                trigger:         wizard.trigger,
-                triggerKeywords: wizard.triggerKeywords.split(',').map(k => k.trim()).filter(Boolean),
+                trigger:         wizard.triggerConfig.trigger,
+                triggerKeywords: wizard.triggerConfig.triggerKeywords.split(',').map(k => k.trim()).filter(Boolean),
                 status:          'active' as const,
             };
 
@@ -540,30 +558,61 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
 
     // ── Render ────────────────────────────────────────────────────────────────
 
+    const totalConversations = personas.reduce((s, p) => s + p.conversationCount, 0);
+    const activeBots = personas.filter(p => p.status === 'active').length;
+    const avgConversion = personas.length
+        ? Math.round(personas.reduce((s, p) => s + p.conversionRate, 0) / personas.length)
+        : 0;
+
     return (
+        <>
         <div className="space-y-6">
+
+            {/* ── Brand Agent Banner ──────────────────────────────────────── */}
+            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-indigo-500/20">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 flex items-center justify-center shrink-0">
+                    <i className="fas fa-brain text-indigo-500 text-sm" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300">البوت الذكي + وكيل البراند</p>
+                    <p className="text-[11px] text-light-text-secondary dark:text-dark-text-secondary">
+                        البوتات هنا تتولى الأسئلة الروتينية · وكيل البراند يتعامل مع الحالات التي تحتاج لهجة البراند ونبضه
+                    </p>
+                </div>
+                <button
+                    onClick={() => {}}
+                    className="shrink-0 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline whitespace-nowrap"
+                >
+                    إعدادات الوكيل ←
+                </button>
+            </div>
 
             {/* ── Header ──────────────────────────────────────────────────── */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                            <i className="fas fa-robot text-white text-sm" />
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                            <i className="fas fa-robot text-white" />
+                            {activeBots > 0 && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white dark:border-dark-bg animate-pulse" />
+                            )}
                         </div>
-                        <h1 className="text-xl font-bold text-light-text dark:text-dark-text">
-                            البوت الذكي للمبيعات
-                        </h1>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
-                            AI-Powered
-                        </span>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-bold text-light-text dark:text-dark-text">البوت الذكي للمبيعات</h1>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-600 dark:text-violet-300 border border-violet-300/30">
+                                    AI-Powered
+                                </span>
+                            </div>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                حوّل رسائل السوشيال ميديا إلى صفقات مغلقة — تلقائياً 24/7
+                            </p>
+                        </div>
                     </div>
-                    <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                        حوّل رسائل السوشيال ميديا إلى صفقات مغلقة — تلقائياً وعلى مدار الساعة
-                    </p>
                 </div>
                 <button
                     onClick={() => setTab('templates')}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-bold text-sm hover:opacity-90 transition shadow-md shadow-violet-500/20"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-2xl font-bold text-sm hover:opacity-90 hover:-translate-y-0.5 transition-all shadow-lg shadow-violet-500/25"
                 >
                     <i className="fas fa-plus" />
                     إنشاء بوت جديد
@@ -573,38 +622,19 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
             {/* ── Stats ───────────────────────────────────────────────────── */}
             <div className="grid grid-cols-3 gap-4">
                 {[
-                    {
-                        label: 'بوتات نشطة',
-                        value: personas.filter(p => p.status === 'active').length,
-                        icon: 'fa-robot',
-                        color: 'text-violet-500',
-                        bg: 'bg-violet-500/10',
-                    },
-                    {
-                        label: 'إجمالي المحادثات',
-                        value: personas.reduce((s, p) => s + p.conversationCount, 0),
-                        icon: 'fa-comments',
-                        color: 'text-blue-500',
-                        bg: 'bg-blue-500/10',
-                    },
-                    {
-                        label: 'متوسط التحويل',
-                        value: personas.length
-                            ? Math.round(personas.reduce((s, p) => s + p.conversionRate, 0) / personas.length) + '%'
-                            : '—',
-                        icon: 'fa-chart-line',
-                        color: 'text-green-500',
-                        bg: 'bg-green-500/10',
-                    },
+                    { label: 'بوتات نشطة',       value: activeBots,         suffix: '',  icon: 'fa-robot',      grad: 'from-violet-500 to-purple-600',  glow: 'shadow-violet-500/20' },
+                    { label: 'إجمالي المحادثات', value: totalConversations, suffix: '',  icon: 'fa-comments',   grad: 'from-blue-500 to-indigo-600',    glow: 'shadow-blue-500/20' },
+                    { label: 'متوسط التحويل',    value: avgConversion,      suffix: '%', icon: 'fa-chart-line', grad: 'from-emerald-500 to-teal-600',   glow: 'shadow-emerald-500/20' },
                 ].map(stat => (
-                    <div key={stat.label} className="bg-light-card dark:bg-dark-card rounded-xl p-4 border border-light-border dark:border-dark-border">
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <div className={`w-7 h-7 rounded-lg ${stat.bg} flex items-center justify-center`}>
-                                <i className={`fas ${stat.icon} ${stat.color} text-xs`} />
-                            </div>
-                            <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{stat.label}</span>
+                    <div key={stat.label} className="relative bg-light-card dark:bg-dark-card rounded-2xl p-4 border border-light-border dark:border-dark-border overflow-hidden group hover:shadow-lg transition-all">
+                        <div className={`absolute inset-0 bg-gradient-to-br ${stat.grad} opacity-0 group-hover:opacity-5 transition-opacity`} />
+                        <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${stat.grad} flex items-center justify-center mb-3 shadow-md ${stat.glow}`}>
+                            <i className={`fas ${stat.icon} text-white text-sm`} />
                         </div>
-                        <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                        <p className="text-2xl font-bold text-light-text dark:text-dark-text">
+                            {stat.value}{stat.suffix}
+                        </p>
+                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-0.5">{stat.label}</p>
                     </div>
                 ))}
             </div>
@@ -612,8 +642,9 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
             {/* ── Tabs ────────────────────────────────────────────────────── */}
             <div className="flex gap-1 border-b border-light-border dark:border-dark-border">
                 {([
-                    { id: 'templates',     label: 'التامبلتس',                       icon: 'fa-th-large' },
+                    { id: 'templates',     label: 'القوالب',                         icon: 'fa-th-large' },
                     { id: 'mybots',        label: `بوتاتي (${personas.length})`,     icon: 'fa-robot' },
+                    { id: 'analytics',     label: 'التحليلات',                       icon: 'fa-chart-pie' },
                     { id: 'conversations', label: 'المحادثات',                       icon: 'fa-comments' },
                 ] as { id: TabId; label: string; icon: string }[]).map(t => (
                     <button
@@ -792,6 +823,13 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                             <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${p.status === 'active' ? 'left-5' : 'left-0.5'}`} />
                                         </button>
                                         <button
+                                            onClick={() => setFlowBuilderPersona(p)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg text-light-text-secondary dark:text-dark-text-secondary hover:text-indigo-500 hover:bg-indigo-500/10 transition"
+                                            title="Flow Builder — بناء مسار المحادثة"
+                                        >
+                                            <i className="fas fa-diagram-project text-xs" />
+                                        </button>
+                                        <button
                                             onClick={() => openPersonaDemo(p)}
                                             className="w-8 h-8 flex items-center justify-center rounded-lg text-light-text-secondary dark:text-dark-text-secondary hover:text-violet-500 hover:bg-violet-500/10 transition"
                                             title="تجربة البوت"
@@ -827,6 +865,199 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                 </div>
             )}
 
+            {/* ── Tab: Analytics ───────────────────────────────────────────── */}
+            {tab === 'analytics' && (
+                <div className="space-y-5">
+                    {/* Loading */}
+                    {analyticsLoading && (
+                        <div className="text-center py-16">
+                            <div className="inline-flex flex-col items-center gap-3">
+                                <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center">
+                                    <i className="fas fa-spinner fa-spin text-violet-500 text-xl" />
+                                </div>
+                                <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">جاري تحليل بيانات آخر 30 يوم...</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {!analyticsLoading && analytics && (
+                        <>
+                        {/* ── Last 30 days header ───────────────────────────── */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 h-px bg-light-border dark:bg-dark-border" />
+                            <span className="text-[10px] font-bold text-light-text-secondary dark:text-dark-text-secondary px-2 whitespace-nowrap">
+                                <i className="fas fa-calendar-alt me-1" />آخر 30 يوم — بيانات حقيقية
+                            </span>
+                            <div className="flex-1 h-px bg-light-border dark:bg-dark-border" />
+                        </div>
+
+                        {/* ── Conversion Funnel (real) ──────────────────────── */}
+                        <div className="bg-light-card dark:bg-dark-card rounded-2xl border border-light-border dark:border-dark-border p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-bold text-light-text dark:text-dark-text">مسار التحويل</p>
+                                {analytics.funnel.botStarted === 0 && (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-bold">
+                                        لا توجد بيانات بعد
+                                    </span>
+                                )}
+                            </div>
+                            {(() => {
+                                const f = analytics.funnel;
+                                const base = Math.max(f.totalMessages, f.botStarted, 1);
+                                const rows = [
+                                    { label: 'رسائل وصلت',          value: f.totalMessages,    pct: 100,                                                               color: 'from-violet-500 to-violet-600' },
+                                    { label: 'محادثات بدأها البوت', value: f.botStarted,       pct: Math.round((f.botStarted / base) * 100),                          color: 'from-blue-500 to-blue-600' },
+                                    { label: 'استجابة إيجابية',    value: f.positiveResponse,  pct: Math.round((f.positiveResponse / Math.max(base, 1)) * 100),       color: 'from-indigo-500 to-indigo-600' },
+                                    { label: 'تحويل مكتمل',        value: f.converted,         pct: Math.round((f.converted / Math.max(f.botStarted, 1)) * 100),      color: 'from-emerald-500 to-emerald-600' },
+                                ];
+                                return rows.map((row, i) => (
+                                    <div key={i} className="flex items-center gap-3 mb-3 last:mb-0">
+                                        <div className="w-32 text-xs text-light-text-secondary dark:text-dark-text-secondary text-end shrink-0">{row.label}</div>
+                                        <div className="flex-1 h-7 bg-light-bg dark:bg-dark-bg rounded-lg overflow-hidden">
+                                            <div
+                                                className={`h-full bg-gradient-to-r ${row.color} rounded-lg flex items-center justify-end px-2 transition-all duration-700 min-w-[32px]`}
+                                                style={{ width: `${Math.max(row.pct, 4)}%` }}
+                                            >
+                                                <span className="text-[10px] font-bold text-white">{row.value.toLocaleString('ar-SA')}</span>
+                                            </div>
+                                        </div>
+                                        <div className="w-10 text-xs font-bold text-light-text dark:text-dark-text text-end">{row.pct}%</div>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+
+                        {/* ── Quick KPIs ────────────────────────────────────── */}
+                        <div className="grid grid-cols-3 gap-3">
+                            {[
+                                {
+                                    icon: 'fa-clock',
+                                    label: 'متوسط وقت الرد',
+                                    value: analytics.avgReplyTimeSec !== null
+                                        ? analytics.avgReplyTimeSec < 60
+                                            ? `${analytics.avgReplyTimeSec}ث`
+                                            : `${Math.round(analytics.avgReplyTimeSec / 60)}د`
+                                        : '< 3ث',
+                                    sub: 'شبه فوري',
+                                    color: 'text-blue-500', bg: 'bg-blue-500/10',
+                                },
+                                {
+                                    icon: 'fa-fire',
+                                    label: 'أكثر وقت نشاط',
+                                    value: analytics.bestHour !== null
+                                        ? `${analytics.bestHour > 12 ? analytics.bestHour - 12 : analytics.bestHour}:00 ${analytics.bestHour >= 12 ? 'م' : 'ص'}`
+                                        : '—',
+                                    sub: analytics.bestHour !== null ? 'أعلى تحويل' : 'لا بيانات',
+                                    color: 'text-orange-500', bg: 'bg-orange-500/10',
+                                },
+                                {
+                                    icon: 'fa-star',
+                                    label: 'رضا العملاء',
+                                    value: analytics.satisfactionScore !== null
+                                        ? `${analytics.satisfactionScore}/5`
+                                        : '—',
+                                    sub: 'بناءً على التحويلات',
+                                    color: 'text-amber-500', bg: 'bg-amber-500/10',
+                                },
+                            ].map(s => (
+                                <div key={s.label} className="bg-light-card dark:bg-dark-card rounded-xl p-4 border border-light-border dark:border-dark-border text-center">
+                                    <div className={`w-8 h-8 rounded-xl ${s.bg} flex items-center justify-center mx-auto mb-2`}>
+                                        <i className={`fas ${s.icon} ${s.color} text-sm`} />
+                                    </div>
+                                    <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                                    <p className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary mt-0.5">{s.label}</p>
+                                    <p className="text-[9px] text-light-text-secondary/60 dark:text-dark-text-secondary/60">{s.sub}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* ── Per-bot real performance ──────────────────────── */}
+                        <div className="bg-light-card dark:bg-dark-card rounded-2xl border border-light-border dark:border-dark-border p-5">
+                            <p className="text-sm font-bold text-light-text dark:text-dark-text mb-4">أداء كل بوت — آخر 30 يوم</p>
+                            {analytics.perBot.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <div className="text-4xl mb-3">📊</div>
+                                    <p className="text-sm font-bold text-light-text dark:text-dark-text mb-1">لا توجد محادثات بعد</p>
+                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                        جرّب أي بوت في التجربة المباشرة لتبدأ البيانات تظهر هنا
+                                    </p>
+                                    <button onClick={() => setTab('mybots')} className="mt-3 text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline">
+                                        اذهب إلى بوتاتي ←
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {analytics.perBot.map(bot => (
+                                        <div key={bot.personaId} className="p-3 rounded-xl bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border">
+                                            <div className="flex items-start gap-3">
+                                                <span className="text-2xl shrink-0">{bot.avatarEmoji}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <p className="text-xs font-bold text-light-text dark:text-dark-text">{bot.personaName}</p>
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                            bot.conversionRate >= 25 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                                            : bot.conversionRate >= 10 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                            : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                                                        }`}>
+                                                            {bot.conversionRate}% تحويل
+                                                        </span>
+                                                    </div>
+                                                    {/* Progress bar */}
+                                                    <div className="h-1.5 bg-light-border dark:bg-dark-border rounded-full overflow-hidden mb-2">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-700 ${
+                                                                bot.conversionRate >= 25 ? 'bg-emerald-500'
+                                                                : bot.conversionRate >= 10 ? 'bg-amber-500'
+                                                                : 'bg-red-400'
+                                                            }`}
+                                                            style={{ width: `${Math.min(bot.conversionRate * 2, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    {/* Stats row */}
+                                                    <div className="flex items-center gap-3 text-[10px] text-light-text-secondary dark:text-dark-text-secondary">
+                                                        <span className="flex items-center gap-1">
+                                                            <i className="fas fa-comments" />
+                                                            {bot.conversationCount} محادثة
+                                                        </span>
+                                                        <span className="flex items-center gap-1">
+                                                            <i className="fas fa-check-circle text-emerald-500" />
+                                                            {bot.converted} تحويل
+                                                        </span>
+                                                        {bot.escalated > 0 && (
+                                                            <span className="flex items-center gap-1">
+                                                                <i className="fas fa-arrow-up text-orange-400" />
+                                                                {bot.escalated} تصعيد
+                                                            </span>
+                                                        )}
+                                                        <span className="flex items-center gap-1">
+                                                            <i className="fas fa-envelope" />
+                                                            {bot.avgMessages} رسالة/محادثة
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        </>
+                    )}
+
+                    {/* Empty state — no analytics loaded yet */}
+                    {!analyticsLoading && !analytics && (
+                        <div className="text-center py-16 bg-light-card dark:bg-dark-card rounded-2xl border border-dashed border-light-border dark:border-dark-border">
+                            <div className="text-5xl mb-4">📊</div>
+                            <p className="text-light-text dark:text-dark-text font-bold text-lg mb-1">لم يتم تحميل التحليلات</p>
+                            <button onClick={() => { setAnalyticsLoading(true); getBotAnalytics(brandId).then(r => { setAnalytics(r); setAnalyticsLoading(false); }); }}
+                                className="mt-3 px-4 py-2 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-xl text-sm font-bold hover:bg-violet-500/20 transition">
+                                إعادة التحميل
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Tab: Conversations ───────────────────────────────────────── */}
             {tab === 'conversations' && (
                 <div className="space-y-3">
@@ -842,44 +1073,60 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                             <p className="text-light-text-secondary dark:text-dark-text-secondary text-sm max-w-sm mx-auto">
                                 جرّب أحد بوتاتك في التجربة المباشرة وستُحفظ المحادثة هنا تلقائياً.
                             </p>
-                            <button
-                                onClick={() => setTab('mybots')}
-                                className="mt-4 px-5 py-2 border border-light-border dark:border-dark-border rounded-xl text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:border-violet-500/50 transition"
-                            >
+                            <button onClick={() => setTab('mybots')} className="mt-4 px-5 py-2 border border-light-border dark:border-dark-border rounded-xl text-sm font-bold text-light-text-secondary dark:text-dark-text-secondary hover:border-violet-500/50 transition">
                                 استعرض البوتات
                             </button>
                         </div>
                     ) : (
-                        conversations.map(c => {
-                            const persona = personas.find(p => p.id === c.personaId);
-                            return (
-                                <div key={c.id} className="bg-light-card dark:bg-dark-card rounded-xl border border-light-border dark:border-dark-border p-4 flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-xl flex-shrink-0">
-                                        {persona?.avatarEmoji || '🤖'}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <p className="text-sm font-bold text-light-text dark:text-dark-text">{c.customerName}</p>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                c.status === 'converted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                c.status === 'escalated' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                                                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                                            }`}>
-                                                {c.status === 'converted' ? '✅ تحويل' : c.status === 'escalated' ? '⚠️ تصعيد' : c.status === 'closed' ? '◎ مغلقة' : '● نشطة'}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
-                                            {persona?.name || 'بوت'} • {c.messages.length} رسالة • {new Date(c.createdAt).toLocaleDateString('ar-SA')}
-                                        </p>
-                                        {c.messages.length > 0 && (
-                                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1 truncate bg-light-bg dark:bg-dark-bg rounded-lg px-2 py-1.5 border border-light-border dark:border-dark-border">
-                                                {c.messages[c.messages.length - 1]?.content}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })
+                        <div className="overflow-hidden rounded-2xl border border-light-border dark:border-dark-border">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="bg-light-card dark:bg-dark-card border-b border-light-border dark:border-dark-border">
+                                        <th className="text-start px-4 py-3 text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary">العميل</th>
+                                        <th className="text-start px-4 py-3 text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary">البوت</th>
+                                        <th className="text-start px-4 py-3 text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary">رسائل</th>
+                                        <th className="text-start px-4 py-3 text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary">الحالة</th>
+                                        <th className="text-start px-4 py-3 text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary">التاريخ</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-light-border dark:divide-dark-border">
+                                    {conversations.map(c => {
+                                        const persona = personas.find(p => p.id === c.personaId);
+                                        return (
+                                            <tr key={c.id} className="bg-white dark:bg-dark-bg hover:bg-light-card dark:hover:bg-dark-card transition">
+                                                <td className="px-4 py-3">
+                                                    <p className="font-bold text-light-text dark:text-dark-text text-sm">{c.customerName}</p>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-base">{persona?.avatarEmoji || '🤖'}</span>
+                                                        <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">{persona?.name || '—'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs font-bold text-light-text dark:text-dark-text">{c.messages.length}</span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                        c.status === 'converted' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                        c.status === 'escalated' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                                                        c.status === 'closed'    ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
+                                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                                    }`}>
+                                                        {c.status === 'converted' ? '✅ تحويل' : c.status === 'escalated' ? '⚠️ تصعيد' : c.status === 'closed' ? '◎ مغلقة' : '● نشطة'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                                        {new Date(c.createdAt).toLocaleDateString('ar-SA')}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </div>
             )}
@@ -1086,55 +1333,21 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                                 </>
                             )}
 
-                            {/* Step 4: Trigger */}
+                            {/* Step 4: Trigger — BotTriggerEditor */}
                             {wizard.step === 4 && (
                                 <>
-                                    <p className="text-sm font-bold text-light-text dark:text-dark-text">الخطوة 4: متى يعمل البوت؟</p>
-
-                                    <div className="space-y-2">
-                                        {([
-                                            { v: 'dm-received',    l: 'عند استقبال رسالة مباشرة (DM)',  icon: 'fa-envelope',     desc: 'يرد تلقائياً على كل DM جديد' },
-                                            { v: 'keyword-match',  l: 'عند ذكر كلمة مفتاحية',           icon: 'fa-key',          desc: 'يتدخل عند وجود كلمة محددة في الرسالة' },
-                                            { v: 'comment-reply',  l: 'عند التعليق على منشور',          icon: 'fa-comment',      desc: 'يرد على تعليقات المنشورات' },
-                                            { v: 'manual',         l: 'يدوي (تشغيل من لوحة التحكم)',    icon: 'fa-hand-pointer', desc: 'أنت من يقرر متى يبدأ البوت' },
-                                        ] as const).map(opt => (
-                                            <button
-                                                key={opt.v}
-                                                onClick={() => setWizard(w => ({ ...w, trigger: opt.v }))}
-                                                className={`w-full flex items-start gap-3 p-3 rounded-xl border text-start transition ${
-                                                    wizard.trigger === opt.v
-                                                        ? 'border-violet-500 bg-violet-500/8 text-violet-600 dark:text-violet-400'
-                                                        : 'border-light-border dark:border-dark-border text-light-text dark:text-dark-text hover:border-violet-500/40'
-                                                }`}
-                                            >
-                                                <i className={`fas ${opt.icon} text-sm mt-0.5`} />
-                                                <div>
-                                                    <div className="text-xs font-bold">{opt.l}</div>
-                                                    <div className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary mt-0.5">{opt.desc}</div>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {wizard.trigger === 'keyword-match' && (
-                                        <div>
-                                            <label className="block text-xs font-bold text-light-text-secondary dark:text-dark-text-secondary mb-1.5">
-                                                الكلمات المفتاحية (مفصولة بفاصلة)
-                                            </label>
-                                            <input
-                                                value={wizard.triggerKeywords}
-                                                onChange={e => setWizard(w => ({ ...w, triggerKeywords: e.target.value }))}
-                                                placeholder="سعر, كم, price, اشتري, buy"
-                                                className="w-full bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl px-3 py-2 text-sm text-light-text dark:text-dark-text focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 outline-none"
-                                            />
-                                        </div>
-                                    )}
-
-                                    <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 rounded-xl p-4 space-y-1.5">
-                                        <p className="text-xs font-bold text-violet-700 dark:text-violet-400 mb-2">ملخص البوت</p>
+                                    <BotTriggerEditor
+                                        value={wizard.triggerConfig}
+                                        onChange={cfg => setWizard(w => ({ ...w, triggerConfig: cfg }))}
+                                        gradient={wizard.template?.gradient}
+                                    />
+                                    {/* Summary */}
+                                    <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700/50 rounded-xl p-4 space-y-1.5">
+                                        <p className="text-xs font-bold text-violet-700 dark:text-violet-400 mb-2">📋 ملخص البوت</p>
                                         <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">الاسم:</span> {wizard.emoji} {wizard.name}</p>
-                                        <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">السيناريو:</span> {wizard.template.nameAr}</p>
-                                        <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">الشخصية:</span> {wizard.personality} • {wizard.language}</p>
+                                        <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">السيناريو:</span> {wizard.template?.nameAr}</p>
+                                        <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">الشخصية:</span> {wizard.personality} · {wizard.language === 'arabic' ? 'عربي' : wizard.language === 'english' ? 'إنجليزي' : 'ثنائي'}</p>
+                                        <p className="text-xs text-light-text dark:text-dark-text"><span className="text-light-text-secondary dark:text-dark-text-secondary">التشغيل:</span> {wizard.triggerConfig.trigger === 'dm-received' ? 'رسائل مباشرة' : wizard.triggerConfig.trigger === 'keyword-match' ? 'كلمة مفتاحية' : wizard.triggerConfig.trigger === 'comment-reply' ? 'تعليقات' : 'يدوي'}</p>
                                     </div>
                                 </>
                             )}
@@ -1326,5 +1539,16 @@ export const SmartBotPage: React.FC<SmartBotPageProps> = ({
                 </div>
             )}
         </div>
+
+        {/* ── Flow Builder — fullscreen overlay ────────────────────────────── */}
+        {flowBuilderPersona && (
+            <BotFlowBuilder
+                personaId={flowBuilderPersona.id}
+                personaName={flowBuilderPersona.name}
+                personaEmoji={flowBuilderPersona.avatarEmoji}
+                onClose={() => setFlowBuilderPersona(null)}
+            />
+        )}
+        </>
     );
 };

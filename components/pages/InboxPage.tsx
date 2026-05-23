@@ -2,6 +2,7 @@
 // Full rebuild: smart views, status/priority, CRM actions, order creation, keyword tags
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     InboxConversation, NotificationType, PLATFORM_ASSETS,
     BrandHubProfile, ConversationIntent, ConversationSentiment,
@@ -24,6 +25,14 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useBrandStore } from '../../stores/brandStore';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
 import { EvaluationButtons } from '../shared/EvaluationButtons';
+import {
+    getBrandAgentConfig, shouldAutoReply, logAgentAction,
+    BrandAgentConfig, DEFAULT_BRAND_AGENT_CONFIG, AgentReplyDecision,
+} from '../../services/brandAgentService';
+import { BrandAgentPanel } from '../shared/BrandAgentPanel';
+import { ShiftModeManager } from '../shared/ShiftModeManager';
+import { getConversationContext } from '../../services/crmInboxService';
+import type { CrmConversationContext } from '../../services/crmInboxService';
 
 // ── Types & Constants ─────────────────────────────────────────────────────────
 
@@ -813,7 +822,16 @@ const ActionPanel: React.FC<{
     onOrderDrawerOpen: () => void;
     onTagsChanged: () => void;
 }> = ({ conversation, brandId, brandProfile, onApplyReply, onAddTask, addNotification, onStatusChange, onLeadCreated, onOrderDrawerOpen, onTagsChanged }) => {
-    const [activeTab, setActiveTab] = useState<ActionPanelTab>('ai');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('inboxTab');
+    const activeTab: ActionPanelTab = (rawTab && ['ai', 'crm', 'notes'].includes(rawTab))
+        ? (rawTab as ActionPanelTab)
+        : 'ai';
+    const setActiveTab = (tab: ActionPanelTab) => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('inboxTab', tab);
+        setSearchParams(newParams, { replace: true });
+    };
     const [showLeadForm, setShowLeadForm] = useState(false);
     const [notes, setNotes] = useState<ConversationNote[]>([]);
     const [noteText, setNoteText] = useState('');
@@ -1695,6 +1713,10 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
     const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
     const [syncing, setSyncing] = useState(false);
     const [syncResult, setSyncResult] = useState<SyncResponse | null>(null);
+    // ── Brand Agent state ──────────────────────────────────────────────────────
+    const [agentConfig, setAgentConfig] = useState<BrandAgentConfig>({ ...DEFAULT_BRAND_AGENT_CONFIG, brandId: effectiveBrandId });
+    const [crmContext, setCrmContext] = useState<CrmConversationContext | null>(null);
+    const [agentDecision, setAgentDecision] = useState<AgentReplyDecision>('suggest_only');
 
     // sessionStorage key — hides SyncBanner after a successful sync so it doesn't reappear on every reload
     const syncDoneKey = `sbrandops_inbox_synced_${effectiveBrandId}`;
@@ -1732,6 +1754,30 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
     useEffect(() => {
         loadConversations();
     }, [loadConversations]);
+
+    // ── Load Brand Agent config ────────────────────────────────────────────────
+    useEffect(() => {
+        if (!effectiveBrandId) return;
+        getBrandAgentConfig(effectiveBrandId)
+            .then(cfg => setAgentConfig(cfg))
+            .catch(() => null);
+    }, [effectiveBrandId]);
+
+    // ── Load CRM context when conversation changes ─────────────────────────────
+    useEffect(() => {
+        setCrmContext(null);
+        if (!selectedId || selectedId.startsWith('sm::')) return;
+        getConversationContext(effectiveBrandId, selectedId)
+            .then(ctx => setCrmContext(ctx))
+            .catch(() => null);
+    }, [selectedId, effectiveBrandId]);
+
+    // ── Compute auto-reply decision when conversation or config changes ─────────
+    useEffect(() => {
+        const conv = conversations.find(c => c.id === selectedId) ?? null;
+        if (!conv) return;
+        setAgentDecision(shouldAutoReply(conv, agentConfig));
+    }, [conversations, selectedId, agentConfig]);
 
     // ── Supabase Realtime ──────────────────────────────────────────────────────
     // Listens for new/updated rows in inbox_conversations and inbox_messages,
@@ -2040,18 +2086,27 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
                                 onSearchChange={setSearchQuery}
                                 isLoading={loading}
                             />
-                            <div className="flex-grow border-e border-light-border dark:border-dark-border overflow-hidden">
+                            {/* Chat + Shift banner */}
+                            <div className="flex flex-col flex-grow border-e border-light-border dark:border-dark-border overflow-hidden">
+                                {/* Shift mode banner */}
+                                <ShiftModeManager
+                                    config={agentConfig}
+                                    onConfigChange={setAgentConfig}
+                                    addNotification={addNotification}
+                                />
                                 {selectedConversation ? (
-                                    <ChatWindow
-                                        conversation={selectedConversation}
-                                        isReadOnly={isSocialMsgConversation}
-                                        onReply={handleReply}
-                                        replyText={replyText}
-                                        onReplyTextChange={setReplyText}
-                                        templates={templates}
-                                        onStatusChange={handleStatusChange}
-                                        onPriorityChange={handlePriorityChange}
-                                    />
+                                    <div className="flex-1 overflow-hidden">
+                                        <ChatWindow
+                                            conversation={selectedConversation}
+                                            isReadOnly={isSocialMsgConversation}
+                                            onReply={handleReply}
+                                            replyText={replyText}
+                                            onReplyTextChange={setReplyText}
+                                            templates={templates}
+                                            onStatusChange={handleStatusChange}
+                                            onPriorityChange={handlePriorityChange}
+                                        />
+                                    </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
                                         <div className="w-16 h-16 rounded-2xl bg-light-bg dark:bg-dark-bg flex items-center justify-center">
@@ -2066,6 +2121,32 @@ export const InboxPage: React.FC<InboxPageProps> = ({ addNotification, brandId, 
                                     </div>
                                 )}
                             </div>
+                            {/* Brand Agent Panel (right sidebar) */}
+                            {selectedConversation && (
+                                <div className="w-72 flex-shrink-0 overflow-hidden">
+                                    <BrandAgentPanel
+                                        conversation={selectedConversation}
+                                        brandProfile={brandProfile}
+                                        config={agentConfig}
+                                        crmContext={crmContext}
+                                        decision={agentDecision}
+                                        onUseReply={setReplyText}
+                                        onSendReply={async (text) => {
+                                            await handleReply(text);
+                                            await logAgentAction(effectiveBrandId, selectedConversation.id,
+                                                agentDecision === 'auto_send' ? 'auto_replied' : 'suggested',
+                                                text, agentDecision);
+                                        }}
+                                        onEscalate={() => {
+                                            handleStatusChange('pending');
+                                            addNotification(NotificationType.Warning, '⚠️ تم تأشير المحادثة للتصعيد');
+                                            logAgentAction(effectiveBrandId, selectedConversation.id, 'escalated', undefined, 'escalate');
+                                        }}
+                                        addNotification={addNotification}
+                                    />
+                                </div>
+                            )}
+                            {/* Old ActionPanel preserved alongside (CRM + Notes tabs) */}
                             {selectedConversation && (
                                 <ActionPanel
                                     conversation={selectedConversation}

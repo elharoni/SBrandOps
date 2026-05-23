@@ -30,6 +30,7 @@ interface UseAppRoutingOptions {
     setActiveAdminPage: (page: string) => void;
     setViewMode: (mode: ViewMode) => void;
     setAuthPage: (page: AuthPage) => void;
+    isLoading: boolean;
 }
 
 export function useAppRouting({
@@ -43,6 +44,7 @@ export function useAppRouting({
     setActiveAdminPage,
     setViewMode,
     setAuthPage,
+    isLoading,
 }: UseAppRoutingOptions) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -53,6 +55,8 @@ export function useAppRouting({
 
     // ── Sync state → URL ──────────────────────────────────────────────────────
     useEffect(() => {
+        if (isLoading) return;
+
         const path = location.pathname;
 
         if (isPublicPath(path)) {
@@ -83,10 +87,12 @@ export function useAppRouting({
         if (location.pathname !== targetPath) {
             navigate(targetPath);
         }
-    }, [viewMode, activeBrandPage, activeAdminPage, isAuthenticated, authPage]);
+    }, [viewMode, activeBrandPage, activeAdminPage, isAuthenticated, authPage, isLoading]);
 
     // ── Sync URL → state (deep-link / browser back-forward) ───────────────────
     useEffect(() => {
+        if (isLoading) return;
+
         const path = location.pathname;
 
         if (isPublicPath(path)) {
@@ -118,7 +124,7 @@ export function useAppRouting({
         }
 
         hydrated.current = true;
-    }, [location.pathname, isAuthenticated]);
+    }, [location.pathname, isAuthenticated, isLoading]);
 
     // ── Navigation helper (use instead of setActiveBrandPage directly) ────────
     const navigateTo = useCallback((page: string, mode: ViewMode = 'brand') => {

@@ -3,6 +3,7 @@
  * Tabs: Dashboard | Campaigns | Analytics | Ad Copy (ADS-1) | Health Alerts (ADS-2) | Scaling (ADS-3)
  */
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AdCampaign, AdsDashboardData, BrandHubProfile, NotificationType, CampaignStatus } from '../../types';
 import type { BrandAsset, BrandConnection } from '../../services/brandConnectionService';
 import { AdsDashboard } from '../ads/AdsDashboard';
@@ -415,7 +416,14 @@ export const AdsOpsPage: React.FC<AdsOpsPageProps> = ({
     onNavigate,
 }) => {
     const [showCreateWizard, setShowCreateWizard] = useState(false);
-    const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: ActiveTab = (rawTab && ['dashboard', 'campaigns', 'analytics', 'copy', 'health', 'scaling'].includes(rawTab))
+        ? (rawTab as ActiveTab)
+        : 'dashboard';
+    const setActiveTab = (tab: ActiveTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
     const googleAdsConnection = useMemo(
         () => brandConnections.find((connection) => connection.provider === 'google_ads' && connection.status !== 'disconnected') ?? null,
         [brandConnections],

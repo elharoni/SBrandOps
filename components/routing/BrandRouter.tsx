@@ -65,6 +65,7 @@ const MediaOpsPage       = lazy(() => import('../pages/MediaOpsPage').then(m => 
 const AssetLibraryPage     = lazy(() => import('../pages/AssetLibraryPage').then(m => ({ default: m.AssetLibraryPage })));
 const CampaignBrainPage    = lazy(() => import('../pages/CampaignBrainPage').then(m => ({ default: m.CampaignBrainPage })));
 const SupportInboxPage     = lazy(() => import('../pages/support/SupportInboxPage').then(m => ({ default: m.SupportInboxPage })));
+const BrandAgentPage       = lazy(() => import('../pages/BrandAgentPage').then(m => ({ default: m.BrandAgentPage })));
 
 const NoBrandState: React.FC<{ onCreateBrand: () => void }> = ({ onCreateBrand }) => {
     const { language } = useLanguage();
@@ -438,6 +439,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     onConnect={handleConnectAccount}
                     onRefresh={onRefreshBrand}
                     addNotification={addNotification}
+                    onNavigate={onNavigate}
                 />
             );
 
@@ -651,6 +653,20 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                 />
             );
 
+        case 'brand-agent':
+        case 'brand-agent/settings':
+        case 'brand-agent/shift':
+        case 'brand-agent/stats':
+            return (
+                <BrandAgentPage
+                    brandId={activeBrand.id}
+                    brandProfile={resolvedBrandProfile}
+                    addNotification={addNotification}
+                    onNavigate={onNavigate}
+                    initialTab={activePage === 'brand-agent/shift' ? 'shift' : activePage === 'brand-agent/stats' ? 'stats' : 'settings'}
+                />
+            );
+
         case 'brand-hub':
             return (
                 <BrandHubPage
@@ -679,7 +695,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
         case 'brand-knowledge':
             return (
                 <Suspense fallback={<SkeletonPageLoader label={ar ? 'جارٍ التحميل...' : 'Loading...'} />}>
-                    <BrandKnowledgePage brandId={activeBrand.id} brand={activeBrand} addNotification={addNotification} />
+                    <BrandKnowledgePage brandId={activeBrand.id} brand={activeBrand} addNotification={addNotification} onNavigate={onNavigate} />
                 </Suspense>
             );
 
@@ -769,7 +785,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
             );
 
         case 'billing':
-            return <UserBillingPage brandCount={brands.length} userCount={resolvedSystemData.users.length} />;
+            return <UserBillingPage brandCount={brands.length} userCount={resolvedSystemData.users.length} brandId={activeBrand.id} />;
 
         case 'user-settings':
             return <UserSettingsPage addNotification={addNotification} />;

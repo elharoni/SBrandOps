@@ -309,3 +309,15 @@ const MOCK_CONVERSATIONS: LinkedConversation[] = [
         assignee:       'فريق المبيعات',
     },
 ];
+
+/**
+ * Alias for buildReplyContext — fetches full CRM context for a conversation.
+ * Used by InboxPage and BrandAgentPanel to display customer intelligence.
+ */
+export async function getConversationContext(
+    brandId: string,
+    conversationId: string,
+): Promise<CrmConversationContext | null> {
+    return buildReplyContext(brandId, conversationId);
+}
+

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -108,7 +109,16 @@ const TicketDetail: React.FC<{
     const [replyText, setReplyText]     = useState('');
     const [isInternal, setIsInternal]   = useState(false);
     const [isSending, setIsSending]     = useState(false);
-    const [activeTab, setActiveTab]     = useState<'replies' | 'chat'>('replies');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('supportTab');
+    const activeTab = (rawTab && ['replies', 'chat'].includes(rawTab))
+        ? (rawTab as 'replies' | 'chat')
+        : 'replies';
+    const setActiveTab = (tab: 'replies' | 'chat') => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('supportTab', tab);
+        setSearchParams(newParams, { replace: true });
+    };
 
     useEffect(() => {
         setReplies([]);

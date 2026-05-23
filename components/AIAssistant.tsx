@@ -65,59 +65,98 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ onClose, onApply, bran
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-light-card dark:bg-dark-card rounded-lg shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-                <div className="p-5 border-b border-light-border dark:border-dark-border flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-light-text dark:text-dark-text flex items-center"><i className="fas fa-magic me-3 text-brand-purple"></i>مساعد المحتوى الذكي</h2>
-                    <button onClick={onClose} className="text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text">&times;</button>
+        <div className="fixed inset-0 bg-[#070b19]/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="glass-modal rounded-[2rem] w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden animate-scale-in">
+                <div className="px-6 py-5 border-b border-light-border/60 dark:border-dark-border/30 flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-light-text dark:text-dark-text flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/20">
+                            <i className="fas fa-magic text-sm"></i>
+                        </div>
+                        <span>مساعد المحتوى الذكي</span>
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="flex h-[36px] w-[36px] items-center justify-center rounded-xl text-light-text-secondary hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text transition-all duration-150 active:scale-90"
+                        aria-label="Close"
+                    >
+                        <i className="fas fa-times text-sm" />
+                    </button>
                 </div>
-                <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="p-6 space-y-5 overflow-y-auto">
                     {/* Input Fields */}
                     <div>
-                        <label className="block text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary mb-1">الموضوع</label>
-                        <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)}
+                        <label className="block text-xs font-bold uppercase tracking-wider text-light-text-secondary dark:text-dark-text-secondary mb-2">الموضوع</label>
+                        <input
+                            type="text"
+                            value={topic}
+                            onChange={(e) => setTopic(e.target.value)}
                             placeholder="مثال: إطلاق مجموعة الربيع الجديدة"
-                            className="w-full p-2 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-md focus:ring-brand-purple focus:border-brand-purple" />
+                            className="w-full px-4 py-3 bg-light-bg/50 dark:bg-dark-bg/50 border border-light-border/60 dark:border-dark-border/30 rounded-2xl text-light-text dark:text-dark-text placeholder:text-light-text-secondary/50 dark:placeholder:text-dark-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 transition-all duration-200"
+                        />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-light-text-secondary dark:text-dark-text-secondary mb-1">النبرة</label>
-                        <select value={tone} onChange={(e) => setTone(e.target.value)}
-                            className="w-full p-2 bg-light-bg dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-md focus:ring-brand-purple focus:border-brand-purple">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-light-text-secondary dark:text-dark-text-secondary mb-2">النبرة</label>
+                        <select
+                            value={tone}
+                            onChange={(e) => setTone(e.target.value)}
+                            className="w-full px-4 py-3 bg-light-bg/50 dark:bg-dark-bg/50 border border-light-border/60 dark:border-dark-border/30 rounded-2xl text-light-text dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-brand-primary/50 transition-all duration-200"
+                        >
                             {toneOptions.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                     </div>
-                    <button onClick={handleGenerate} disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-brand-pink to-brand-purple text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50">
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isLoading}
+                        className="w-full bg-brand-primary text-white font-bold py-3.5 px-4 rounded-2xl shadow-primary-glow hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 transition-all duration-200"
+                    >
                         {isLoading ? 'جاري التوليد...' : 'توليد كابشن'}
                     </button>
-                    {error && <p className="text-red-400 text-sm">{error}</p>}
+                    {error && <p className="text-red-500 dark:text-red-400 text-xs font-medium">{error}</p>}
                 </div>
 
-                <div className="p-6 bg-light-bg/50 dark:bg-dark-bg/50 border-t border-light-border dark:border-dark-border flex-grow overflow-y-auto">
+                <div className="p-6 bg-light-bg/30 dark:bg-dark-bg/30 border-t border-light-border/60 dark:border-dark-border/30 flex-grow overflow-y-auto">
                     {selectedOriginal ? (
-                        <div className="space-y-3">
-                            <h3 className="font-semibold text-light-text-secondary dark:text-dark-text-secondary">عدّل الكابشن المختار وطبّقه:</h3>
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-semibold text-light-text-secondary dark:text-dark-text-secondary">عدّل الكابشن المختار وطبّقه:</h3>
                             <textarea
                                 value={editedCaption}
                                 onChange={(e) => setEditedCaption(e.target.value)}
                                 rows={5}
-                                className="w-full p-2 bg-light-card dark:bg-dark-card border border-light-border dark:border-dark-border rounded-md"
+                                className="w-full p-4 bg-light-card dark:bg-dark-card border border-light-border/60 dark:border-dark-border/30 rounded-2xl text-light-text dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-brand-primary/50 transition-all duration-200"
                             />
                             <div className="flex justify-end gap-3">
-                                <button onClick={() => { setSelectedOriginal(null); setEditedCaption(''); }} className="text-light-text-secondary dark:text-dark-text-secondary font-bold">العودة</button>
-                                <button onClick={handleApplyAndLog} className="bg-brand-primary text-white font-bold py-2 px-4 rounded-lg">تطبيق</button>
+                                <button
+                                    onClick={() => { setSelectedOriginal(null); setEditedCaption(''); }}
+                                    className="px-5 py-2.5 rounded-xl text-light-text-secondary hover:text-light-text dark:text-dark-text-secondary dark:hover:text-dark-text transition-all duration-150 active:scale-95 font-semibold text-sm"
+                                >
+                                    العودة
+                                </button>
+                                <button
+                                    onClick={handleApplyAndLog}
+                                    className="px-5 py-2.5 rounded-xl bg-brand-primary text-white font-bold transition-all duration-150 active:scale-95 text-sm shadow-primary-glow"
+                                >
+                                    تطبيق
+                                </button>
                             </div>
                         </div>
                     ) : (
                         <>
-                            <h3 className="font-semibold text-light-text-secondary dark:text-dark-text-secondary mb-3">الكابشن المقترح:</h3>
-                            {isLoading && <p className="text-center text-light-text-secondary dark:text-dark-text-secondary">يقوم Gemini بالكتابة...</p>}
-                            <div className="space-y-3">
+                            <h3 className="text-sm font-semibold text-light-text-secondary dark:text-dark-text-secondary mb-3">الكابشن المقترح:</h3>
+                            {isLoading && (
+                                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+                                    <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">يقوم Gemini بالكتابة...</p>
+                                </div>
+                            )}
+                            <div className="space-y-3.5">
                                 {results.map((result, index) => (
-                                    <div key={index} className="bg-light-card dark:bg-dark-card p-4 rounded-lg border border-light-border dark:border-dark-border">
-                                        <p className="text-light-text dark:text-dark-text whitespace-pre-wrap">{result}</p>
-                                        <div className="text-right mt-2">
-                                            <button onClick={() => handleSelectForEdit(result)} className="text-xs font-bold text-brand-pink hover:underline">
+                                    <div key={index} className="bg-light-card dark:bg-dark-card p-4 rounded-2xl border border-light-border/60 dark:border-dark-border/30 hover:shadow-md transition-shadow duration-200">
+                                        <p className="text-sm text-light-text dark:text-dark-text leading-relaxed whitespace-pre-wrap">{result}</p>
+                                        <div className="text-right mt-3 border-t border-light-border/40 dark:border-dark-border/10 pt-2.5">
+                                            <button
+                                                onClick={() => handleSelectForEdit(result)}
+                                                className="text-xs font-bold text-brand-primary hover:underline transition-colors active:scale-95"
+                                            >
                                                 استخدام وتعديل
                                             </button>
                                         </div>

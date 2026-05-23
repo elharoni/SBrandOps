@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageScaffold, PageSection } from '../shared/PageScaffold';
 import { getBrandSkillsReport } from '../../services/evaluationService';
 import { getBrandRecentExecutions, BrainExecution } from '../../services/evaluationService';
@@ -135,7 +136,14 @@ function SkillCard({ skillType, stats }: { skillType: string; stats: SkillStats 
 }
 
 export const BrandBrainPage: React.FC<BrandBrainPageProps> = ({ brandId, brandName, addNotification: _addNotification, onNavigate }) => {
-    const [activeTab, setActiveTab]       = useState<ActiveTab>('skills');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: ActiveTab = (rawTab && ['skills', 'executions', 'knowledge', 'trend'].includes(rawTab))
+        ? (rawTab as ActiveTab)
+        : 'skills';
+    const setActiveTab = (tab: ActiveTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
     const [period, setPeriod]             = useState<PeriodDays>(30);
     const [skillsReport, setSkillsReport] = useState<Record<string, SkillStats>>({});
     const [executions, setExecutions]     = useState<BrainExecution[]>([]);

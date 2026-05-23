@@ -14,13 +14,18 @@ function storageKey(brandId: string) {
     return `brand_analysis_${brandId}`;
 }
 
-const AnalysisSection: React.FC<{ title: string, items: string[], icon: string, color: string }> = ({ title, items, icon, color }) => (
-    <div className="bg-light-card dark:bg-dark-card p-5 rounded-lg border border-light-border dark:border-dark-border">
-        <h3 className={`font-bold text-light-text dark:text-dark-text mb-3 text-lg flex items-center ${color}`}>
-            <i className={`fas ${icon} me-3`}></i>{title}
+const AnalysisSection: React.FC<{ title: string, items: string[], icon: string, color: string, iconColor: string }> = ({ title, items, icon, color, iconColor }) => (
+    <div className="bg-slate-900/35 border border-white/5 backdrop-blur-md p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-white/10 hover:shadow-[0_0_25px_rgba(255,255,255,0.01)] hover:-translate-y-0.5 transition-all duration-300 transform">
+        <h3 className={`font-bold text-white mb-4 text-base flex items-center gap-2 ${color}`}>
+            <i className={`fas ${icon}`}></i>{title}
         </h3>
-        <ul className="list-disc list-inside space-y-2 text-light-text-secondary dark:text-dark-text-secondary text-sm">
-            {items.map((item, index) => <li key={index}>{item}</li>)}
+        <ul className="space-y-3 text-dark-text-secondary text-xs">
+            {items.map((item, index) => (
+                <li key={index} className="flex items-start gap-2.5 bg-slate-950/40 p-3 rounded-xl border border-white/5 leading-relaxed hover:bg-slate-950/50 hover:border-white/10 transition-colors duration-250">
+                    <i className={`fas fa-circle text-[6px] mt-1.5 shrink-0 ${iconColor}`} />
+                    <span>{item}</span>
+                </li>
+            ))}
         </ul>
     </div>
 );
@@ -61,28 +66,30 @@ export const BrandAnalysisPage: React.FC<BrandAnalysisPageProps> = ({ brandProfi
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in" dir="rtl">
             <div className="flex justify-between items-center flex-wrap gap-3">
-                <h1 className="text-3xl font-bold text-light-text dark:text-dark-text">تدقيق البراند</h1>
+                <h1 className="text-3xl font-bold text-white">تدقيق البراند</h1>
                 {analysis && (
                     <button
                         onClick={handleClearResults}
-                        className="text-xs text-light-text-secondary dark:text-dark-text-secondary hover:text-red-400 transition-colors flex items-center gap-1"
+                        className="text-xs text-dark-text-secondary hover:text-red-400 transition-colors flex items-center gap-1"
                     >
                         <i className="fas fa-trash text-[10px]" />
                         مسح النتائج
                     </button>
                 )}
             </div>
-            <p className="text-light-text-secondary dark:text-dark-text-secondary">
+            <p className="text-dark-text-secondary">
                 استخدم الذكاء الاصطناعي لتقييم مدى قوة واتساق هوية براندك. النتائج تُحفظ تلقائياً وتبقى عند العودة لهذه الصفحة.
             </p>
 
-            <div className="bg-light-card dark:bg-dark-card p-6 rounded-lg border border-light-border dark:border-dark-border text-center">
-                <h2 className="text-xl font-bold text-light-text dark:text-dark-text">
+            <div className="bg-slate-900/40 border border-white/5 backdrop-blur-md rounded-2xl p-8 text-center shadow-2xl relative overflow-hidden group transition-all hover:border-white/10 hover:shadow-[0_0_30px_rgba(37,99,235,0.1)]">
+                <div className="absolute -left-20 -top-20 w-44 h-44 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none group-hover:bg-brand-primary/15 transition-all duration-500" />
+                <div className="absolute -right-20 -bottom-20 w-44 h-44 bg-brand-secondary/5 rounded-full blur-3xl pointer-events-none" />
+                <h2 className="text-xl font-bold text-white">
                     {analysis ? 'تحديث تحليل البراند' : 'هل هوية براندك جاهزة للنجاح؟'}
                 </h2>
-                <p className="text-light-text-secondary dark:text-dark-text-secondary mt-2 mb-4 max-w-2xl mx-auto">
+                <p className="text-dark-text-secondary text-xs mt-2 mb-6 max-w-2xl mx-auto leading-relaxed">
                     {analysis
                         ? `آخر تحليل — درجة ${analysis.overallScore}/100. اضغط لإعادة التحليل بالبيانات الحالية.`
                         : 'اضغط على الزر أدناه لبدء تحليل شامل. سيقوم AI بتقييم ملفك وتقديم درجة شاملة ونقاط قوة وضعف وتوصيات.'
@@ -91,43 +98,44 @@ export const BrandAnalysisPage: React.FC<BrandAnalysisPageProps> = ({ brandProfi
                 <button
                     onClick={handleRunAnalysis}
                     disabled={isLoading}
-                    className="bg-gradient-to-r from-brand-pink to-brand-purple text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="bg-gradient-to-r from-brand-primary to-brand-secondary text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-brand-primary/20 hover:scale-[1.03] transition-all transform duration-250 disabled:opacity-50 text-xs font-black"
                 >
                     {isLoading ? (
                         <><i className="fas fa-spinner fa-spin me-2" />جاري التحليل...</>
                     ) : analysis ? (
-                        <><i className="fas fa-refresh me-2" />إعادة التحليل</>
+                        <><i className="fas fa-rotate me-2" />إعادة التحليل</>
                     ) : (
-                        <><i className="fas fa-search-plus me-2" />ابدأ التحليل الآن</>
+                        <><i className="fas fa-magnifying-glass-plus me-2" />ابدأ التحليل الآن</>
                     )}
                 </button>
             </div>
 
             {analysis && (
-                <div className="space-y-6 animate-fade-in">
-                    <style>{`
-                        @keyframes fade-in { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
-                        .animate-fade-in { animation: fade-in 0.5s ease-out; }
-                    `}</style>
-                    <div className="bg-light-card dark:bg-dark-card p-5 rounded-lg border border-light-border dark:border-dark-border flex flex-col items-center">
-                        <h2 className="text-2xl font-bold text-light-text dark:text-dark-text mb-4">نتيجة تدقيق البراند</h2>
-                        <ScoreDonut score={analysis.overallScore} labelAr="الدرجة الكلية" />
+                <div className="space-y-6">
+                    <div className="bg-slate-900/40 border border-white/5 backdrop-blur-md p-8 rounded-2xl shadow-xl flex flex-col items-center relative overflow-hidden group hover:border-white/10 transition-all duration-300">
+                        {/* Glowing radial background orb */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-tr from-brand-primary/20 via-brand-secondary/10 to-transparent rounded-full blur-3xl pointer-events-none animate-pulse" />
+                        <h2 className="text-base font-bold text-white mb-6 relative z-10">نتيجة تدقيق البراند</h2>
+                        <div className="relative z-10">
+                            <ScoreDonut score={analysis.overallScore} labelAr="الدرجة الكلية" />
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <AnalysisSection title="نقاط القوة" items={analysis.strengths} icon="fa-thumbs-up" color="text-green-400" />
-                        <AnalysisSection title="نقاط الضعف" items={analysis.weaknesses} icon="fa-exclamation-triangle" color="text-yellow-400" />
+                        <AnalysisSection title="نقاط القوة" items={analysis.strengths} icon="fa-thumbs-up" color="text-emerald-400" iconColor="text-emerald-450/60" />
+                        <AnalysisSection title="نقاط الضعف" items={analysis.weaknesses} icon="fa-triangle-exclamation" color="text-amber-400" iconColor="text-amber-450/60" />
                     </div>
-                    <div className="bg-light-card dark:bg-dark-card p-5 rounded-lg border border-light-border dark:border-dark-border">
-                        <h3 className="font-bold text-light-text dark:text-dark-text mb-3 text-lg flex items-center text-brand-primary">
-                            <i className="fas fa-lightbulb me-3" />توصيات للتحسين
+                    <div className="bg-slate-900/35 border border-white/5 backdrop-blur-md p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-white/10 transition-all duration-300">
+                        <div className="absolute -top-12 -left-12 w-32 h-32 bg-brand-secondary/5 rounded-full blur-2xl pointer-events-none" />
+                        <h3 className="font-bold text-white mb-4 text-base flex items-center gap-2 text-brand-secondary">
+                            <i className="fas fa-lightbulb animate-bounce" />توصيات للتحسين
                         </h3>
-                        <ul className="space-y-2">
+                        <ul className="space-y-3 relative z-10">
                             {analysis.recommendations.map((item, index) => (
-                                <li key={index} className="flex items-start gap-3 text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-brand-primary/10 text-brand-primary text-[10px] font-bold flex items-center justify-center mt-0.5">
+                                <li key={index} className="flex items-start gap-3 text-xs text-dark-text-secondary bg-slate-950/40 p-3 rounded-xl border border-white/5 leading-relaxed hover:bg-slate-950/60 hover:border-white/10 hover:-translate-y-0.5 transform transition-all duration-200 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                                    <span className="flex-shrink-0 w-5 h-5 rounded-lg bg-brand-primary/15 text-brand-secondary text-[10px] font-black flex items-center justify-center border border-brand-primary/25 shadow-[0_0_10px_rgba(37,99,235,0.1)]">
                                         {index + 1}
                                     </span>
-                                    {item}
+                                    <span>{item}</span>
                                 </li>
                             ))}
                         </ul>

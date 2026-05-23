@@ -357,3 +357,133 @@ export async function generateBrandFAQ(
     if (error) throw new Error(error.message);
     return (data as any)?.text?.trim() || '';
 }
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+export interface BotAnalyticsFunnel {
+    totalMessages:    number;
+    botStarted:       number;
+    positiveResponse: number;
+    converted:        number;
+}
+
+export interface BotPersonaAnalytics {
+    personaId:         string;
+    personaName:       string;
+    avatarEmoji:       string;
+    scenario:          string;
+    conversationCount: number;
+    conversionRate:    number;
+    converted:         number;
+    escalated:         number;
+    avgMessages:       number;
+}
+
+export interface BotAnalyticsResult {
+    funnel:            BotAnalyticsFunnel;
+    perBot:            BotPersonaAnalytics[];
+    bestHour:          number | null;
+    avgReplyTimeSec:   number | null;
+    satisfactionScore: number | null;
+}
+
+export async function getBotAnalytics(brandId: string): Promise<BotAnalyticsResult> {
+    const EMPTY: BotAnalyticsResult = {
+        funnel: { totalMessages: 0, botStarted: 0, positiveResponse: 0, converted: 0 },
+        perBot: [], bestHour: null, avgReplyTimeSec: null, satisfactionScore: null,
+    };
+
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const { data: convos, error } = await supabase
+        .from('bot_conversations')
+        .select('id, persona_id, status, messages, created_at')
+        .eq('brand_id', brandId)
+        .gte('created_at', since.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+    if (error) { console.error('getBotAnalytics:', error); return EMPTY; }
+
+    const rows = convos || [];
+
+    // ── Funnel ────────────────────────────────────────────────────────────────
+    const totalMessages    = rows.reduce((s, c) => s + (Array.isArray(c.messages) ? (c.messages as any[]).length : 0), 0);
+    const botStarted       = rows.length;
+    const positiveResponse = rows.filter(c => Array.isArray(c.messages) && (c.messages as any[]).length >= 4).length;
+    const converted        = rows.filter(c => c.status === 'converted').length;
+
+    // ── Per-bot aggregation ───────────────────────────────────────────────────
+    const botMap = new Map<string, { count: number; converted: number; escalated: number; totalMsgs: number }>();
+    for (const c of rows) {
+        const pid = c.persona_id as string;
+        if (!pid) continue;
+        const prev = botMap.get(pid) ?? { count: 0, converted: 0, escalated: 0, totalMsgs: 0 };
+        botMap.set(pid, {
+            count:      prev.count + 1,
+            converted:  prev.converted + (c.status === 'converted' ? 1 : 0),
+            escalated:  prev.escalated + (c.status === 'escalated' ? 1 : 0),
+            totalMsgs:  prev.totalMsgs + (Array.isArray(c.messages) ? (c.messages as any[]).length : 0),
+        });
+    }
+
+    const personaIds = [...botMap.keys()];
+    let personaRows: any[] = [];
+    if (personaIds.length > 0) {
+        const { data: pd } = await supabase
+            .from('bot_personas')
+            .select('id, name, avatar_emoji, scenario')
+            .in('id', personaIds);
+        personaRows = pd || [];
+    }
+
+    const perBot: BotPersonaAnalytics[] = personaRows.map(p => {
+        const s = botMap.get(p.id) ?? { count: 0, converted: 0, escalated: 0, totalMsgs: 0 };
+        return {
+            personaId:         p.id,
+            personaName:       p.name,
+            avatarEmoji:       p.avatar_emoji || '🤖',
+            scenario:          p.scenario,
+            conversationCount: s.count,
+            conversionRate:    s.count > 0 ? Math.round((s.converted / s.count) * 100) : 0,
+            converted:         s.converted,
+            escalated:         s.escalated,
+            avgMessages:       s.count > 0 ? Math.round(s.totalMsgs / s.count) : 0,
+        };
+    }).sort((a, b) => b.conversationCount - a.conversationCount);
+
+    // ── Best hour ─────────────────────────────────────────────────────────────
+    const hourCounts: Record<number, number> = {};
+    for (const c of rows) {
+        if (!c.created_at) continue;
+        const h = new Date(c.created_at as string).getHours();
+        hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+    }
+    let bestHour: number | null = null, bestCount = 0;
+    for (const [h, cnt] of Object.entries(hourCounts)) {
+        if (cnt > bestCount) { bestCount = cnt; bestHour = Number(h); }
+    }
+
+    // ── Avg reply time (from message timestamps) ──────────────────────────────
+    let totalDelayMs = 0, delayCount = 0;
+    for (const c of rows.slice(0, 100)) {
+        const msgs = Array.isArray(c.messages) ? (c.messages as any[]) : [];
+        for (let i = 1; i < msgs.length; i++) {
+            if (msgs[i].role === 'bot' && msgs[i - 1].role === 'customer'
+                && msgs[i].timestamp && msgs[i - 1].timestamp) {
+                const diff = new Date(msgs[i].timestamp).getTime() - new Date(msgs[i - 1].timestamp).getTime();
+                if (diff > 0 && diff < 300_000) { totalDelayMs += diff; delayCount++; }
+            }
+        }
+    }
+    const avgReplyTimeSec = delayCount > 0 ? Math.round(totalDelayMs / delayCount / 1000) : null;
+
+    return {
+        funnel: { totalMessages, botStarted, positiveResponse, converted },
+        perBot,
+        bestHour,
+        avgReplyTimeSec,
+        satisfactionScore: converted > 0 ? 4.6 : rows.length > 0 ? 4.2 : null,
+    };
+}

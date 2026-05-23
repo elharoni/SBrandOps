@@ -1,4 +1,5 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { NotificationType } from '../../types';
 import { updatePassword } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
@@ -49,7 +50,14 @@ export const UserSettingsPage: React.FC<UserSettingsPageProps> = ({ addNotificat
     const { language } = useLanguage();
     const ar = language === 'ar';
 
-    const [activeTab, setActiveTab] = useState<ActiveTab>('profile');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: ActiveTab = (rawTab && ['profile', 'security', 'notifications'].includes(rawTab))
+        ? (rawTab as ActiveTab)
+        : 'profile';
+    const setActiveTab = (tab: ActiveTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
     const [profileForm, setProfileForm] = useState({
         fullName: user?.user_metadata?.full_name || '',
         email: user?.email || '',

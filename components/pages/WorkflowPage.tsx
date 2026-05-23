@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Workflow, NotificationType } from '../../types';
 import { createWorkflow, updateWorkflow, deleteWorkflow, toggleWorkflowActive } from '../../services/workflowService';
 
@@ -175,7 +176,14 @@ export const WorkflowPage: React.FC<WorkflowPageProps> = ({ initialWorkflows, ad
     const [form, setForm] = useState(emptyForm());
     const [isSaving, setIsSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'active' | 'all' | 'notifications' | 'dependencies'>('all');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: 'active' | 'all' | 'notifications' | 'dependencies' = (rawTab && ['active', 'all', 'notifications', 'dependencies'].includes(rawTab))
+        ? (rawTab as 'active' | 'all' | 'notifications' | 'dependencies')
+        : 'all';
+    const setActiveTab = (tab: 'active' | 'all' | 'notifications' | 'dependencies') => {
+        setSearchParams({ tab }, { replace: true });
+    };
 
     // Derived state
     const brandId = ''; // Will be injected via brand context in Phase 2 refactor

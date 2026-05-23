@@ -61,6 +61,13 @@ export const BRAND_PAGE_ROUTES: Record<string, string> = {
     'crm/customers': '/app/crm/customers',
     'crm/pipeline': '/app/crm/pipeline',
     'crm/tickets': '/app/crm/tickets',
+    'brand-agent':           '/app/brand-agent',
+    'brand-agent/settings':  '/app/brand-agent/settings',
+    'brand-agent/shift':     '/app/brand-agent/shift',
+    'brand-agent/stats':     '/app/brand-agent/stats',
+    'smart-bot':             '/app/smart-bot',
+    'support-inbox':         '/app/support-inbox',
+    'ads-cockpit':           '/app/ads-cockpit',
     'mobile-home': '/app/mobile-home',
     'campaign-brain': '/app/campaign-brain',
     'brands-manage': '/app/brands-manage',
@@ -107,11 +114,30 @@ export function brandPageToPath(page: string): string {
         seo: 'seo-ops',
     };
 
-    return BRAND_PAGE_ROUTES[aliases[page] ?? page] ?? '/app';
+    const resolved = aliases[page] ?? page;
+    // Direct match first
+    if (BRAND_PAGE_ROUTES[resolved]) return BRAND_PAGE_ROUTES[resolved];
+    
+    // Check if it is a sub-path of a registered route or contains a slash
+    const hasRegisteredPrefix = Object.keys(BRAND_PAGE_ROUTES).some(routeKey => 
+        routeKey !== 'dashboard' && resolved.startsWith(routeKey + '/')
+    );
+    if (hasRegisteredPrefix || resolved.includes('/')) {
+        return `/app/${resolved}`;
+    }
+    
+    return '/app';
 }
 
 export function pathToBrandPage(path: string): string {
-    return ROUTE_TO_BRAND_PAGE[path] ?? 'dashboard';
+    // Direct match first
+    if (ROUTE_TO_BRAND_PAGE[path]) return ROUTE_TO_BRAND_PAGE[path];
+    // Strip /app/ prefix and use remainder as page id
+    if (path.startsWith('/app/')) {
+        const page = path.slice(5); // remove '/app/'
+        return page || 'dashboard';
+    }
+    return 'dashboard';
 }
 
 export function adminPageToPath(page: string): string {

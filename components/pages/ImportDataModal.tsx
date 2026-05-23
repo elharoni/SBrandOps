@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { NotificationType } from '../../types';
-import { callAIProxy } from '../../services/aiProxy';
+import { callAIProxy, AIQuotaError } from '../../services/aiProxy';
 import { addKnowledgeEntry } from '../../services/brandKnowledgeService';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -27,6 +27,7 @@ interface ImportDataModalProps {
     platform: string;
     addNotification: (type: NotificationType, message: string) => void;
     onClose: () => void;
+    onNavigate?: (page: string) => void;
 }
 
 const DATE_RANGE_OPTIONS: { value: DateRange; labelAr: string; labelEn: string }[] = [
@@ -57,6 +58,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({
     platform,
     addNotification,
     onClose,
+    onNavigate,
 }) => {
     const { language } = useLanguage();
     const ar = language === 'ar';
@@ -68,9 +70,11 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({
     const [items, setItems] = useState<ExtractedItem[]>([]);
     const [saving, setSaving] = useState(false);
     const [savedCount, setSavedCount] = useState(0);
+    const [importError, setImportError] = useState<{ type: 'quota' | 'other'; message: string } | null>(null);
 
     const startImport = async () => {
         setStep('processing');
+        setImportError(null);
 
         // Animate processing steps
         for (let i = 0; i < PROCESS_STEPS.length; i++) {
@@ -99,7 +103,7 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({
 المطلوب: 5 faqs + 3 complaints + 4 keywords. اجعلها واقعية ومفيدة لبراند "${brandName}".`;
 
         try {
-            const res = await callAIProxy({ model: 'gemini-2.0-flash', prompt, feature: 'historical_import', brand_id: brandId });
+            const res = await callAIProxy({ model: 'gemini-2.5-flash', prompt, feature: 'historical_import', brand_id: brandId });
             const raw = res.text.replace(/```json\s*/gi, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(raw) as {
                 faqs?: { title: string; content: string }[];
@@ -114,16 +118,26 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({
                 ...(parsed.keywords ?? []).map(k => ({ id: id++, category: 'keyword' as const, title: k.title, content: k.content, approved: false })),
             ];
             setItems(extracted);
-        } catch {
-            // Fallback: provide minimal sample items on AI failure
-            setItems([
-                { id: 0, category: 'faq', title: 'ما هي أوقات العمل؟', content: 'نعمل من الأحد إلى الخميس من 9 صباحاً حتى 6 مساءً.', approved: true },
-                { id: 1, category: 'faq', title: 'كيف أطلب منتجاتكم؟', content: 'يمكنك الطلب عبر الموقع أو التواصل معنا مباشرة على الصفحة.', approved: true },
-                { id: 2, category: 'complaint', title: 'تأخر التوصيل', content: 'نتعامل مع شكاوى التأخير بجدية — نتواصل مع العميل خلال ساعتين.', approved: true },
-            ]);
+            setStep('review');
+        } catch (err) {
+            if (err instanceof AIQuotaError) {
+                setImportError({
+                    type: 'quota',
+                    message: ar
+                        ? 'لقد تجاوزت حد الاستخدام اليومي للذكاء الاصطناعي للباقة الحالية. يرجى ترقية باقتك للوصول غير المحدود.'
+                        : 'You have reached your daily AI usage limit. Please upgrade your plan for unlimited access.'
+                });
+                setStep('configure');
+            } else {
+                // Fallback: provide minimal sample items on AI failure
+                setItems([
+                    { id: 0, category: 'faq', title: ar ? 'ما هي أوقات العمل؟' : 'What are the working hours?', content: ar ? 'نعمل من الأحد إلى الخميس من 9 صباحاً حتى 6 مساءً.' : 'We work Sunday to Thursday from 9 AM to 6 PM.', approved: true },
+                    { id: 1, category: 'faq', title: ar ? 'كيف أطلب منتجاتكم؟' : 'How can I order products?', content: ar ? 'يمكنك الطلب عبر الموقع أو التواصل معنا مباشرة على الصفحة.' : 'You can order through the website or contact us directly on the page.', approved: true },
+                    { id: 2, category: 'complaint', title: ar ? 'تأخر التوصيل' : 'Delivery delay', content: ar ? 'نتعامل مع شكاوى التأخير بجدية — نتواصل مع العميل خلال ساعتين.' : 'We take delay complaints seriously — contacting the customer within 2 hours.', approved: true },
+                ]);
+                setStep('review');
+            }
         }
-
-        setStep('review');
     };
 
     const toggleItem = (id: number) =>
@@ -192,44 +206,72 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({
                             {/* Step: Configure */}
                             {step === 'configure' && (
                                 <div className="space-y-5">
-                                    <p className="text-xs text-dark-text-secondary leading-relaxed">
-                                        {ar
-                                            ? `سنحلل بيانات صفحتك على ${platform} ونستخرج الأسئلة الشائعة والشكاوى والكلمات المفتاحية لإضافتها إلى قاعدة معرفة البراند تلقائياً.`
-                                            : `We'll analyze your ${platform} page data and extract FAQs, complaints, and keywords to automatically add to your brand knowledge base.`}
-                                    </p>
-
-                                    {/* Date range */}
-                                    <div>
-                                        <p className="text-xs font-bold text-dark-text-secondary mb-2">{ar ? 'النطاق الزمني' : 'Date range'}</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {DATE_RANGE_OPTIONS.map(opt => (
-                                                <button key={opt.value} onClick={() => setDateRange(opt.value)}
-                                                    className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all text-start ${dateRange === opt.value
-                                                            ? 'border-brand-primary/40 bg-brand-primary/10 text-brand-secondary'
-                                                            : 'border-dark-border bg-dark-bg/40 text-dark-text-secondary hover:border-dark-border/60'
-                                                        }`}>
-                                                    {ar ? opt.labelAr : opt.labelEn}
+                                    {importError ? (
+                                        <div className="py-8 text-center space-y-4 rounded-2xl border border-white/5 bg-white/5 p-5 backdrop-blur-md">
+                                            <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center ${importError.type === 'quota' ? 'bg-amber-500/10 text-amber-400 animate-pulse' : 'bg-rose-500/10 text-rose-400'}`}>
+                                                <i className={`fas ${importError.type === 'quota' ? 'fa-crown' : 'fa-circle-exclamation'} text-2xl`} />
+                                            </div>
+                                            <div className="max-w-md mx-auto">
+                                                <p className="font-bold text-white text-md">
+                                                    {importError.type === 'quota' 
+                                                        ? (ar ? 'وصلت للحد الأقصى للاستخدام' : 'Usage limit reached') 
+                                                        : (ar ? 'فشل الاستيراد تلقائياً' : 'AI Import Failed')}
+                                                </p>
+                                                <p className="text-[11px] text-dark-text-secondary mt-1.5 leading-relaxed">
+                                                    {importError.message}
+                                                </p>
+                                            </div>
+                                            {importError.type === 'quota' && onNavigate && (
+                                                <button
+                                                    onClick={() => { onClose(); onNavigate('billing'); }}
+                                                    className="mt-2 rounded-xl bg-gradient-to-r from-pink-500 to-violet-600 hover:opacity-90 px-5 py-2 text-xs font-bold text-white transition-all shadow-md hover:-translate-y-0.5 transform duration-200"
+                                                >
+                                                    {ar ? 'ترقية الباقة الآن' : 'Upgrade Plan Now'}
                                                 </button>
-                                            ))}
+                                            )}
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <p className="text-xs text-dark-text-secondary leading-relaxed">
+                                                {ar
+                                                    ? `سنحلل بيانات صفحتك على ${platform} ونستخرج الأسئلة الشائعة والشكاوى والكلمات المفتاحية لإضافتها إلى قاعدة معرفة البراند تلقائياً.`
+                                                    : `We'll analyze your ${platform} page data and extract FAQs, complaints, and keywords to automatically add to your brand knowledge base.`}
+                                            </p>
 
-                                    {/* Data type */}
-                                    <div>
-                                        <p className="text-xs font-bold text-dark-text-secondary mb-2">{ar ? 'نوع البيانات' : 'Data type'}</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {DATA_TYPE_OPTIONS.map(opt => (
-                                                <button key={opt.value} onClick={() => setDataType(opt.value)}
-                                                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${dataType === opt.value
-                                                            ? 'border-brand-primary/40 bg-brand-primary/10 text-brand-secondary'
-                                                            : 'border-dark-border bg-dark-bg/40 text-dark-text-secondary hover:border-dark-border/60'
-                                                        }`}>
-                                                    <i className={`fas ${opt.icon} text-[10px]`} />
-                                                    {ar ? opt.labelAr : opt.labelEn}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                            {/* Date range */}
+                                            <div>
+                                                <p className="text-xs font-bold text-dark-text-secondary mb-2">{ar ? 'النطاق الزمني' : 'Date range'}</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {DATE_RANGE_OPTIONS.map(opt => (
+                                                        <button key={opt.value} onClick={() => setDateRange(opt.value)}
+                                                            className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all text-start ${dateRange === opt.value
+                                                                    ? 'border-brand-primary/40 bg-brand-primary/10 text-brand-secondary'
+                                                                    : 'border-dark-border bg-dark-bg/40 text-dark-text-secondary hover:border-dark-border/60'
+                                                                }`}>
+                                                            {ar ? opt.labelAr : opt.labelEn}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Data type */}
+                                            <div>
+                                                <p className="text-xs font-bold text-dark-text-secondary mb-2">{ar ? 'نوع البيانات' : 'Data type'}</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {DATA_TYPE_OPTIONS.map(opt => (
+                                                        <button key={opt.value} onClick={() => setDataType(opt.value)}
+                                                            className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold transition-all ${dataType === opt.value
+                                                                    ? 'border-brand-primary/40 bg-brand-primary/10 text-brand-secondary'
+                                                                    : 'border-dark-border bg-dark-bg/40 text-dark-text-secondary hover:border-dark-border/60'
+                                                                }`}>
+                                                            <i className={`fas ${opt.icon} text-[10px]`} />
+                                                            {ar ? opt.labelAr : opt.labelEn}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             )}
 
@@ -330,10 +372,12 @@ export const ImportDataModal: React.FC<ImportDataModalProps> = ({
                                     <button onClick={onClose} className="rounded-xl border border-dark-border px-4 py-2.5 text-sm font-semibold text-dark-text-secondary hover:text-white transition-colors">
                                         {ar ? 'إلغاء' : 'Cancel'}
                                     </button>
-                                    <button onClick={startImport} className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5">
-                                        <i className="fas fa-play text-xs" />
-                                        {ar ? 'ابدأ الاستيراد' : 'Start Import'}
-                                    </button>
+                                    {!importError && (
+                                        <button onClick={startImport} className="flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white shadow-[var(--shadow-primary)] transition-transform hover:-translate-y-0.5">
+                                            <i className="fas fa-play text-xs" />
+                                            {ar ? 'ابدأ الاستيراد' : 'Start Import'}
+                                        </button>
+                                    )}
                                 </>
                             )}
                             {step === 'processing' && (

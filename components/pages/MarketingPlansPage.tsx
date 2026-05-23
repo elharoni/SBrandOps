@@ -6,6 +6,7 @@
  *  3. خطة الشهر      — STRAT-3: Monthly Operational Plan Generator
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     MarketingPlan, MarketingPlanStatus, SocialPlatform, PLATFORM_ASSETS,
     NotificationType, BrandHubProfile, PublisherBrief,
@@ -936,7 +937,14 @@ const HUB_TABS: { id: HubTab; label: string; icon: string }[] = [
 
 export const MarketingPlansPage: React.FC<MarketingPlansPageProps> = ({ addNotification, brandProfile: propBrandProfile, onSendToPublisher }) => {
     const { activeBrand } = useBrandStore();
-    const [activeTab, setActiveTab] = useState<HubTab>('plans');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: HubTab = (rawTab && ['plans', 'priorities', 'monthly'].includes(rawTab))
+        ? (rawTab as HubTab)
+        : 'plans';
+    const setActiveTab = (tab: HubTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
 
     // Use prop brandProfile or build a minimal fallback
     const brandProfile: BrandHubProfile = propBrandProfile ?? {

@@ -56,7 +56,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     const unreadCount = notifications.filter(n => !n.read).length;
 
     return (
-        <div className="absolute top-16 end-4 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-black/10 bg-white/70 shadow-2xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/70 z-50 overflow-hidden"
+        <div className="absolute top-16 end-4 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl glass-modal z-50 overflow-hidden"
             style={{ animation: 'fadeInDown 0.18s ease-out' }}>
             <style>{`
                 @keyframes fadeInDown {
@@ -66,7 +66,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             `}</style>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-black/10 dark:border-white/10">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-light-border/60 dark:border-dark-border/30">
                 <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-light-text dark:text-dark-text">الإشعارات</span>
                     {unreadCount > 0 && (
@@ -79,14 +79,14 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
                     {unreadCount > 0 && (
                         <button
                             onClick={onMarkAllAsRead}
-                            className="text-xs text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"
+                            className="text-xs text-brand-primary hover:text-brand-primary/80 font-semibold transition-all duration-150 active:scale-95"
                         >
                             قراءة الكل
                         </button>
                     )}
                     <button
                         onClick={onClose}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-light-text-secondary hover:bg-black/5 hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-white/10 dark:hover:text-dark-text transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg text-light-text-secondary hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text transition-all duration-150 active:scale-90"
                     >
                         <i className="fas fa-times text-xs" />
                     </button>
@@ -94,7 +94,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
             </div>
 
             {/* List */}
-            <div className="max-h-[360px] overflow-y-auto divide-y divide-black/5 dark:divide-white/5">
+            <div className="max-h-[360px] overflow-y-auto divide-y divide-light-border/40 dark:divide-dark-border/20">
                 {notifications.length === 0 ? (
                     /* Empty state */
                     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
@@ -145,7 +145,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
 
             {/* Footer */}
             {notifications.length > 0 && (
-                <div className="px-4 py-3 border-t border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
+                <div className="px-4 py-3 border-t border-light-border/60 bg-light-bg/50 dark:border-dark-border/30 dark:bg-dark-bg/50">
                     <p className="text-[10px] text-center text-light-text-secondary dark:text-dark-text-secondary">
                         {notifications.length} إشعار · {unreadCount} غير مقروء
                     </p>

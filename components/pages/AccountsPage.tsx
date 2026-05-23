@@ -16,6 +16,7 @@ interface AccountsPageProps {
     onConnect: (platform: SocialPlatform, username: string) => void;
     onRefresh: () => void;
     addNotification: (type: NotificationType, message: string) => void;
+    onNavigate?: (page: string) => void;
 }
 
 // ── Page–Brand Match Modal ────────────────────────────────────────────────────
@@ -423,7 +424,7 @@ const AccountsStatsBar: React.FC<{ accounts: SocialAccount[] }> = ({ accounts })
     );
 };
 
-export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, brand, accounts, onConnect, onRefresh, addNotification }) => {
+export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, brand, accounts, onConnect, onRefresh, addNotification, onNavigate }) => {
     const { t, language } = useLanguage();
     const ar = language === 'ar';
     const [loadingPlatform, setLoadingPlatform] = useState<SocialPlatform | null>(null);
@@ -693,6 +694,7 @@ export const AccountsPage: React.FC<AccountsPageProps> = ({ brandId, brand, acco
                     platform={importPlatform}
                     addNotification={addNotification}
                     onClose={() => setImportModalOpen(false)}
+                    onNavigate={onNavigate}
                 />
             )}
         </PageScaffold>

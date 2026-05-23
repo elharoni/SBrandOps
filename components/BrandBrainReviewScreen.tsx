@@ -18,32 +18,36 @@ interface ReviewSection {
     items: { labelAr: string; labelEn: string; value: string | string[] | number | undefined }[];
 }
 
-const Badge: React.FC<{ text: string; color?: string }> = ({ text, color = 'bg-brand-primary/10 text-brand-primary' }) => (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
+const Badge: React.FC<{ text: string; color?: string }> = ({ text, color = 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20' }) => (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${color}`}>
         {text}
     </span>
 );
 
 const EmptyValue: React.FC<{ ar: boolean }> = ({ ar }) => (
-    <span className="text-xs italic text-light-text-secondary dark:text-dark-text-secondary">
+    <span className="text-xs italic text-light-text-secondary dark:text-dark-text-secondary/60">
         {ar ? 'غير محدد بعد' : 'Not set yet'}
     </span>
 );
 
 const ConfidenceBar: React.FC<{ score: number; ar: boolean }> = ({ score, ar }) => {
     const pct = Math.round(score * 100);
-    const color = pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+    const barGradient = pct >= 70 
+        ? 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_12px_rgba(16,185,129,0.45)]' 
+        : pct >= 40 
+            ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_12px_rgba(245,158,11,0.45)]' 
+            : 'bg-gradient-to-r from-rose-500 to-pink-500 shadow-[0_0_12px_rgba(239,68,68,0.45)]';
     const label = pct >= 70
         ? (ar ? 'جاهز للعمل' : 'Ready to operate')
         : pct >= 40
             ? (ar ? 'يحتاج إكمال' : 'Needs completion')
-            : (ar ? 'يحتاج معلومات أساسية' : 'Needs core information');
+            : (ar ? 'يحتاج معلومات أساسية' : 'Needs basic info');
     return (
         <div className="flex items-center gap-3">
-            <div className="flex-1 overflow-hidden rounded-full bg-light-bg dark:bg-dark-bg" style={{ height: 6 }}>
-                <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
+            <div className="flex-1 overflow-hidden rounded-full bg-slate-950/60 p-[1px]" style={{ height: 10 }}>
+                <div className={`h-full rounded-full transition-all duration-700 ${barGradient}`} style={{ width: `${pct}%` }} />
             </div>
-            <span className="min-w-[5rem] text-right text-xs font-semibold text-light-text dark:text-dark-text">{pct}% — {label}</span>
+            <span className="min-w-[5rem] text-right text-xs font-bold text-white">{pct}% — {label}</span>
         </div>
     );
 };
@@ -127,7 +131,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             icon: 'fa-chess',
             titleAr: 'الاستراتيجية التسويقية',
             titleEn: 'Marketing strategy',
-            color: 'text-pink-600',
+            color: 'text-pink-400',
             bg: 'bg-pink-500/8',
             items: [
                 { labelAr: 'عرض القيمة الفريدة', labelEn: 'Value proposition', value: brandProfile.valueProp },
@@ -141,7 +145,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             icon: 'fa-microphone-lines',
             titleAr: 'صوت البراند ونبرته',
             titleEn: 'Brand voice & tone',
-            color: 'text-violet-600',
+            color: 'text-violet-400',
             bg: 'bg-violet-500/8',
             items: [
                 { labelAr: 'وصف النبرة', labelEn: 'Tone description', value: brandProfile.brandVoice?.toneDescription },
@@ -155,7 +159,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             icon: 'fa-star',
             titleAr: 'قيم البراند',
             titleEn: 'Brand values',
-            color: 'text-amber-600',
+            color: 'text-amber-400',
             bg: 'bg-amber-500/8',
             items: [
                 { labelAr: 'القيم الجوهرية', labelEn: 'Core values', value: brandProfile.values },
@@ -167,7 +171,7 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             icon: 'fa-users',
             titleAr: 'الجمهور المستهدف',
             titleEn: 'Target audience',
-            color: 'text-emerald-600',
+            color: 'text-emerald-400',
             bg: 'bg-emerald-500/8',
             items: brandProfile.brandAudiences?.length > 0
                 ? brandProfile.brandAudiences.map((a, i) => ({
@@ -184,12 +188,21 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
         },
     ];
 
-    const renderValue = (val: string | string[] | number | undefined) => {
+    const renderValue = (val: string | string[] | number | undefined, sectionId: string) => {
         if (!val || (Array.isArray(val) && val.length === 0)) return <EmptyValue ar={ar} />;
+        
+        const colors = {
+            identity: 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20',
+            strategy: 'bg-pink-500/10 text-pink-400 border border-pink-500/20',
+            voice: 'bg-violet-500/10 text-violet-400 border border-violet-500/20',
+            values: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+            audience: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+        }[sectionId] || 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20';
+
         if (Array.isArray(val)) {
             return (
                 <div className="flex flex-wrap gap-1.5 mt-1">
-                    {val.map((v, i) => <Badge key={i} text={v} />)}
+                    {val.map((v, i) => <Badge key={i} text={v} color={colors} />)}
                 </div>
             );
         }
@@ -200,14 +213,15 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
         <div className="animate-fade-in mx-auto max-w-3xl space-y-6 px-4 py-8">
 
             {/* Hero */}
-            <div className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary">
-                    <i className="fas fa-brain text-2xl" />
+            <div className="text-center relative py-6">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-900/60 border border-white/10 text-brand-secondary shadow-[0_0_30px_rgba(6,182,212,0.25)] relative overflow-hidden group hover:scale-105 duration-350 transition-all">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-brand-primary/10 to-transparent pointer-events-none" />
+                    <i className="fas fa-brain text-3xl animate-pulse text-transparent bg-clip-text bg-gradient-to-r from-brand-secondary to-brand-primary" />
                 </div>
-                <h1 className="text-2xl font-bold text-light-text dark:text-dark-text">
+                <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-secondary via-brand-primary to-brand-secondary leading-normal">
                     {ar ? 'فهمنا البراند بتاعك — راجع واعتمد' : "We've understood your brand — review & approve"}
                 </h1>
-                <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-light-text-secondary dark:text-dark-text-secondary">
+                <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-dark-text-secondary">
                     {ar
                         ? 'بناءً على المعلومات التي أدخلتها، بنى النظام صورة أولية عن البراند. راجع ما فهمناه وأكمل أي ناقص قبل البدء.'
                         : 'Based on the information you entered, the system built an initial brand picture. Review what we understood and complete anything missing before starting.'}
@@ -215,14 +229,15 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             </div>
 
             {/* Completeness bar + per-section breakdown */}
-            <div className="surface-panel rounded-[1.5rem] p-5 space-y-4">
+            <div className="bg-slate-900/40 border border-white/5 backdrop-blur-md rounded-2xl p-6 space-y-5 shadow-2xl relative overflow-hidden group hover:border-white/10 hover:shadow-[0_0_35px_rgba(37,99,235,0.08)] transition-all duration-300">
+                <div className="absolute -right-16 -top-16 w-32 h-32 bg-brand-primary/10 rounded-full blur-2xl pointer-events-none group-hover:bg-brand-primary/15 transition-all duration-500" />
                 <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-light-text dark:text-dark-text">
+                    <p className="text-xs font-bold text-white">
                         {ar ? 'جاهزية عقل البراند' : 'Brand Brain readiness'}
                     </p>
                     <button
                         onClick={onEdit}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:underline"
+                        className="flex items-center gap-1.5 text-xs font-bold text-brand-secondary hover:text-white transition-colors"
                     >
                         <i className="fas fa-pen text-[10px]" />
                         {ar ? 'أكمل البيانات' : 'Complete data'}
@@ -231,21 +246,21 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                 <ConfidenceBar score={completeness} ar={ar} />
 
                 {/* Section-level mini scores */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-4 pt-2">
                     {[
-                        { key: 'identity',  labelAr: 'الهوية',     labelEn: 'Identity',  color: 'bg-brand-primary' },
-                        { key: 'strategy',  labelAr: 'الاستراتيجية', labelEn: 'Strategy', color: 'bg-pink-500'       },
-                        { key: 'voice',     labelAr: 'الصوت',      labelEn: 'Voice',     color: 'bg-violet-500'    },
-                        { key: 'audience',  labelAr: 'الجمهور',    labelEn: 'Audience',  color: 'bg-emerald-500'   },
+                        { key: 'identity',  labelAr: 'الهوية',     labelEn: 'Identity',  color: 'bg-gradient-to-r from-brand-primary to-blue-400' },
+                        { key: 'strategy',  labelAr: 'الاستراتيجية', labelEn: 'Strategy', color: 'bg-gradient-to-r from-pink-500 to-rose-400'       },
+                        { key: 'voice',     labelAr: 'الصوت',      labelEn: 'Voice',     color: 'bg-gradient-to-r from-violet-500 to-purple-400'    },
+                        { key: 'audience',  labelAr: 'الجمهور',    labelEn: 'Audience',  color: 'bg-gradient-to-r from-emerald-500 to-teal-400'   },
                     ].map(({ key, labelAr, labelEn, color }) => {
                         const pct = Math.round(sectionScores[key as keyof typeof sectionScores] * 100);
                         return (
-                            <div key={key} className="space-y-1">
+                            <div key={key} className="space-y-1 bg-slate-950/20 px-3.5 py-2.5 rounded-xl border border-white/5 hover:border-white/10 hover:bg-slate-950/40 transition-all duration-200">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-light-text-secondary dark:text-dark-text-secondary">{ar ? labelAr : labelEn}</span>
-                                    <span className="text-[10px] font-bold text-light-text dark:text-dark-text">{pct}%</span>
+                                    <span className="text-[10px] text-dark-text-secondary font-bold">{ar ? labelAr : labelEn}</span>
+                                    <span className="text-[10px] font-bold text-white">{pct}%</span>
                                 </div>
-                                <div className="h-1 rounded-full bg-light-bg dark:bg-dark-bg overflow-hidden">
+                                <div className="h-1.5 rounded-full bg-slate-950/60 overflow-hidden p-[1px]">
                                     <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
                                 </div>
                             </div>
@@ -259,20 +274,20 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                 {sections.map((section) => {
                     const isOpen = expandedSection === section.id;
                     return (
-                        <div key={section.id} className="surface-panel overflow-hidden rounded-[1.5rem]">
+                        <div key={section.id} className="bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden transition-all duration-300 hover:border-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.01)] group relative">
                             <button
                                 className="flex w-full items-center gap-4 p-5 text-start"
                                 onClick={() => setExpandedSection(isOpen ? null : section.id)}
                             >
-                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${section.bg} ${section.color}`}>
-                                    <i className={`fas ${section.icon} text-sm`} />
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-950/40 border border-white/10 text-brand-secondary shadow-[0_0_15px_rgba(6,182,212,0.1)] group-hover:scale-105 transition-transform duration-200">
+                                    <i className={`fas ${section.icon} text-xs`} />
                                 </div>
                                 <div className="flex-1">
-                                    <p className="text-sm font-bold text-light-text dark:text-dark-text">
+                                    <p className="text-xs font-bold text-white">
                                         {ar ? section.titleAr : section.titleEn}
                                     </p>
                                     {!isOpen && (
-                                        <p className="mt-0.5 text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                        <p className="mt-0.5 text-[10px] text-dark-text-secondary/70">
                                             {section.items.some((item) => !item.value || (Array.isArray(item.value) && item.value.length === 0))
                                                 ? (ar ? 'يوجد حقول ناقصة' : 'Some fields missing')
                                                 : (ar ? 'مكتمل' : 'Complete')}
@@ -281,35 +296,35 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                                 </div>
                                 <div className="flex items-center gap-3">
                                     {section.items.every((item) => item.value && !(Array.isArray(item.value) && item.value.length === 0)) ? (
-                                        <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                                        <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/10">
                                             {ar ? 'مكتمل' : 'Complete'}
                                         </span>
                                     ) : (
-                                        <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                                        <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/10">
                                             {ar ? 'غير مكتمل' : 'Incomplete'}
                                         </span>
                                     )}
-                                    <i className={`fas fa-chevron-down text-xs text-light-text-secondary dark:text-dark-text-secondary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                                    <i className={`fas fa-chevron-down text-xs text-dark-text-secondary transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                                 </div>
                             </button>
 
                             {isOpen && (
-                                <div className="border-t border-light-border/40 px-5 pb-5 pt-4 dark:border-dark-border/40">
+                                <div className="border-t border-white/5 px-6 pb-6 pt-5 bg-slate-950/30">
                                     <div className="space-y-4">
                                         {section.items.map((item, idx) => (
                                             <div key={idx}>
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-light-text-secondary dark:text-dark-text-secondary">
+                                                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-dark-text-secondary/60">
                                                     {ar ? item.labelAr : item.labelEn}
                                                 </p>
                                                 <div className="mt-1">
-                                                    {renderValue(item.value)}
+                                                    {renderValue(item.value, section.id)}
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                     <button
                                         onClick={onEdit}
-                                        className="mt-4 flex items-center gap-1.5 rounded-xl bg-light-bg px-3 py-2 text-xs font-semibold text-light-text transition-colors hover:bg-brand-primary/10 hover:text-brand-primary dark:bg-dark-bg dark:text-dark-text"
+                                        className="mt-5 flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/40 px-3.5 py-2 text-xs font-bold text-dark-text-secondary hover:text-white transition-all hover:bg-slate-950/60"
                                     >
                                         <i className="fas fa-pen text-[10px]" />
                                         {ar ? 'تعديل هذا القسم' : 'Edit this section'}
@@ -322,11 +337,11 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
             </div>
 
             {/* What happens after approval */}
-            <div className="rounded-[1.5rem] border border-brand-primary/20 bg-brand-primary/5 p-5">
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-brand-primary">
+            <div className="bg-slate-900/35 border border-white/5 backdrop-blur-md p-6 rounded-2xl shadow-xl relative overflow-hidden group hover:border-white/10 duration-300 transition-all">
+                <p className="text-xs font-bold uppercase tracking-[0.1em] text-brand-secondary">
                     {ar ? 'بعد الاعتماد' : 'After approval'}
                 </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 mt-3">
                     {[
                         { icon: 'fa-wand-magic-sparkles', textAr: 'المحتوى يُولَّد بصوت البراند الفعلي',       textEn: 'Content generated in actual brand voice'       },
                         { icon: 'fa-comment-dots',         textAr: 'الردود تتبع أسلوب البراند وسيناريوهاته', textEn: 'Replies follow brand style and scenarios'       },
@@ -334,31 +349,31 @@ export const BrandBrainReviewScreen: React.FC<BrandBrainReviewScreenProps> = ({
                         { icon: 'fa-chart-line',           textAr: 'النظام يتعلم ويتحسن مع كل تفاعل',        textEn: 'System learns and improves with every interaction'},
                     ].map((item, i) => (
                         <div key={i} className="flex items-center gap-2.5">
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-brand-primary/10 text-brand-primary">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white/5 border border-white/5 text-brand-secondary">
                                 <i className={`fas ${item.icon} text-xs`} />
                             </div>
-                            <p className="text-xs text-light-text dark:text-dark-text">{ar ? item.textAr : item.textEn}</p>
+                            <p className="text-xs text-white/80">{ar ? item.textAr : item.textEn}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* CTA buttons */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end pt-2">
                 <button
                     onClick={onEdit}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-light-border bg-white px-6 py-3 text-sm font-semibold text-light-text transition-colors hover:bg-light-bg dark:border-dark-border dark:bg-dark-card dark:text-dark-text dark:hover:bg-dark-bg"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md px-6 py-3.5 text-xs font-bold text-dark-text-secondary hover:text-white hover:border-white/20 hover:bg-slate-900/85 hover:shadow-[0_0_20px_rgba(255,255,255,0.02)] transition-all duration-200"
                 >
                     <i className="fas fa-pen text-xs" />
                     {ar ? 'تعديل معلومات البراند' : 'Edit brand information'}
                 </button>
                 <button
                     onClick={onApprove}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-primary px-8 py-3 text-sm font-semibold text-white shadow-primary-glow transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-primary to-brand-secondary px-8 py-3.5 text-xs font-black text-white shadow-lg shadow-brand-primary/30 hover:shadow-[0_0_25px_rgba(37,99,235,0.35)] hover:scale-[1.03] transition-all duration-250 transform active:scale-[0.98]"
                 >
                     <i className="fas fa-check text-xs" />
                     {ar ? 'اعتمد وابدأ التشغيل' : 'Approve & start operating'}
-                    <i className="fas fa-arrow-left text-xs" />
+                    {ar ? <i className="fas fa-arrow-left text-xs" /> : <i className="fas fa-arrow-right text-xs" />}
                 </button>
             </div>
         </div>

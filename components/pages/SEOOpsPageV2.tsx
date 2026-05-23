@@ -6,6 +6,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     getSeoOverviewKPIs, getSeoPages, getSeoIssues, getOpportunities,
     getCannibalizationIssues, getRankingGapPages, getDecayedPages, getOrphanPages,
@@ -1577,7 +1578,14 @@ const SEOOpsPageV2: React.FC<SEOOpsPageV2Props> = ({
     brandAssets,
     onNavigate,
 }) => {
-    const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: ActiveTab = (rawTab && ['overview', 'pages', 'keywords', 'opportunities', 'issues', 'briefs', 'reporting', 'sync'].includes(rawTab))
+        ? (rawTab as ActiveTab)
+        : 'overview';
+    const setActiveTab = (tab: ActiveTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
     const searchConsoleConnection = useMemo(
         () => getLatestActiveConnection(brandConnections, 'search_console'),
         [brandConnections],

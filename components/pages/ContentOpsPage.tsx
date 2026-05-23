@@ -1,6 +1,7 @@
 
 // components/pages/ContentOpsPage.tsx
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ContentPiece, ContentStatus, NotificationType, BrandHubProfile, Comment, MediaItem, SocialPlatform, PLATFORM_ASSETS, AIQualityCheckResult, User, ContentGoal, PublisherBrief } from '../../types';
 import { generateStructuredContent, improveContentWithAI, performAIQualityCheck, analyzeImageForContent, generateAIContentIdeas, modifyContent, generateContentVariations } from '../../services/geminiService';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
@@ -983,7 +984,14 @@ export const ContentOpsPage: React.FC<ContentOpsPageProps> = ({ addNotification,
     const [selectedPiece, setSelectedPiece] = useState<ContentPiece | null>(null);
     const [showAIStudio, setShowAIStudio] = useState(false);
     const [showAIIdeation, setShowAIIdeation] = useState(false);
-    const [activeTab, setActiveTab] = useState<'plan' | 'assets' | 'approvals'>('plan');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: 'plan' | 'assets' | 'approvals' = (rawTab && ['plan', 'assets', 'approvals'].includes(rawTab))
+        ? (rawTab as 'plan' | 'assets' | 'approvals')
+        : 'plan';
+    const setActiveTab = (tab: 'plan' | 'assets' | 'approvals') => {
+        setSearchParams({ tab }, { replace: true });
+    };
     // Approvals tab state (hoisted to avoid hooks-in-IIFE violation)
     const [approvalFilter, setApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
     const [localStatuses, setLocalStatuses] = useState<Record<string, 'pending' | 'approved' | 'rejected'>>({});

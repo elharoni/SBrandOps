@@ -9,6 +9,7 @@
  * - Tokens never exposed to this component
  */
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     AIAnalyticsInsights,
     AnalyticsData,
@@ -512,7 +513,14 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
     onNavigate,
 }) => {
     const { t } = useLanguage();
-    const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: AnalyticsTab = (rawTab && ['overview', 'social', 'ads', 'website', 'seo', 'content', 'insights', 'export'].includes(rawTab))
+        ? (rawTab as AnalyticsTab)
+        : 'overview';
+    const setActiveTab = (tab: AnalyticsTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
     const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
     const { data: queriedAnalytics } = usePageAnalytics(brandId);
 

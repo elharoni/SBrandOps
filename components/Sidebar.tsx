@@ -90,8 +90,9 @@ const getNavSections = (t: any, ar: boolean): NavSection[] => [
         id: 'inbox-section',
         label: ar ? 'الرسائل والتفاعل' : 'Inbox & Engagement',
         items: [
-            { id: 'inbox', icon: 'fa-inbox', label: ar ? 'صندوق الرسائل' : 'Unified Inbox' },
-            { id: 'workflow', icon: 'fa-robot', label: ar ? 'البوت الذكي' : 'Smart Bot' },
+            { id: 'inbox',       icon: 'fa-inbox',        label: ar ? 'صندوق الرسائل' : 'Unified Inbox' },
+            { id: 'brand-agent', icon: 'fa-robot',        label: ar ? 'وكيل البراند' : 'Brand Agent' },
+            { id: 'workflow',    icon: 'fa-sliders',      label: ar ? 'البوت الذكي' : 'Smart Bot' },
         ],
     },
     {
@@ -324,7 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
             ? (activePage === item.id ||
                 activePage.startsWith(`${item.id}/`) ||
                 (item.children?.some(c => c.id === activePage) ?? false))
-            : activePage === item.id;
+            : (activePage === item.id || activePage.startsWith(`${item.id}/`));
 
         return (
             <div key={item.id} className="group">
@@ -375,12 +376,12 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
     return (
         <>
             {isMobileOpen && (
-                <div className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm lg:hidden" onClick={closeMobile} />
+                <div className="fixed inset-0 z-40 bg-[#070b19]/60 backdrop-blur-md lg:hidden" onClick={closeMobile} />
             )}
 
             <aside
                 className={`fixed top-0 z-50 flex h-full flex-col bg-white/80 backdrop-blur-[24px] saturate-150 transition-all duration-300 dark:bg-[#070e1c]/80 lg:static shadow-[var(--shadow-ambient)] ${ar ? 'right-0 ' : 'left-0 '
-                    } ${isMobileOpen ? 'translate-x-0' : ar ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'w-[5.25rem]' : 'w-[18.5rem]'}`}
+                    } ${isMobileOpen ? 'translate-x-0' : ar ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0'} ${isCollapsed ? 'w-[5.25rem]' : 'w-[18.5rem]'} ltr:border-r rtl:border-l border-light-border/60 dark:border-dark-border/30`}
             >
                 {/* ── Logo ── */}
                 <div className={`flex items-center gap-3 px-4 pb-3 pt-5 ${isCollapsed ? 'justify-center px-2' : ''}`}>
@@ -405,7 +406,7 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({
                             </div>
                             <button
                                 onClick={closeMobile}
-                                className="ms-auto flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl text-light-text-secondary hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text lg:hidden"
+                                className="ms-auto flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-xl text-light-text-secondary hover:bg-light-card hover:text-light-text dark:text-dark-text-secondary dark:hover:bg-dark-card dark:hover:text-dark-text transition-all duration-150 active:scale-90 lg:hidden"
                                 aria-label={ar ? 'إغلاق القائمة' : 'Close sidebar'}
                             >
                                 <i className="fas fa-times text-sm" />

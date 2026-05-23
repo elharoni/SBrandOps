@@ -1,4 +1,5 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ActiveSession, ApiKey, NotificationType, PaymentRecord, SubscriptionPlan, User, UserRole } from '../../types';
 import { manageBillingSubscription } from '../../services/billingManagementService';
 import { useLanguage } from '../../context/LanguageContext';
@@ -768,7 +769,14 @@ const DbHealthPanel: React.FC = () => {
 export const SystemPage: React.FC<SystemPageProps> = props => {
     const { language } = useLanguage();
     const ar = language === 'ar';
-    const [activeTab, setActiveTab] = useState<SystemTab>('users');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const rawTab = searchParams.get('tab');
+    const activeTab: SystemTab = (rawTab && ['users', 'billing', 'security', 'api', 'database'].includes(rawTab))
+        ? (rawTab as SystemTab)
+        : 'users';
+    const setActiveTab = (tab: SystemTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
 
     const tabs = useMemo(() => ([
         { id: 'users'    as const, label: ar ? 'المستخدمون' : 'Users' },
