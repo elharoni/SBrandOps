@@ -1,4 +1,5 @@
 import React, { useState, lazy, Suspense } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLanguage } from '../../context/LanguageContext';
 import { usePermissions } from '../../context/PermissionContext';
 import { AccessDenied } from '../shared/AccessDenied';
@@ -146,6 +147,7 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
 }) => {
     // Permission checks — must be before any early returns (React rules of hooks)
     const { hasPermission, hasPlanFeature } = usePermissions();
+    const queryClient = useQueryClient();
 
     // Publisher flow state lives here — only used within brand page rendering
     const [postToEdit, setPostToEdit] = useState<ScheduledPost | null>(null);
@@ -672,7 +674,10 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                 <BrandHubPage
                     brandId={activeBrand.id}
                     initialProfile={fetchedBrandProfile ?? resolvedBrandProfile}
-                    onUpdate={(p) => updateBrandProfile(activeBrand.id, p)}
+                    onUpdate={async (p) => {
+                        await updateBrandProfile(activeBrand.id, p);
+                        queryClient.invalidateQueries({ queryKey: ['brandProfile', activeBrand.id] });
+                    }}
                     addNotification={addNotification}
                     onNavigate={onNavigate}
                 />
@@ -712,7 +717,10 @@ export const BrandRouter: React.FC<BrandRouterProps> = ({
                     <BrandHubPage
                         brandId={activeBrand.id}
                         initialProfile={resolvedBrandProfile}
-                        onUpdate={(p) => updateBrandProfile(activeBrand.id, p)}
+                        onUpdate={async (p) => {
+                            await updateBrandProfile(activeBrand.id, p);
+                            queryClient.invalidateQueries({ queryKey: ['brandProfile', activeBrand.id] });
+                        }}
                         addNotification={addNotification}
                     />
                 );
